@@ -18,10 +18,12 @@ add_executable(mlpack_test
   decision_stump_test.cpp
   det_test.cpp
   distribution_test.cpp
+  drusilla_select_test.cpp
   emst_test.cpp
   fastmks_test.cpp
   feedforward_network_test.cpp
   gmm_test.cpp
+  gradient_descent_test.cpp
   hmm_test.cpp
   hoeffding_tree_test.cpp
   hyperplane_test.cpp
@@ -57,8 +59,10 @@ add_executable(mlpack_test
   network_util_test.cpp
   nmf_test.cpp
   nystroem_method_test.cpp
+  octree_test.cpp
   pca_test.cpp
   perceptron_test.cpp
+  qdafn_test.cpp
   quic_svd_test.cpp
   radical_test.cpp
   randomized_svd_test.cpp
@@ -85,7 +89,14 @@ add_executable(mlpack_test
   tree_test.cpp
   tree_traits_test.cpp
   union_find_test.cpp
+  svd_batch_test.cpp
+  svd_incremental_test.cpp
+  nystroem_method_test.cpp
+  armadillo_svd_test.cpp
+  ub_tree_test.cpp
   vantage_point_tree_test.cpp
+  prefixedoutstream_test.cpp
+  timer_test.cpp
 )
 # Link dependencies of test executable.
 target_link_libraries(mlpack_test

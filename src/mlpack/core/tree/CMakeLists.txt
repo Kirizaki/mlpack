@@ -1,6 +1,7 @@
 # Define the files we need to compile.
 # Anything not in this list will not be compiled into mlpack.
 set(SOURCES
+  address.hpp
   ballbound.hpp
   ballbound_impl.hpp
   binary_space_tree.hpp
@@ -24,8 +25,12 @@ set(SOURCES
   binary_space_tree/vantage_point_split_impl.hpp
   binary_space_tree/traits.hpp
   binary_space_tree/typedef.hpp
+  binary_space_tree/ub_tree_split.hpp
+  binary_space_tree/ub_tree_split_impl.hpp
   bounds.hpp
   bound_traits.hpp
+  cellbound.hpp
+  cellbound_impl.hpp
   cosine_tree/cosine_tree.hpp
   cosine_tree/cosine_tree.cpp
   cover_tree/cover_tree.hpp
@@ -38,10 +43,21 @@ set(SOURCES
   cover_tree/traits.hpp
   cover_tree/typedef.hpp
   example_tree.hpp
+  greedy_single_tree_traverser.hpp
+  greedy_single_tree_traverser_impl.hpp
   hollow_ball_bound.hpp
   hollow_ball_bound_impl.hpp
   hrectbound.hpp
   hrectbound_impl.hpp
+  octree.hpp
+  octree/octree.hpp
+  octree/octree_impl.hpp
+  octree/single_tree_traverser.hpp
+  octree/single_tree_traverser_impl.hpp
+  octree/dual_tree_traverser.hpp
+  octree/dual_tree_traverser_impl.hpp
+  octree/traits.hpp
+  perform_split.hpp
   rectangle_tree.hpp
   rectangle_tree/rectangle_tree.hpp
   rectangle_tree/rectangle_tree_impl.hpp

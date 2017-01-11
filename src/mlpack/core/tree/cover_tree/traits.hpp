@@ -4,6 +4,11 @@
  *
  * This file contains the specialization of the TreeTraits class for the
  * CoverTree type of tree.
+ *
+ * mlpack is free software; you may redistribute it and/or modify it under the
+ * terms of the 3-clause BSD license.  You should have received a copy of the
+ * 3-clause BSD license along with mlpack.  If not, see
+ * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #ifndef MLPACK_CORE_TREE_COVER_TREE_TRAITS_HPP
 #define MLPACK_CORE_TREE_COVER_TREE_TRAITS_HPP
@@ -31,6 +36,12 @@ class TreeTraits<CoverTree<MetricType, StatisticType, MatType, RootPointPolicy>>
    * children represent non-overlapping subsets of the parent node.
    */
   static const bool HasOverlappingChildren = true;
+
+  /**
+   * Cover trees do have self-children, so points can be included in more than
+   * one node.
+   */
+  static const bool HasDuplicatedPoints = true;
 
   /**
    * Each cover tree node contains only one point, and that point is its

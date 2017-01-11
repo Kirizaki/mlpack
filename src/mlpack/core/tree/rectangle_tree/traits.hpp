@@ -3,6 +3,11 @@
  * @author Andrew Wells
  *
  * Specialization of the TreeTraits class for the RectangleTree type of tree.
+ *
+ * mlpack is free software; you may redistribute it and/or modify it under the
+ * terms of the 3-clause BSD license.  You should have received a copy of the
+ * 3-clause BSD license along with mlpack.  If not, see
+ * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #ifndef MLPACK_CORE_TREE_RECTANGLE_TREE_TRAITS_HPP
 #define MLPACK_CORE_TREE_RECTANGLE_TREE_TRAITS_HPP
@@ -32,6 +37,11 @@ class TreeTraits<RectangleTree<MetricType, StatisticType, MatType, SplitType,
    * An R-tree can have overlapping children.
    */
   static const bool HasOverlappingChildren = true;
+
+  /**
+   * An R-tree node doesn't share points with another node.
+   */
+  static const bool HasDuplicatedPoints = false;
 
   /**
    * There is no guarantee that the first point in a node is its centroid.
@@ -86,6 +96,11 @@ class TreeTraits<RectangleTree<MetricType,
    * The R+/R++ tree can't have overlapping children.
    */
   static const bool HasOverlappingChildren = false;
+
+  /**
+   * An R-tree node doesn't share points with another node.
+   */
+  static const bool HasDuplicatedPoints = false;
 
   /**
    * There is no guarantee that the first point in a node is its centroid.

@@ -4,6 +4,11 @@
  *
  * Template typedefs for the BinarySpaceTree class that satisfy the requirements
  * of the TreeType policy class.
+ *
+ * mlpack is free software; you may redistribute it and/or modify it under the
+ * terms of the 3-clause BSD license.  You should have received a copy of the
+ * 3-clause BSD license along with mlpack.  If not, see
+ * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #ifndef MLPACK_CORE_TREE_BINARY_SPACE_TREE_TYPEDEF_HPP
 #define MLPACK_CORE_TREE_BINARY_SPACE_TREE_TYPEDEF_HPP
@@ -259,6 +264,41 @@ using RPTree = BinarySpaceTree<MetricType,
                                   MatType,
                                   bound::HRectBound,
                                   RPTreeMeanSplit>;
+
+/**
+ * The Universal B-tree. When recursively splitting nodes, the class
+ * calculates addresses of all points and splits each node according to the
+ * median address. Children may overlap since the implementation
+ * of a tighter bound requires a lot of arithmetic operations. In order to get
+ * a tighter bound increase the CellBound::maxNumBounds constant.
+ *
+ * @code
+ * @inproceedings{bayer1997,
+ *   author = {Bayer, Rudolf},
+ *   title = {The Universal B-Tree for Multidimensional Indexing: General
+ *       Concepts},
+ *   booktitle = {Proceedings of the International Conference on Worldwide
+ *       Computing and Its Applications},
+ *   series = {WWCA '97},
+ *   year = {1997},
+ *   isbn = {3-540-63343-X},
+ *   pages = {198--209},
+ *   numpages = {12},
+ *   publisher = {Springer-Verlag},
+ *   address = {London, UK, UK},
+ * }
+ * @endcode
+ *
+ * This template typedef satisfies the TreeType policy API.
+ *
+ * @see @ref trees, BinarySpaceTree, BallTree, MeanSplitKDTree
+ */
+template<typename MetricType, typename StatisticType, typename MatType>
+using UBTree = BinarySpaceTree<MetricType,
+                               StatisticType,
+                               MatType,
+                               bound::CellBound,
+                               UBTreeSplit>;
 
 } // namespace tree
 } // namespace mlpack

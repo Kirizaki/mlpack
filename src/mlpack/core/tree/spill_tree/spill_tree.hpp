@@ -2,11 +2,16 @@
  * @file spill_tree.hpp
  *
  * Definition of generalized hybrid spill tree (SpillTree).
+ *
+ * mlpack is free software; you may redistribute it and/or modify it under the
+ * terms of the 3-clause BSD license.  You should have received a copy of the
+ * 3-clause BSD license along with mlpack.  If not, see
+ * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #ifndef MLPACK_CORE_TREE_SPILL_TREE_SPILL_TREE_HPP
 #define MLPACK_CORE_TREE_SPILL_TREE_SPILL_TREE_HPP
 
-#include <mlpack/core.hpp>
+#include <mlpack/prereqs.hpp>
 #include "../space_split/midpoint_space_split.hpp"
 #include "../statistic.hpp"
 
@@ -212,7 +217,7 @@ class SpillTree
   template<typename Archive>
   SpillTree(
       Archive& ar,
-      const typename boost::enable_if<typename Archive::is_loading>::type* = 0);
+      const typename std::enable_if_t<Archive::is_loading::value>* = 0);
 
   /**
    * Deletes this node, deallocating the memory for the children and calling
@@ -263,6 +268,44 @@ class SpillTree
 
   //! Return the number of children in this node.
   size_t NumChildren() const;
+
+  /**
+   * Return the index of the nearest child node to the given query point (this
+   * is an efficient estimation based on the splitting hyperplane, the node
+   * returned is not necessarily the nearest).  If this is a leaf node, it will
+   * return NumChildren() (invalid index).
+   */
+  template<typename VecType>
+  size_t GetNearestChild(
+      const VecType& point,
+      typename std::enable_if_t<IsVector<VecType>::value>* = 0);
+
+  /**
+   * Return the index of the furthest child node to the given query point (this
+   * is an efficient estimation based on the splitting hyperplane, the node
+   * returned is not necessarily the furthest).  If this is a leaf node, it will
+   * return NumChildren() (invalid index).
+   */
+  template<typename VecType>
+  size_t GetFurthestChild(
+      const VecType& point,
+      typename std::enable_if_t<IsVector<VecType>::value>* = 0);
+
+  /**
+   * Return the index of the nearest child node to the given query node (this
+   * is an efficient estimation based on the splitting hyperplane, the node
+   * returned is not necessarily the nearest).  If it can't decide it will
+   * return NumChildren() (invalid index).
+   */
+  size_t GetNearestChild(const SpillTree& queryNode);
+
+  /**
+   * Return the index of the furthest child node to the given query node (this
+   * is an efficient estimation based on the splitting hyperplane, the node
+   * returned is not necessarily the furthest).  If it can't decide it will
+   * return NumChildren() (invalid index).
+   */
+  size_t GetFurthestChild(const SpillTree& queryNode);
 
   /**
    * Return the furthest distance to a point held in this node.  If this is not
@@ -329,37 +372,28 @@ class SpillTree
    */
   size_t Point(const size_t index) const;
 
-  //! Determines if the node's half space intersects the given node.
-  bool HalfSpaceIntersects(const SpillTree& other) const;
-
-  //! Determines if the node's half space contains the given point.
-  template<typename VecType>
-  bool HalfSpaceContains(
-      const VecType& point,
-      typename boost::enable_if<IsVector<VecType> >::type* = 0) const;
-
   //! Return the minimum distance to another node.
-  ElemType MinDistance(const SpillTree* other) const
+  ElemType MinDistance(const SpillTree& other) const
   {
-    return bound.MinDistance(other->Bound());
+    return bound.MinDistance(other.Bound());
   }
 
   //! Return the maximum distance to another node.
-  ElemType MaxDistance(const SpillTree* other) const
+  ElemType MaxDistance(const SpillTree& other) const
   {
-    return bound.MaxDistance(other->Bound());
+    return bound.MaxDistance(other.Bound());
   }
 
   //! Return the minimum and maximum distance to another node.
-  math::RangeType<ElemType> RangeDistance(const SpillTree* other) const
+  math::RangeType<ElemType> RangeDistance(const SpillTree& other) const
   {
-    return bound.RangeDistance(other->Bound());
+    return bound.RangeDistance(other.Bound());
   }
 
   //! Return the minimum distance to another point.
   template<typename VecType>
   ElemType MinDistance(const VecType& point,
-                       typename boost::enable_if<IsVector<VecType> >::type* = 0)
+                       typename std::enable_if_t<IsVector<VecType>::value>* = 0)
       const
   {
     return bound.MinDistance(point);
@@ -368,7 +402,7 @@ class SpillTree
   //! Return the maximum distance to another point.
   template<typename VecType>
   ElemType MaxDistance(const VecType& point,
-                       typename boost::enable_if<IsVector<VecType> >::type* = 0)
+                       typename std::enable_if_t<IsVector<VecType>::value>* = 0)
       const
   {
     return bound.MaxDistance(point);
@@ -378,7 +412,7 @@ class SpillTree
   template<typename VecType>
   math::RangeType<ElemType>
   RangeDistance(const VecType& point,
-                typename boost::enable_if<IsVector<VecType> >::type* = 0) const
+                typename std::enable_if_t<IsVector<VecType>::value>* = 0) const
   {
     return bound.RangeDistance(point);
   }

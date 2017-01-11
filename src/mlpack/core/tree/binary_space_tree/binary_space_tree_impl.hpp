@@ -2,6 +2,11 @@
  * @file binary_space_tree_impl.hpp
  *
  * Implementation of generalized space partitioning tree.
+ *
+ * mlpack is free software; you may redistribute it and/or modify it under the
+ * terms of the 3-clause BSD license.  You should have received a copy of the
+ * 3-clause BSD license along with mlpack.  If not, see
+ * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #ifndef MLPACK_CORE_TREE_BINARY_SPACE_TREE_BINARY_SPACE_TREE_IMPL_HPP
 #define MLPACK_CORE_TREE_BINARY_SPACE_TREE_BINARY_SPACE_TREE_IMPL_HPP
@@ -407,6 +412,12 @@ BinarySpaceTree(BinarySpaceTree&& other) :
   other.furthestDescendantDistance = 0.0;
   other.minimumBoundDistance = 0.0;
   other.dataset = NULL;
+
+  //Set new parent.
+  if (left)
+    left->parent = this;
+  if (right)
+    right->parent = this;
 }
 
 /**
@@ -422,7 +433,7 @@ template<typename Archive>
 BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>::
 BinarySpaceTree(
     Archive& ar,
-    const typename boost::enable_if<typename Archive::is_loading>::type*) :
+    const typename std::enable_if_t<Archive::is_loading::value>*) :
     BinarySpaceTree() // Create an empty BinarySpaceTree.
 {
   // We've delegated to the constructor which gives us an empty tree, and now we
@@ -442,7 +453,7 @@ template<typename MetricType,
          template<typename SplitBoundType, typename SplitMatType>
              class SplitType>
 BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>::
-  ~BinarySpaceTree()
+    ~BinarySpaceTree()
 {
   delete left;
   delete right;
@@ -482,6 +493,104 @@ inline size_t BinarySpaceTree<MetricType, StatisticType, MatType, BoundType,
     return 1;
 
   return 0;
+}
+
+/**
+ * Return the index of the nearest child node to the given query point.  If
+ * this is a leaf node, it will return NumChildren() (invalid index).
+ */
+template<typename MetricType,
+         typename StatisticType,
+         typename MatType,
+         template<typename BoundMetricType, typename...> class BoundType,
+         template<typename SplitBoundType, typename SplitMatType>
+             class SplitType>
+template<typename VecType>
+size_t BinarySpaceTree<MetricType, StatisticType, MatType, BoundType,
+    SplitType>::GetNearestChild(
+    const VecType& point,
+    typename std::enable_if_t<IsVector<VecType>::value>*)
+{
+  if (IsLeaf() || !left || !right)
+    return 0;
+
+  if (left->MinDistance(point) <= right->MinDistance(point))
+    return 0;
+  return 1;
+}
+
+/**
+ * Return the index of the furthest child node to the given query point.  If
+ * this is a leaf node, it will return NumChildren() (invalid index).
+ */
+template<typename MetricType,
+         typename StatisticType,
+         typename MatType,
+         template<typename BoundMetricType, typename...> class BoundType,
+         template<typename SplitBoundType, typename SplitMatType>
+             class SplitType>
+template<typename VecType>
+size_t BinarySpaceTree<MetricType, StatisticType, MatType, BoundType,
+    SplitType>::GetFurthestChild(
+    const VecType& point,
+    typename std::enable_if_t<IsVector<VecType>::value>*)
+{
+  if (IsLeaf() || !left || !right)
+    return 0;
+
+  if (left->MaxDistance(point) > right->MaxDistance(point))
+    return 0;
+  return 1;
+}
+
+/**
+ * Return the index of the nearest child node to the given query node.  If it
+ * can't decide, it will return NumChildren() (invalid index).
+ */
+template<typename MetricType,
+         typename StatisticType,
+         typename MatType,
+         template<typename BoundMetricType, typename...> class BoundType,
+         template<typename SplitBoundType, typename SplitMatType>
+             class SplitType>
+size_t BinarySpaceTree<MetricType, StatisticType, MatType, BoundType,
+    SplitType>::GetNearestChild(const BinarySpaceTree& queryNode)
+{
+  if (IsLeaf() || !left || !right)
+    return 0;
+
+  ElemType leftDist = left->MinDistance(queryNode);
+  ElemType rightDist = right->MinDistance(queryNode);
+  if (leftDist < rightDist)
+    return 0;
+  if (rightDist < leftDist)
+    return 1;
+  return NumChildren();
+}
+
+/**
+ * Return the index of the furthest child node to the given query node.  If it
+ * can't decide, it will return NumChildren() (invalid index).
+ */
+template<typename MetricType,
+         typename StatisticType,
+         typename MatType,
+         template<typename BoundMetricType, typename...> class BoundType,
+         template<typename SplitBoundType, typename SplitMatType>
+             class SplitType>
+size_t BinarySpaceTree<MetricType, StatisticType, MatType, BoundType,
+    SplitType>::GetFurthestChild(const BinarySpaceTree& queryNode)
+{
+  if (IsLeaf() || !left || !right)
+    return 0;
+
+  ElemType leftDist = left->MaxDistance(queryNode);
+  ElemType rightDist = right->MaxDistance(queryNode);
+  if (leftDist > rightDist)
+    return 0;
+  if (rightDist > leftDist)
+    return 1;
+  return NumChildren();
 }
 
 /**
@@ -664,10 +773,10 @@ void BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>::
   if (!split)
     return;
 
-  // Perform the actual splitting.  This will order the dataset such that points
-  // that belong to the left subtree are on the left of splitCol, and points
-  // from the right subtree are on the right side of splitCol.
-  splitCol = PerformSplit(*dataset, begin, count, splitInfo);
+  // Perform the actual splitting.  This will order the dataset such that
+  // points that belong to the left subtree are on the left of splitCol, and
+  // points from the right subtree are on the right side of splitCol.
+  splitCol = splitter.PerformSplit(*dataset, begin, count, splitInfo);
 
   assert(splitCol > begin);
   assert(splitCol < begin + count);
@@ -730,10 +839,11 @@ SplitNode(std::vector<size_t>& oldFromNew,
   if (!split)
     return;
 
-  // Perform the actual splitting.  This will order the dataset such that points
-  // that belong to the left subtree are on the left of splitCol, and points
-  // from the right subtree are on the right side of splitCol.
-  splitCol = PerformSplit(*dataset, begin, count, splitInfo, oldFromNew);
+  // Perform the actual splitting.  This will order the dataset such that
+  // points that belong to the left subtree are on the left of splitCol, and
+  // points from the right subtree are on the right side of splitCol.
+  splitCol = splitter.PerformSplit(*dataset, begin, count, splitInfo,
+      oldFromNew);
 
   assert(splitCol > begin);
   assert(splitCol < begin + count);
@@ -765,119 +875,6 @@ template<typename MetricType,
          template<typename BoundMetricType, typename...> class BoundType,
          template<typename SplitBoundType, typename SplitMatType>
              class SplitType>
-size_t BinarySpaceTree<MetricType, StatisticType, MatType, BoundType,
-    SplitType>::PerformSplit(MatType& data,
-                             const size_t begin,
-                             const size_t count,
-                             const typename Split::SplitInfo& splitInfo)
-{
-  // This method modifies the input dataset.  We loop both from the left and
-  // right sides of the points contained in this node.  The points less than
-  // splitVal should be on the left side of the matrix, and the points greater
-  // than splitVal should be on the right side of the matrix.
-  size_t left = begin;
-  size_t right = begin + count - 1;
-
-  // First half-iteration of the loop is out here because the termination
-  // condition is in the middle.
-  while (Split::AssignToLeftNode(data.col(left), splitInfo) && (left <= right))
-    left++;
-  while ((!Split::AssignToLeftNode(data.col(right), splitInfo)) &&
-      (left <= right) && (right > 0))
-    right--;
-
-  while (left <= right)
-  {
-    // Swap columns.
-    data.swap_cols(left, right);
-
-    // See how many points on the left are correct.  When they are correct,
-    // increase the left counter accordingly.  When we encounter one that isn't
-    // correct, stop.  We will switch it later.
-    while (Split::AssignToLeftNode(data.col(left), splitInfo) &&
-        (left <= right))
-      left++;
-
-    // Now see how many points on the right are correct.  When they are correct,
-    // decrease the right counter accordingly.  When we encounter one that isn't
-    // correct, stop.  We will switch it with the wrong point we found in the
-    // previous loop.
-    while ((!Split::AssignToLeftNode(data.col(right), splitInfo)) &&
-        (left <= right))
-      right--;
-  }
-
-  Log::Assert(left == right + 1);
-
-  return left;
-}
-
-template<typename MetricType,
-         typename StatisticType,
-         typename MatType,
-         template<typename BoundMetricType, typename...> class BoundType,
-         template<typename SplitBoundType, typename SplitMatType>
-             class SplitType>
-size_t BinarySpaceTree<MetricType, StatisticType, MatType, BoundType,
-    SplitType>::PerformSplit(MatType& data,
-                             const size_t begin,
-                             const size_t count,
-                             const typename Split::SplitInfo& splitInfo,
-                             std::vector<size_t>& oldFromNew)
-{
-  // This method modifies the input dataset.  We loop both from the left and
-  // right sides of the points contained in this node.  The points less than
-  // splitVal should be on the left side of the matrix, and the points greater
-  // than splitVal should be on the right side of the matrix.
-  size_t left = begin;
-  size_t right = begin + count - 1;
-
-  // First half-iteration of the loop is out here because the termination
-  // condition is in the middle.
-  while (Split::AssignToLeftNode(data.col(left), splitInfo) && (left <= right))
-    left++;
-  while ((!Split::AssignToLeftNode(data.col(right), splitInfo)) &&
-      (left <= right) && (right > 0))
-    right--;
-
-  while (left <= right)
-  {
-    // Swap columns.
-    data.swap_cols(left, right);
-
-    // Update the indices for what we changed.
-    size_t t = oldFromNew[left];
-    oldFromNew[left] = oldFromNew[right];
-    oldFromNew[right] = t;
-
-    // See how many points on the left are correct.  When they are correct,
-    // increase the left counter accordingly.  When we encounter one that isn't
-    // correct, stop.  We will switch it later.
-    while (Split::AssignToLeftNode(data.col(left), splitInfo) &&
-        (left <= right))
-      left++;
-
-    // Now see how many points on the right are correct.  When they are correct,
-    // decrease the right counter accordingly.  When we encounter one that isn't
-    // correct, stop.  We will switch it with the wrong point we found in the
-    // previous loop.
-    while ((!Split::AssignToLeftNode(data.col(right), splitInfo)) &&
-        (left <= right))
-      right--;
-  }
-
-  Log::Assert(left == right + 1);
-
-  return left;
-}
-
-template<typename MetricType,
-         typename StatisticType,
-         typename MatType,
-         template<typename BoundMetricType, typename...> class BoundType,
-         template<typename SplitBoundType, typename SplitMatType>
-             class SplitType>
-
 template<typename BoundType2>
 void BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>::
 UpdateBound(BoundType2& boundToUpdate)

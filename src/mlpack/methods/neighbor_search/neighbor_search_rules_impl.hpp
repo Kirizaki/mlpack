@@ -3,6 +3,11 @@
  * @author Ryan Curtin
  *
  * Implementation of NeighborSearchRules.
+ *
+ * mlpack is free software; you may redistribute it and/or modify it under the
+ * terms of the 3-clause BSD license.  You should have received a copy of the
+ * 3-clause BSD license along with mlpack.  If not, see
+ * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #ifndef MLPACK_METHODS_NEIGHBOR_SEARCH_NEAREST_NEIGHBOR_RULES_IMPL_HPP
 #define MLPACK_METHODS_NEIGHBOR_SEARCH_NEAREST_NEIGHBOR_RULES_IMPL_HPP
@@ -143,6 +148,22 @@ inline double NeighborSearchRules<SortPolicy, MetricType, TreeType>::Score(
 
   return (SortPolicy::IsBetter(distance, bestDistance)) ?
       SortPolicy::ConvertToScore(distance) : DBL_MAX;
+}
+
+template<typename SortPolicy, typename MetricType, typename TreeType>
+inline size_t NeighborSearchRules<SortPolicy, MetricType, TreeType>::
+GetBestChild(const size_t queryIndex, TreeType& referenceNode)
+{
+  ++scores;
+  return SortPolicy::GetBestChild(querySet.col(queryIndex), referenceNode);
+}
+
+template<typename SortPolicy, typename MetricType, typename TreeType>
+inline size_t NeighborSearchRules<SortPolicy, MetricType, TreeType>::
+GetBestChild(const TreeType& queryNode, TreeType& referenceNode)
+{
+  ++scores;
+  return SortPolicy::GetBestChild(queryNode, referenceNode);
 }
 
 template<typename SortPolicy, typename MetricType, typename TreeType>

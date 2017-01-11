@@ -4,11 +4,16 @@
  *
  * Implementation of the SortPolicy class for NeighborSearch; in this case, the
  * nearest neighbors are those that are most important.
+ *
+ * mlpack is free software; you may redistribute it and/or modify it under the
+ * terms of the 3-clause BSD license.  You should have received a copy of the
+ * 3-clause BSD license along with mlpack.  If not, see
+ * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #ifndef MLPACK_METHODS_NEIGHBOR_SEARCH_NEAREST_NEIGHBOR_SORT_HPP
 #define MLPACK_METHODS_NEIGHBOR_SEARCH_NEAREST_NEIGHBOR_SORT_HPP
 
-#include <mlpack/core.hpp>
+#include <mlpack/prereqs.hpp>
 
 namespace mlpack {
 namespace neighbor {
@@ -77,6 +82,7 @@ class NearestNeighborSort
                                        const TreeType* referenceNode,
                                        const TreeType* referenceChildNode,
                                        const double centerToCenterDistance);
+
   /**
    * Return the best possible distance between a node and a point.  In our case,
    * this is the minimum distance between the tree node and the point using the
@@ -96,6 +102,26 @@ class NearestNeighborSort
   static double BestPointToNodeDistance(const VecType& queryPoint,
                                         const TreeType* referenceNode,
                                         const double pointToCenterDistance);
+
+  /**
+   * Return the best child according to this sort policy. In this case it will
+   * return the one with the minimum distance.
+   */
+  template<typename VecType, typename TreeType>
+  static size_t GetBestChild(const VecType& queryPoint, TreeType& referenceNode)
+  {
+    return referenceNode.GetNearestChild(queryPoint);
+  };
+
+  /**
+   * Return the best child according to this sort policy. In this case it will
+   * return the one with the minimum distance.
+   */
+  template<typename TreeType>
+  static size_t GetBestChild(const TreeType& queryNode, TreeType& referenceNode)
+  {
+    return referenceNode.GetNearestChild(queryNode);
+  };
 
   /**
    * Return what should represent the worst possible distance with this

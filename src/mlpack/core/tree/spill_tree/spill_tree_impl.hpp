@@ -2,6 +2,11 @@
  * @file spill_tree_impl.hpp
  *
  * Implementation of generalized hybrid spill tree (SpillTree).
+ *
+ * mlpack is free software; you may redistribute it and/or modify it under the
+ * terms of the 3-clause BSD license.  You should have received a copy of the
+ * 3-clause BSD license along with mlpack.  If not, see
+ * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #ifndef MLPACK_CORE_TREE_SPILL_TREE_SPILL_TREE_IMPL_HPP
 #define MLPACK_CORE_TREE_SPILL_TREE_SPILL_TREE_IMPL_HPP
@@ -243,7 +248,7 @@ template<typename Archive>
 SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>::
 SpillTree(
     Archive& ar,
-    const typename boost::enable_if<typename Archive::is_loading>::type*) :
+    const typename std::enable_if_t<Archive::is_loading::value>*) :
     SpillTree() // Create an empty SpillTree.
 {
   // We've delegated to the constructor which gives us an empty tree, and now we
@@ -304,6 +309,110 @@ inline size_t SpillTree<MetricType, StatisticType, MatType, HyperplaneType,
     return 1;
 
   return 0;
+}
+
+/**
+ * Return the index of the nearest child node to the given query point (this
+ * is an efficient estimation based on the splitting hyperplane, the node
+ * returned is not necessarily the nearest).  If this is a leaf node, it will
+ * return NumChildren() (invalid index).
+ */
+template<typename MetricType,
+         typename StatisticType,
+         typename MatType,
+         template<typename HyperplaneMetricType> class HyperplaneType,
+         template<typename SplitMetricType, typename SplitMatType>
+             class SplitType>
+template<typename VecType>
+size_t SpillTree<MetricType, StatisticType, MatType, HyperplaneType,
+    SplitType>::GetNearestChild(
+    const VecType& point,
+    typename std::enable_if_t<IsVector<VecType>::value>*)
+{
+  if (IsLeaf() || !left || !right)
+    return 0;
+
+  if (hyperplane.Left(point))
+    return 0;
+  return 1;
+}
+
+/**
+ * Return the index of the furthest child node to the given query point (this
+ * is an efficient estimation based on the splitting hyperplane, the node
+ * returned is not necessarily the furthest).  If this is a leaf node, it will
+ * return NumChildren() (invalid index).
+ */
+template<typename MetricType,
+         typename StatisticType,
+         typename MatType,
+         template<typename HyperplaneMetricType> class HyperplaneType,
+         template<typename SplitMetricType, typename SplitMatType>
+             class SplitType>
+template<typename VecType>
+size_t SpillTree<MetricType, StatisticType, MatType, HyperplaneType,
+    SplitType>::GetFurthestChild(
+    const VecType& point,
+    typename std::enable_if_t<IsVector<VecType>::value>*)
+{
+  if (IsLeaf() || !left || !right)
+    return 0;
+
+  if (hyperplane.Left(point))
+    return 1;
+  return 0;
+}
+
+/**
+ * Return the index of the nearest child node to the given query node (this
+ * is an efficient estimation based on the splitting hyperplane, the node
+ * returned is not necessarily the nearest).  If it can't decide it will
+ * return NumChildren() (invalid index).
+ */
+template<typename MetricType,
+         typename StatisticType,
+         typename MatType,
+         template<typename HyperplaneMetricType> class HyperplaneType,
+         template<typename SplitMetricType, typename SplitMatType>
+             class SplitType>
+size_t SpillTree<MetricType, StatisticType, MatType, HyperplaneType,
+    SplitType>::GetNearestChild(const SpillTree& queryNode)
+{
+  if (IsLeaf() || !left || !right)
+    return 0;
+
+  if (hyperplane.Left(queryNode.Bound()))
+    return 0;
+  if (hyperplane.Right(queryNode.Bound()))
+    return 1;
+  // Can't decide.
+  return 2;
+}
+
+/**
+ * Return the index of the furthest child node to the given query point (this
+ * is an efficient estimation based on the splitting hyperplane, the node
+ * returned is not necessarily the furthest).  If this is a leaf node, it will
+ * return NumChildren() (invalid index).
+ */
+template<typename MetricType,
+         typename StatisticType,
+         typename MatType,
+         template<typename HyperplaneMetricType> class HyperplaneType,
+         template<typename SplitMetricType, typename SplitMatType>
+             class SplitType>
+size_t SpillTree<MetricType, StatisticType, MatType, HyperplaneType,
+    SplitType>::GetFurthestChild(const SpillTree& queryNode)
+{
+  if (IsLeaf() || !left || !right)
+    return 0;
+
+  if (hyperplane.Left(queryNode.Bound()))
+    return 1;
+  if (hyperplane.Right(queryNode.Bound()))
+    return 0;
+  // Can't decide.
+  return 2;
 }
 
 /**
@@ -454,47 +563,6 @@ inline size_t SpillTree<MetricType, StatisticType, MatType, HyperplaneType,
     return (*pointsIndex)[index];
   // This should never happen.
   return (size_t() - 1);
-}
-
-template<typename MetricType,
-         typename StatisticType,
-         typename MatType,
-         template<typename HyperplaneMetricType> class HyperplaneType,
-         template<typename SplitMetricType, typename SplitMatType>
-             class SplitType>
-inline bool SpillTree<MetricType, StatisticType, MatType, HyperplaneType,
-    SplitType>::HalfSpaceIntersects(const SpillTree& other) const
-{
-  if (!Parent())
-    return true;
-
-  const bool left = this == Parent()->Left();
-
-  if (left)
-    return !Parent()->Hyperplane().Right(other.Bound());
-  else
-    return !Parent()->Hyperplane().Left(other.Bound());
-}
-
-template<typename MetricType,
-         typename StatisticType,
-         typename MatType,
-         template<typename HyperplaneMetricType> class HyperplaneType,
-         template<typename SplitMetricType, typename SplitMatType>
-             class SplitType>
-template<typename VecType>
-inline bool SpillTree<MetricType, StatisticType, MatType, HyperplaneType,
-    SplitType>::HalfSpaceContains(
-    const VecType& point,
-    typename boost::enable_if<IsVector<VecType> >::type*) const
-{
-  if (!Parent())
-    return true;
-
-  const bool left = this == Parent()->Left();
-  const bool toTheLeft = Parent()->Hyperplane().Left(point);
-
-  return left == toTheLeft;
 }
 
 template<typename MetricType,
