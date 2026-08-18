@@ -1,6 +1,7 @@
 /**
- * @file logistic_regression.hpp
+ * @file methods/logistic_regression/logistic_regression.hpp
  * @author Sumedh Ghaisas
+ * @author Arun Reddy
  *
  * The LogisticRegression class, which implements logistic regression.  This
  * implements supports L2-regularization.
@@ -13,13 +14,11 @@
 #ifndef MLPACK_METHODS_LOGISTIC_REGRESSION_LOGISTIC_REGRESSION_HPP
 #define MLPACK_METHODS_LOGISTIC_REGRESSION_LOGISTIC_REGRESSION_HPP
 
-#include <mlpack/prereqs.hpp>
-#include <mlpack/core/optimizers/lbfgs/lbfgs.hpp>
+#include <mlpack/core.hpp>
 
 #include "logistic_regression_function.hpp"
 
 namespace mlpack {
-namespace regression {
 
 /**
  * The LogisticRegression class implements an L2-regularized logistic regression
@@ -28,51 +27,19 @@ namespace regression {
  * parameter; for instance, logistic regression can be performed on sparse
  * datasets by specifying arma::sp_mat as the MatType parameter.
  *
+ * LogisticRegression can be used for general classification tasks, but the
+ * class is restricted to support only two classes.  For multiclass logistic
+ * regression, see SoftmaxRegression.
+ *
  * @tparam MatType Type of data matrix.
  */
 template<typename MatType = arma::mat>
 class LogisticRegression
 {
  public:
-  /**
-   * Construct the LogisticRegression class with the given labeled training
-   * data.  This will train the model.  Optionally, specify lambda, which is the
-   * penalty parameter for L2-regularization.  If not specified, it is set to 0,
-   * which results in standard (unregularized) logistic regression.
-   *
-   * It is not possible to set a custom optimizer with this constructor.  Either
-   * use a constructor that does not train and call Train() with a custom
-   * optimizer type, or use the constructor that takes an instantiated
-   * optimizer.  (This unfortunate situation is a language restriction of C++.)
-   *
-   * @param predictors Input training variables.
-   * @param responses Outputs resulting from input training variables.
-   * @param lambda L2-regularization parameter.
-   */
-  LogisticRegression(const MatType& predictors,
-                     const arma::Row<size_t>& responses,
-                     const double lambda = 0);
-
-  /**
-   * Construct the LogisticRegression class with the given labeled training
-   * data.  This will train the model.  Optionally, specify lambda, which is the
-   * penalty parameter for L2-regularization.  If not specified, it is set to 0,
-   * which results in standard (unregularized) logistic regression.
-   *
-   * It is not possible to set a custom optimizer with this constructor.  Either
-   * use a constructor that does not train and call Train() with a custom
-   * optimizer type, or use the constructor that takes an instantiated
-   * optimizer.  (This unfortunate situation is a language restriction of C++.)
-   *
-   * @param predictors Input training variables.
-   * @param responses Outputs results from input training variables.
-   * @param initialPoint Initial model to train with.
-   * @param lambda L2-regularization parameter.
-   */
-  LogisticRegression(const MatType& predictors,
-                     const arma::Row<size_t>& responses,
-                     const arma::vec& initialPoint,
-                     const double lambda = 0);
+  using ElemType = typename MatType::elem_type;
+  using RowType = typename GetDenseRowType<MatType>::type;
+  using ColType = typename GetDenseColType<MatType>::type;
 
   /**
    * Construct the LogisticRegression class without performing any training.
@@ -84,88 +51,242 @@ class LogisticRegression
    * @param dimensionality Dimensionality of the data.
    * @param lambda L2-regularization parameter.
    */
-  LogisticRegression(const size_t dimensionality,
+  LogisticRegression(const size_t dimensionality = 0,
                      const double lambda = 0);
 
   /**
    * Construct the LogisticRegression class with the given labeled training
-   * data.  This will train the model.  This overload takes an already
-   * instantiated optimizer (which holds the LogisticRegressionFunction error
-   * function, which must also be instantiated), so that the optimizer can be
-   * configured before the training is run by this constructor.  The predictors
-   * and responses and initial point are all taken from the error function
-   * contained in the optimizer.
+   * data.  This will train the model.  Optionally, specify lambda, which is the
+   * penalty parameter for L2-regularization.  If not specified, it is set to 0,
+   * which results in standard (unregularized) logistic regression.
    *
-   * @param optimizer Instantiated optimizer with instantiated error function.
+   * This constructor uses the default L-BFGS optimizer to train the model.
+   *
+   * @param predictors Input training variables.
+   * @param responses Outputs resulting from input training variables.
+   * @param lambda L2-regularization parameter.
    */
-  template<template<typename> class OptimizerType>
-  LogisticRegression(
-      OptimizerType<LogisticRegressionFunction<MatType>>& optimizer);
+  template<typename... CallbackTypes,
+           typename = std::enable_if_t<IsEnsCallbackTypes<
+               CallbackTypes...
+           >::value>>
+  LogisticRegression(const MatType& predictors,
+                     const arma::Row<size_t>& responses,
+                     const double lambda = 0.0,
+                     CallbackTypes&&... callbacks);
+
+  /**
+   * Construct the LogisticRegression class with the given labeled training
+   * data.  This will train the model.  Optionally, specify lambda, which is the
+   * penalty parameter for L2-regularization.  If not specified, it is set to 0,
+   * which results in standard (unregularized) logistic regression.
+   *
+   * This constructor uses the default L-BFGS optimizer to train the model.
+   *
+   * @param predictors Input training variables.
+   * @param responses Outputs results from input training variables.
+   * @param initialPoint Initial model to train with.
+   * @param lambda L2-regularization parameter.
+   * @param callbacks Instantiated ensmallen callbacks fro the default optimizer
+   *     (L-BFGS).
+   */
+  template<typename... CallbackTypes,
+           typename = std::enable_if_t<IsEnsCallbackTypes<
+               CallbackTypes...
+           >::value>>
+  LogisticRegression(const MatType& predictors,
+                     const arma::Row<size_t>& responses,
+                     const RowType& initialPoint,
+                     const double lambda = 0.0,
+                     CallbackTypes&&... callbacks);
+
+  /**
+   * Construct the LogisticRegression class with the given labeled training
+   * data.  This will train the model.  This overload takes an already
+   * instantiated optimizer, which can be configured before training is run by
+   * this constructor.
+   *
+   * Before optimization, the model will be initialized to zeros.
+   *
+   * @param predictors Input training variables.
+   * @param responses Outputs results from input training variables.
+   * @param optimizer Instantiated optimizer with instantiated error function.
+   * @param lambda L2-regularization parameter.
+   * @param callbacks Instantiated ensmallen callbacks fro the default optimizer
+   *     (L-BFGS).
+   */
+  template<typename OptimizerType,
+           typename... CallbackTypes,
+           typename = std::enable_if_t<IsEnsOptimizer<
+               OptimizerType, LogisticRegressionFunction<MatType>, RowType
+           >::value>,
+           typename = std::enable_if_t<IsEnsCallbackTypes<
+               CallbackTypes...
+           >::value>>
+  LogisticRegression(const MatType& predictors,
+                     const arma::Row<size_t>& responses,
+                     OptimizerType& optimizer,
+                     const double lambda = 0.0,
+                     CallbackTypes&&... callbacks);
+
+  /**
+   * Construct the LogisticRegression class with the given labeled training
+   * data.  This will train the model.  This overload takes an already
+   * instantiated optimizer, which can be configured before training is run by
+   * this constructor.
+   *
+   * Before optimization, the model will be initialized to zeros.
+   *
+   * @param predictors Input training variables.
+   * @param responses Outputs results from input training variables.
+   * @param optimizer Instantiated optimizer with instantiated error function.
+   * @param initialPoint Initial model to train with.
+   * @param lambda L2-regularization parameter.
+   * @param callbacks Instantiated ensmallen callbacks fro the default optimizer
+   *     (L-BFGS).
+   */
+  template<typename OptimizerType,
+           typename... CallbackTypes,
+           typename = std::enable_if_t<IsEnsOptimizer<
+               OptimizerType, LogisticRegressionFunction<MatType>, RowType
+           >::value>,
+           typename = std::enable_if_t<IsEnsCallbackTypes<
+               CallbackTypes...
+           >::value>>
+  LogisticRegression(const MatType& predictors,
+                     const arma::Row<size_t>& responses,
+                     OptimizerType& optimizer,
+                     const RowType& initialPoint,
+                     const double lambda = 0.0,
+                     CallbackTypes&&... callbacks);
 
   /**
    * Train the LogisticRegression model on the given input data.  By default,
    * the L-BFGS optimization algorithm is used, but others can be specified
-   * (such as mlpack::optimization::SGD).
+   * (such as ens::SGD).
    *
    * This will use the existing model parameters as a starting point for the
    * optimization.  If this is not what you want, then you should access the
    * parameters vector directly with Parameters() and modify it as desired.
    *
    * @tparam OptimizerType Type of optimizer to use to train the model.
+   * @tparam CallbackTypes Types of Callback Functions.
    * @param predictors Input training variables.
    * @param responses Outputs results from input training variables.
+   * @param callbacks Callback function for ensmallen optimizer `OptimizerType`.
+   *      See https://www.ensmallen.org/docs.html#callback-documentation.
+   * @return The final objective of the trained model (NaN or Inf on error)
    */
-  template<
-      template<typename> class OptimizerType = mlpack::optimization::L_BFGS
-  >
-  void Train(const MatType& predictors,
-             const arma::Row<size_t>& responses);
+  template<typename OptimizerType = ens::L_BFGS,
+           typename... CallbackTypes,
+           typename = std::enable_if_t<IsEnsCallbackTypes<
+               CallbackTypes...
+           >::value>>
+  ElemType Train(const MatType& predictors,
+                 const arma::Row<size_t>& responses,
+                 CallbackTypes&&... callbacks);
+
+  /**
+   * Train the LogisticRegression model on the given input data.  By default,
+   * the L-BFGS optimization algorithm is used, but others can be specified
+   * (such as ens::SGD).
+   *
+   * This will use the existing model parameters as a starting point for the
+   * optimization.  If this is not what you want, then you should access the
+   * parameters vector directly with Parameters() and modify it as desired.
+   *
+   * @tparam OptimizerType Type of optimizer to use to train the model.
+   * @tparam CallbackTypes Types of Callback Functions.
+   * @param predictors Input training variables.
+   * @param responses Outputs results from input training variables.
+   * @param lambda L2 regularization penalty parameter.
+   * @param callbacks Callback function for ensmallen optimizer `OptimizerType`.
+   *      See https://www.ensmallen.org/docs.html#callback-documentation.
+   * @return The final objective of the trained model (NaN or Inf on error)
+   */
+  template<typename OptimizerType = ens::L_BFGS,
+           typename... CallbackTypes,
+           typename = std::enable_if_t<IsEnsCallbackTypes<
+               CallbackTypes...
+           >::value>>
+  ElemType Train(const MatType& predictors,
+                 const arma::Row<size_t>& responses,
+                 const double lambda,
+                 CallbackTypes&&... callbacks);
 
   /**
    * Train the LogisticRegression model with the given instantiated optimizer.
    * Using this overload allows configuring the instantiated optimizer before
    * training is performed.
    *
-   * Note that the initial point of the optimizer
-   * (optimizer.Function().GetInitialPoint()) will be used as the initial point
-   * of the optimization, overwriting any existing trained model.  If you don't
-   * want to overwrite the existing model, set
-   * optimizer.Function().GetInitialPoint() to the current parameters vector,
-   * accessible via Parameters().
+   * This will use the existing model parameters as a starting point for the
+   * optimization.  If this is not what you want, then you should access the
+   * parameters vector directly with Parameters() and modify it as desired.
    *
+   * @tparam OptimizerType Type of optimizer to use to train the model.
+   * @tparam CallbackTypes Types of Callback Functions.
+   * @param predictors Input training variables.
+   * @param responses Outputs results from input training variables.
    * @param optimizer Instantiated optimizer with instantiated error function.
+   * @param callbacks Callback function for ensmallen optimizer `OptimizerType`.
+   *      See https://www.ensmallen.org/docs.html#callback-documentation.
+   * @return The final objective of the trained model (NaN or Inf on error)
    */
-  template<
-      template<typename> class OptimizerType = mlpack::optimization::L_BFGS
-  >
-  void Train(OptimizerType<LogisticRegressionFunction<MatType>>& optimizer);
+  template<typename OptimizerType,
+           typename... CallbackTypes,
+           typename = std::enable_if_t<IsEnsOptimizer<
+               OptimizerType, LogisticRegressionFunction<MatType>, RowType
+           >::value>,
+           typename = std::enable_if_t<IsEnsCallbackTypes<
+               CallbackTypes...
+           >::value>>
+  ElemType Train(const MatType& predictors,
+                 const arma::Row<size_t>& responses,
+                 OptimizerType& optimizer,
+                 CallbackTypes&&... callbacks);
+
+  /**
+   * Train the LogisticRegression model with the given instantiated optimizer.
+   * Using this overload allows configuring the instantiated optimizer before
+   * training is performed.
+   *
+   * This will use the existing model parameters as a starting point for the
+   * optimization.  If this is not what you want, then you should access the
+   * parameters vector directly with Parameters() and modify it as desired.
+   *
+   * @tparam OptimizerType Type of optimizer to use to train the model.
+   * @tparam CallbackTypes Types of Callback Functions.
+   * @param predictors Input training variables.
+   * @param responses Outputs results from input training variables.
+   * @param optimizer Instantiated optimizer with instantiated error function.
+   * @param lambda L2 regularization penalty parameter.
+   * @param callbacks Callback function for ensmallen optimizer `OptimizerType`.
+   *      See https://www.ensmallen.org/docs.html#callback-documentation.
+   * @return The final objective of the trained model (NaN or Inf on error)
+   */
+  template<typename OptimizerType,
+           typename... CallbackTypes,
+           typename = std::enable_if_t<IsEnsOptimizer<
+               OptimizerType, LogisticRegressionFunction<MatType>, RowType
+           >::value>,
+           typename = std::enable_if_t<IsEnsCallbackTypes<
+               CallbackTypes...
+           >::value>>
+  ElemType Train(const MatType& predictors,
+                 const arma::Row<size_t>& responses,
+                 OptimizerType& optimizer,
+                 const double lambda,
+                 CallbackTypes&&... callbacks);
 
   //! Return the parameters (the b vector).
-  const arma::vec& Parameters() const { return parameters; }
+  const RowType& Parameters() const { return parameters; }
   //! Modify the parameters (the b vector).
-  arma::vec& Parameters() { return parameters; }
+  RowType& Parameters() { return parameters; }
 
   //! Return the lambda value for L2-regularization.
   const double& Lambda() const { return lambda; }
   //! Modify the lambda value for L2-regularization.
   double& Lambda() { return lambda; }
-
-  /**
-   * Predict the responses to a given set of predictors.  The responses will be
-   * either 0 or 1.  Optionally, specify the decision boundary; logistic
-   * regression returns a value between 0 and 1.  If the value is greater than
-   * the decision boundary, the response is taken to be 1; otherwise, it is 0.
-   * By default the decision boundary is 0.5.
-   *
-   * This method is deprecated---you should use Classify() instead.
-   *
-   * @param predictors Input predictors.
-   * @param responses Vector to put output predictions of responses into.
-   * @param decisionBoundary Decision boundary (default 0.5).
-   */
-  void Predict(const MatType& predictors,
-               arma::Row<size_t>& responses,
-               const double decisionBoundary = 0.5) const;
 
   /**
    * Classify the given point.  The predicted label is returned.  Optionally,
@@ -183,18 +304,54 @@ class LogisticRegression
                   const double decisionBoundary = 0.5) const;
 
   /**
-   * Classify the given points, returning the predicted labels for each point.
-   * Optionally, specify the decision boundary; logistic regression returns a
-   * value between 0 and 1.  If the value is greater than the decision boundary,
-   * the response is taken to be 1; otherwise, it is 0.  By default the decision
-   * boundary is 0.5.
+   * Classify the given point, storing the predicted label in `prediction` and
+   * the class probabilities in `probabilities`.
+   *
+   * @param point Point to classify.
+   * @param prediction size_t to store computed label into.
+   * @param probabilities Vector to store class probabilities into.  Will have
+   *     length 2.
+   * @param decisionBoundary Decision boundary (default 0.5).
+   */
+  template<typename VecType>
+  void Classify(const VecType& point,
+                size_t& prediction,
+                ColType& probabilities,
+                const double decisionBoundary = 0.5) const;
+
+  /**
+   * Classify the given points, storing the predicted labels for each point in
+   * `labels`.  Optionally, specify the decision boundary; logistic regression
+   * returns a value between 0 and 1.  If the value is greater than the decision
+   * boundary, the response is taken to be 1; otherwise, it is 0.  By default
+   * the decision boundary is 0.5.
    *
    * @param dataset Set of points to classify.
-   * @param labels Predicted labels for each point.
+   * @param predictions Predicted labels for each point.
    * @param decisionBoundary Decision boundary (default 0.5).
    */
   void Classify(const MatType& dataset,
-                arma::Row<size_t>& labels,
+                arma::Row<size_t>& predictions,
+                const double decisionBoundary = 0.5) const;
+
+  /**
+   * Classify the given points, storing the predicted labels for each point in
+   * `labels` and the class probabilities for each point in `probabilities`.
+   *
+   * Optionally, specify the decision boundary; logistic regression
+   * returns a value between 0 and 1.  If the value is greater than the decision
+   * boundary, the response is taken to be 1; otherwise, it is 0.  By default
+   * the decision boundary is 0.5.
+   *
+   * @param dataset Set of points to classify.
+   * @param predictions Predicted labels for each point.
+   * @param probabilities Matrix to store class probabilities for each point
+   *     into.
+   * @param decisionBoundary Decision boundary (default 0.5).
+   */
+  void Classify(const MatType& dataset,
+                arma::Row<size_t>& predictions,
+                MatType& probabilities,
                 const double decisionBoundary = 0.5) const;
 
   /**
@@ -203,8 +360,17 @@ class LogisticRegression
    * @param dataset Set of points to classify.
    * @param probabilities Class probabilities for each point (output).
    */
+  [[deprecated("Will be removed in mlpack 5.0.0; use other Classify() "
+      "variants")]]
   void Classify(const MatType& dataset,
-                arma::mat& probabilities) const;
+                MatType& probabilities) const;
+
+  /**
+   * Reset the weights in the model to zeros.  This function can be used between
+   * calls to Train(), to force learning of a new model instead of incremental
+   * training.
+   */
+  void Reset();
 
   /**
    * Compute the accuracy of the model on the given predictors and responses,
@@ -237,17 +403,19 @@ class LogisticRegression
 
   //! Serialize the model.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */);
+  void serialize(Archive& ar, const uint32_t /* version */);
 
  private:
   //! Vector of trained parameters (size: dimensionality plus one).
-  arma::vec parameters;
+  RowType parameters;
   //! L2-regularization penalty parameter.
   double lambda;
 };
 
-} // namespace regression
 } // namespace mlpack
+
+CEREAL_TEMPLATE_CLASS_VERSION((typename MatType),
+    (mlpack::LogisticRegression<MatType>), (1));
 
 // Include implementation.
 #include "logistic_regression_impl.hpp"

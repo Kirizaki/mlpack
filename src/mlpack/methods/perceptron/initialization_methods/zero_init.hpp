@@ -1,5 +1,5 @@
 /**
- * @file zero_init.hpp
+ * @file methods/perceptron/initialization_methods/zero_init.hpp
  * @author Udit Saxena
  *
  * Implementation of ZeroInitialization policy for perceptrons.
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace perceptron {
 
 /**
  * This class is used to initialize the matrix weightVectors to zero.
@@ -25,8 +24,9 @@ class ZeroInitialization
  public:
   ZeroInitialization() { }
 
-  inline static void Initialize(arma::mat& weights,
-                                arma::vec& biases,
+  template<typename eT>
+  inline static void Initialize(arma::Mat<eT>& weights,
+                                arma::Col<eT>& biases,
                                 const size_t numFeatures,
                                 const size_t numClasses)
   {
@@ -35,7 +35,6 @@ class ZeroInitialization
   }
 }; // class ZeroInitialization
 
-} // namespace perceptron
 } // namespace mlpack
 
 #endif

@@ -1,5 +1,5 @@
 /**
- * @file logistic_function.hpp
+ * @file methods/ann/activation_functions/logistic_function.hpp
  * @author Marcus Edel
  *
  * Definition and implementation of the logistic function.
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace ann /** Artificial Neural Network. */ {
 
 /**
  * The logistic function, defined by
@@ -28,25 +27,25 @@ namespace ann /** Artificial Neural Network. */ {
  */
 class LogisticFunction
 {
-  public:
+ public:
   /**
    * Computes the logistic function.
    *
    * @param x Input data.
    * @return f(x).
    */
-  template<typename eT>
-  static double fn(const eT x)
+  template<typename ElemType>
+  static ElemType Fn(const ElemType x)
   {
-    if (x < arma::Datum<eT>::log_max)
+    if (x < arma::Datum<ElemType>::log_max)
     {
-      if (x > -arma::Datum<eT>::log_max)
-        return 1.0 /  (1.0 + std::exp(-x));
+      if (x > -arma::Datum<ElemType>::log_max)
+        return 1 / (1 + std::exp(-x));
 
-      return 0.0;
+      return 0;
     }
 
-    return 1.0;
+    return 1;
   }
 
   /**
@@ -56,32 +55,37 @@ class LogisticFunction
    * @param y The resulting output activation.
    */
   template<typename InputVecType, typename OutputVecType>
-  static void fn(const InputVecType& x, OutputVecType& y)
+  static void Fn(const InputVecType& x, OutputVecType& y)
   {
-    y = (1.0 / (1 + arma::exp(-x)));
+    y = (1 / (1 + exp(-x)));
   }
 
   /**
    * Computes the first derivative of the logistic function.
    *
-   * @param x Input data.
+   * @param x Input activation.
+   * @param y Result of Fn(x).
    * @return f'(x)
    */
-  static double deriv(const double y)
+  template<typename ElemType>
+  static ElemType Deriv(const ElemType /* x */, const ElemType y)
   {
-    return y * (1.0 - y);
+    return y * (1 - y);
   }
 
   /**
    * Computes the first derivatives of the logistic function.
    *
-   * @param y Input activations.
-   * @param x The resulting derivatives.
+   * @param x Input activation.
+   * @param y Result of Fn(x).
+   * @param dy The resulting derivatives.
    */
-  template<typename InputVecType, typename OutputVecType>
-  static void deriv(const InputVecType& y, OutputVecType& x)
+  template<typename InputVecType, typename OutputVecType, typename DerivVecType>
+  static void Deriv(const InputVecType& /* x */,
+                    const OutputVecType& y,
+                    DerivVecType& dy)
   {
-    x = y % (1.0 - y);
+    dy = y % (1 - y);
   }
 
   /**
@@ -90,7 +94,8 @@ class LogisticFunction
    * @param y Input data.
    * @return f^{-1}(y)
    */
-  static double inv(const double y)
+  template<typename ElemType>
+  static ElemType Inv(const ElemType y)
   {
     return arma::trunc_log(y / (1 - y));
   }
@@ -99,16 +104,15 @@ class LogisticFunction
    * Computes the inverse of the logistic function.
    *
    * @param y Input data.
-   * @return  x The resulting inverse of the input data.
+   * @param x The resulting inverse of the input data.
    */
   template<typename InputVecType, typename OutputVecType>
-  static void inv(const InputVecType& y, OutputVecType& x)
+  static void Inv(const InputVecType& y, OutputVecType& x)
   {
     x = arma::trunc_log(y / (1 - y));
   }
 }; // class LogisticFunction
 
-} // namespace ann
 } // namespace mlpack
 
 #endif

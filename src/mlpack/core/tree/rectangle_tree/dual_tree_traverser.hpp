@@ -1,5 +1,5 @@
 /**
- * @file dual_tree_traverser.hpp
+ * @file core/tree/rectangle_tree/dual_tree_traverser.hpp
  * @author Andrew Wells
  *
  * A nested class of Rectangle Tree for traversing rectangle type trees
@@ -19,16 +19,15 @@
 #include "rectangle_tree.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
          typename SplitType,
          typename DescentType,
          template<typename> class AuxiliaryInformationType>
 template<typename RuleType>
-class RectangleTree<MetricType, StatisticType, MatType, SplitType,
+class RectangleTree<DistanceType, StatisticType, MatType, SplitType,
                     DescentType, AuxiliaryInformationType>::DualTreeTraverser
 {
  public:
@@ -42,7 +41,6 @@ class RectangleTree<MetricType, StatisticType, MatType, SplitType,
    *
    * @param queryNode The query node to be traversed.
    * @param referenceNode The reference node to be traversed.
-   * @param score The score of the current node combination.
    */
   void Traverse(RectangleTree& queryNode, RectangleTree& referenceNode);
 
@@ -67,7 +65,6 @@ class RectangleTree<MetricType, StatisticType, MatType, SplitType,
   size_t& NumBaseCases() { return numBaseCases; }
 
  private:
-
   // We use this struct and this function to make the sorting and scoring easy
   // and efficient:
   struct NodeAndScore
@@ -103,7 +100,6 @@ class RectangleTree<MetricType, StatisticType, MatType, SplitType,
   typename RuleType::TraversalInfoType traversalInfo;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

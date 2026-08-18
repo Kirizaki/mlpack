@@ -1,5 +1,5 @@
 /**
- * @file prefixedoutstream.hpp
+ * @file core/util/prefixedoutstream.hpp
  * @author Ryan Curtin
  * @author Matthew Amidon
  *
@@ -13,13 +13,7 @@
 #ifndef MLPACK_CORE_UTIL_PREFIXEDOUTSTREAM_HPP
 #define MLPACK_CORE_UTIL_PREFIXEDOUTSTREAM_HPP
 
-#include <iostream>
-#include <iomanip>
-#include <string>
-#include <streambuf>
-#include <stdexcept>
-
-#include <mlpack/core/util/sfinae_utility.hpp>
+#include <mlpack/base.hpp>
 
 namespace mlpack {
 namespace util {
@@ -32,13 +26,13 @@ namespace util {
  * next line.  For example,
  *
  * @code
- * PrefixedOutStream outstr(std::cout, "[TEST] ");
+ * PrefixedOutStream outstr(MLPACK_COUT_STREAM, "[TEST] ");
  * outstr << "Hello world I like " << 7.5;
  * outstr << "...Continue" << std::endl;
  * outstr << "After the CR\n" << std::endl;
  * @endcode
  *
- * would give, on std::cout,
+ * would give, on MLPACK_COUT_STREAM,
  *
  * @code
  * [TEST] Hello world I like 7.5...Continue
@@ -60,13 +54,17 @@ class PrefixedOutStream
    * @param ignoreInput If true, the stream will not be printed.
    * @param fatal If true, a std::runtime_error exception is thrown after
    *     printing a newline.
+   * @param backtrace If true, attempt to print a backtrace (will only be
+   *     done if MLPACK_HAS_BFD_DL is defined).
    */
   PrefixedOutStream(std::ostream& destination,
                     const char* prefix,
                     bool ignoreInput = false,
-                    bool fatal = false) :
+                    bool fatal = false,
+                    bool backtrace = true) :
       destination(destination),
       ignoreInput(ignoreInput),
+      backtrace(backtrace),
       prefix(prefix),
       // We want the first call to operator<< to prefix the prefix so we set
       // carriageReturned to true.
@@ -113,22 +111,45 @@ class PrefixedOutStream
   template<typename T>
   PrefixedOutStream& operator<<(const T& s);
 
-  //! The output stream that all data is to be sent to; example: std::cout.
+  //! The output stream that all data is to be sent to; example:
+  //! MLPACK_COUT_STREAM.
   std::ostream& destination;
 
   //! Discards input, prints nothing if true.
   bool ignoreInput;
 
+  //! If true, on a fatal error, a backtrace will be printed if
+  //! MLPACK_HAS_BFD_DL is ! defined.
+  bool backtrace;
+
  private:
   /**
    * Conducts the base logic required in all the operator << overloads.  Mostly
-   * just a good idea to reduce copy-pasta.
+   * just a good idea to reduce copy-paste.
+   *
+   * This overload is for non-Armadillo objects, which need special handling
+   * during printing.
    *
    * @tparam T The type of the data to output.
    * @param val The The data to be output.
    */
   template<typename T>
-  void BaseLogic(const T& val);
+  std::enable_if_t<!arma::is_arma_type<T>::value>
+  BaseLogic(const T& val);
+
+  /**
+   * Conducts the base logic required in all the operator << overloads.  Mostly
+   * just a good idea to reduce copy-paste.
+   *
+   * This overload is for Armadillo objects, which need special handling during
+   * printing.
+   *
+   * @tparam T The type of the data to output.
+   * @param val The The data to be output.
+   */
+  template<typename T>
+  std::enable_if_t<arma::is_arma_type<T>::value>
+  BaseLogic(const T& val);
 
   /**
    * Output the prefix, but only if we need to and if we are allowed to.

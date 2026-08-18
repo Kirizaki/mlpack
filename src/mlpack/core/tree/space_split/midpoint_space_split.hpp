@@ -1,5 +1,5 @@
 /**
- * @file midpoing_space_split.hpp
+ * @file core/tree/space_split/midpoint_space_split.hpp
  * @author Marcos Pividori
  *
  * Definition of MidpointSpaceSplit, to create a splitting hyperplane
@@ -17,9 +17,8 @@
 #include "hyperplane.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType, typename MatType>
+template<typename DistanceType, typename MatType>
 class MidpointSpaceSplit
 {
  public:
@@ -41,7 +40,6 @@ class MidpointSpaceSplit
       HyperplaneType& hyp);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

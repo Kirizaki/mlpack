@@ -1,5 +1,5 @@
 /**
- * @file random_selection.hpp
+ * @file methods/nystroem_method/random_selection.hpp
  * @author Ryan Curtin
  *
  * Randomly select some points (with replacement) to use for the Nystroem
@@ -17,7 +17,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace kernel {
 
 class RandomSelection
 {
@@ -29,17 +28,16 @@ class RandomSelection
    * @param m Number of points to select.
    * @return Indices of selected points from the dataset.
    */
-  const static arma::Col<size_t> Select(const arma::mat& data, const size_t m)
+  static const arma::Col<size_t> Select(const arma::mat& data, const size_t m)
   {
     arma::Col<size_t> selectedPoints(m);
     for (size_t i = 0; i < m; ++i)
-      selectedPoints(i) = math::RandInt(0, data.n_cols);
+      selectedPoints(i) = RandInt(0, data.n_cols);
 
     return selectedPoints;
   }
 };
 
-} // namespace kernel
 } // namespace mlpack
 
 #endif

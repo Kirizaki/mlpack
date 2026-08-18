@@ -1,5 +1,5 @@
 /**
- * @file dtb.hpp
+ * @file methods/emst/dtb.hpp
  * @author Bill March (march@gatech.edu)
  *
  * Contains an implementation of the DualTreeBoruvka algorithm for finding a
@@ -25,16 +25,12 @@
 #ifndef MLPACK_METHODS_EMST_DTB_HPP
 #define MLPACK_METHODS_EMST_DTB_HPP
 
+#include <mlpack/core.hpp>
+
 #include "dtb_stat.hpp"
 #include "edge_pair.hpp"
 
-#include <mlpack/prereqs.hpp>
-#include <mlpack/core/metrics/lmetric.hpp>
-
-#include <mlpack/core/tree/binary_space_tree.hpp>
-
 namespace mlpack {
-namespace emst /** Euclidean Minimum Spanning Trees. */ {
 
 /**
  * Performs the MST calculation using the Dual-Tree Boruvka algorithm, using any
@@ -68,23 +64,23 @@ namespace emst /** Euclidean Minimum Spanning Trees. */ {
  * More advanced usage of the class can use different types of trees, pass in an
  * already-built tree, or compute the MST using the O(n^2) naive algorithm.
  *
- * @tparam MetricType The metric to use.
+ * @tparam DistanceType The distance metric to use.
  * @tparam MatType The type of data matrix to use.
  * @tparam TreeType Type of tree to use.  This should follow the TreeType policy
  *      API.
  */
 template<
-    typename MetricType = metric::EuclideanDistance,
+    typename DistanceType = EuclideanDistance,
     typename MatType = arma::mat,
-    template<typename TreeMetricType,
+    template<typename TreeDistanceType,
              typename TreeStatType,
-             typename TreeMatType> class TreeType = tree::KDTree
+             typename TreeMatType> class TreeType = KDTree
 >
 class DualTreeBoruvka
 {
  public:
   //! Convenience typedef.
-  typedef TreeType<MetricType, DTBStat, MatType> Tree;
+  using Tree = TreeType<DistanceType, DTBStat, MatType>;
 
  private:
   //! Permutations of points during tree building.
@@ -115,8 +111,8 @@ class DualTreeBoruvka
   //! Total distance of the tree.
   double totalDist;
 
-  //! The instantiated metric.
-  MetricType metric;
+  //! The instantiated distance metric.
+  DistanceType distance;
 
   //! For sorting the edge list after the computation.
   struct SortEdgesHelper
@@ -132,13 +128,13 @@ class DualTreeBoruvka
    * Create the tree from the given dataset.  This copies the dataset to an
    * internal copy, because tree-building modifies the dataset.
    *
-   * @param data Dataset to build a tree for.
+   * @param dataset Dataset to build a tree for.
    * @param naive Whether the computation should be done in O(n^2) naive mode.
-   * @param metric An optional instantiated metric to use.
+   * @param distance An optional instantiated distance metric to use.
    */
   DualTreeBoruvka(const MatType& dataset,
                   const bool naive = false,
-                  const MetricType metric = MetricType());
+                  const DistanceType distance = DistanceType());
 
   /**
    * Create the DualTreeBoruvka object with an already initialized tree.  This
@@ -152,13 +148,12 @@ class DualTreeBoruvka
    * of a matrix, be sure you pass the modified matrix to this object!  In
    * addition, mapping the points of the matrix back to their original indices
    * is not done when this constructor is used.
-   * @endnote
    *
    * @param tree Pre-built tree.
-   * @param metric An optional instantiated metric to use.
+   * @param distance An optional instantiated distance metric to use.
    */
   DualTreeBoruvka(Tree* tree,
-                  const MetricType metric = MetricType());
+                  const DistanceType distance = DistanceType());
 
   /**
    * Delete the tree, if it was created inside the object.
@@ -202,10 +197,8 @@ class DualTreeBoruvka
    * The values stored in the tree must be reset on each iteration.
    */
   void Cleanup();
-
 }; // class DualTreeBoruvka
 
-} // namespace emst
 } // namespace mlpack
 
 #include "dtb_impl.hpp"

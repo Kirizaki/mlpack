@@ -1,5 +1,5 @@
 /**
- * @file traits.hpp
+ * @file core/tree/octree/traits.hpp
  * @author Ryan Curtin
  *
  * Specialization of the TreeTraits class for the Octree class.
@@ -15,7 +15,6 @@
 #include <mlpack/core/tree/tree_traits.hpp>
 
 namespace mlpack {
-namespace tree {
 
 /**
  * This is a specialization of the TreeTraits class to the Octree tree type.  It
@@ -23,10 +22,10 @@ namespace tree {
  * tree-independent (but still optimized) tree-based algorithms.  See
  * mlpack/core/tree/tree_traits.hpp for more information.
  */
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType>
-class TreeTraits<Octree<MetricType, StatisticType, MatType>>
+class TreeTraits<Octree<DistanceType, StatisticType, MatType>>
 {
  public:
   /**
@@ -65,7 +64,6 @@ class TreeTraits<Octree<MetricType, StatisticType, MatType>>
   static const bool UniqueNumDescendants = true;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

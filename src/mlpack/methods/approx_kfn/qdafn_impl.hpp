@@ -1,5 +1,5 @@
 /**
- * @file qdafn_impl.hpp
+ * @file methods/approx_kfn/qdafn_impl.hpp
  * @author Ryan Curtin
  *
  * Implementation of QDAFN class methods.
@@ -19,7 +19,6 @@
 #include <mlpack/methods/neighbor_search/sort_policies/furthest_neighbor_sort.hpp>
 
 namespace mlpack {
-namespace neighbor {
 
 // Non-training constructor.
 template<typename MatType>
@@ -61,7 +60,7 @@ void QDAFN<MatType>::Train(const MatType& referenceSet,
   // Build tables.  This is done by drawing random points from a Gaussian
   // distribution as the vectors we project onto.  The Gaussian should have zero
   // mean and unit variance.
-  mlpack::distribution::GaussianDistribution gd(referenceSet.n_rows);
+  GaussianDistribution<> gd(referenceSet.n_rows);
   lines.set_size(referenceSet.n_rows, l);
   for (size_t i = 0; i < l; ++i)
     lines.col(i) = gd.Random();
@@ -113,14 +112,14 @@ void QDAFN<MatType>::Search(const MatType& querySet,
     std::priority_queue<std::pair<double, size_t>> queue;
     for (size_t i = 0; i < l; ++i)
     {
-      const double val = sValues(0, i) - arma::dot(querySet.col(q),
+      const double val = sValues(0, i) - dot(querySet.col(q),
           lines.col(i));
       queue.push(std::make_pair(val, i));
     }
 
     // To track where we are in each S table, we keep the next index to look at
     // in each table (they start at 0).
-    arma::Col<size_t> tableLocations = arma::zeros<arma::Col<size_t>>(l);
+    arma::Col<size_t> tableLocations = zeros<arma::Col<size_t>>(l);
 
     // Now that the queue is initialized, iterate over m elements.
     std::vector<std::pair<double, size_t>> v(k, std::make_pair(-1.0,
@@ -136,15 +135,10 @@ void QDAFN<MatType>::Search(const MatType& querySet,
       const size_t tableIndex = tableLocations[p.second];
 
       // Calculate distance from query point.
-      const double dist = mlpack::metric::EuclideanDistance::Evaluate(
-          querySet.col(q), candidateSet[p.second].col(tableIndex));
+      const double dist = EuclideanDistance::Evaluate(querySet.col(q),
+          candidateSet[p.second].col(tableIndex));
 
-      // Is this neighbor good enough to insert into the results?
-      if (dist > resultsQueue.top().first)
-      {
-        resultsQueue.pop();
-        resultsQueue.push(std::make_pair(dist, sIndices(tableIndex, p.second)));
-      }
+      resultsQueue.push(std::make_pair(dist, sIndices(tableIndex, p.second)));
 
       // Now (line 14) get the next element and insert into the queue.  Do this
       // by adjusting the previous value.  Don't insert anything if we are at
@@ -159,34 +153,46 @@ void QDAFN<MatType>::Search(const MatType& querySet,
       }
     }
 
-    // Extract the results.
-    for (size_t j = 1; j <= k; ++j)
+    // Extract the results and deduplicate them.
+    size_t extracted = 1;
+    neighbors(0, q) = resultsQueue.top().second;
+    distances(0, q) = resultsQueue.top().first;
+    resultsQueue.pop();
+
+    while (!resultsQueue.empty())
     {
-      neighbors(k - j, q) = resultsQueue.top().second;
-      distances(k - j, q) = resultsQueue.top().first;
+      if (extracted == k)
+        break;
+
+      std::pair<double, size_t> result = resultsQueue.top();
       resultsQueue.pop();
+
+      // Avoid inserting any duplicates.
+      if (neighbors(extracted - 1, q) != result.second)
+      {
+        neighbors(extracted, q) = resultsQueue.top().second;
+        distances(extracted, q) = resultsQueue.top().first;
+        ++extracted;
+      }
     }
   }
 }
 
 template<typename MatType>
 template<typename Archive>
-void QDAFN<MatType>::Serialize(Archive& ar, const unsigned int /* version */)
+void QDAFN<MatType>::serialize(Archive& ar, const uint32_t /* version */)
 {
-  using data::CreateNVP;
-
-  ar & CreateNVP(l, "l");
-  ar & CreateNVP(m, "m");
-  ar & CreateNVP(lines, "lines");
-  ar & CreateNVP(projections, "projections");
-  ar & CreateNVP(sIndices, "sIndices");
-  ar & CreateNVP(sValues, "sValues");
-  if (Archive::is_loading::value)
+  ar(CEREAL_NVP(l));
+  ar(CEREAL_NVP(m));
+  ar(CEREAL_NVP(lines));
+  ar(CEREAL_NVP(projections));
+  ar(CEREAL_NVP(sIndices));
+  ar(CEREAL_NVP(sValues));
+  if (cereal::is_loading<Archive>())
     candidateSet.clear();
-  ar & CreateNVP(candidateSet, "candidateSet");
+  ar(CEREAL_NVP(candidateSet));
 }
 
-} // namespace neighbor
 } // namespace mlpack
 
 #endif

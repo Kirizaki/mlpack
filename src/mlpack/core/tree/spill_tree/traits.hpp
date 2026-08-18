@@ -1,5 +1,5 @@
 /**
- * @file traits.hpp
+ * @file core/tree/spill_tree/traits.hpp
  * @author Ryan Curtin
  * @author Marcos Pividori
  *
@@ -16,7 +16,6 @@
 #include <mlpack/core/tree/tree_traits.hpp>
 
 namespace mlpack {
-namespace tree {
 
 /**
  * This is a specialization of the TreeType class to the SpillTree tree type.
@@ -24,13 +23,14 @@ namespace tree {
  * tree-independent (but still optimized) tree-based algorithms.  See
  * mlpack/core/tree/tree_traits.hpp for more information.
  */
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename HyperplaneMetricType> class HyperplaneType,
-         template<typename SplitMetricType, typename SplitMatType>
+         template<typename HyperplaneDistanceType, typename HyperplaneMatType>
+             class HyperplaneType,
+         template<typename SplitDistanceType, typename SplitMatType>
              class SplitType>
-class TreeTraits<SpillTree<MetricType, StatisticType, MatType, HyperplaneType,
+class TreeTraits<SpillTree<DistanceType, StatisticType, MatType, HyperplaneType,
     SplitType>>
 {
  public:
@@ -67,7 +67,6 @@ class TreeTraits<SpillTree<MetricType, StatisticType, MatType, HyperplaneType,
   static const bool UniqueNumDescendants = false;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

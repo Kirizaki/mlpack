@@ -1,5 +1,5 @@
 /**
- * @file binarize.hpp
+ * @file core/data/binarize.hpp
  * @author Keon Kim
  *
  * Defines Binarize(), a utility function, sets values to 0 or 1
@@ -16,7 +16,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace data {
 
 /**
  * Given an input dataset and threshold, set values greater than threshold to
@@ -44,18 +43,12 @@ void Binarize(const arma::Mat<T>& input,
 {
   output.copy_size(input);
 
-  const int totalElems = static_cast<int>(input.n_elem);
   const T *inPtr = input.memptr();
   T *outPtr = output.memptr();
 
   #pragma omp parallel for
-  for (int i = 0; i < totalElems; ++i)
-  {
-    if (inPtr[i] > threshold)
-      outPtr[i] = 1;
-    else
-      outPtr[i] = 0;
-  }
+  for (size_t i = 0; i < (size_t) input.n_elem; ++i)
+    outPtr[i] = inPtr[i] > threshold;
 }
 
 /**
@@ -86,19 +79,12 @@ void Binarize(const arma::Mat<T>& input,
               const size_t dimension)
 {
   output = input;
-  const int totalCols = static_cast<int>(input.n_cols);
 
   #pragma omp parallel for
-  for (int i = 0; i < totalCols; ++i)
-  {
-    if (input(dimension, i) > threshold)
-      output(dimension, i) = 1;
-    else
-      output(dimension, i) = 0;
-  }
+  for (size_t i = 0; i < (size_t) input.n_cols; ++i)
+    output(dimension, i) = input(dimension, i) > threshold;
 }
 
-} // namespace data
 } // namespace mlpack
 
 #endif

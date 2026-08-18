@@ -1,5 +1,5 @@
 /**
- * @file nearest_neighbor_sort.hpp
+ * @file methods/neighbor_search/sort_policies/nearest_neighbor_sort.hpp
  * @author Ryan Curtin
  *
  * Implementation of the SortPolicy class for NeighborSearch; in this case, the
@@ -16,7 +16,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace neighbor {
 
 /**
  * This class implements the necessary methods for the SortPolicy template
@@ -28,7 +27,7 @@ namespace neighbor {
  * SortPolicy.  All of the methods implemented here must be implemented by any
  * other SortPolicy classes.
  */
-class NearestNeighborSort
+class NearestNS
 {
  public:
   /**
@@ -195,7 +194,10 @@ class NearestNeighborSort
   }
 };
 
-} // namespace neighbor
+// Due to an internal MinGW compiler bug (string table overflow) we have to
+// truncate the class name. For backward compatibility we setup an alias here.
+using NearestNeighborSort = NearestNS;
+
 } // namespace mlpack
 
 // Include implementation of templated functions.

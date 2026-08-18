@@ -1,5 +1,5 @@
 /**
- * @file ra_util.hpp
+ * @file methods/rann/ra_util.hpp
  * @author Parikshit Ram
  * @author Ryan Curtin
  *
@@ -16,7 +16,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace neighbor {
 
 class RAUtil
 {
@@ -48,22 +47,11 @@ class RAUtil
                                    const size_t k,
                                    const size_t m,
                                    const size_t t);
-
-  /**
-   * Pick up desired number of samples (with replacement) from a given range
-   * of integers so that only the distinct samples are returned from
-   * the range [0 - specified upper bound)
-   *
-   * @param numSamples Number of random samples.
-   * @param rangeUpperBound The upper bound on the range of integers.
-   * @param distinctSamples The list of the distinct samples.
-   */
-  static void ObtainDistinctSamples(const size_t numSamples,
-                                    const size_t rangeUpperBound,
-                                    arma::uvec& distinctSamples);
 };
 
-} // namespace neighbor
 } // namespace mlpack
+
+// Include implementation.
+#include "ra_util_impl.hpp"
 
 #endif

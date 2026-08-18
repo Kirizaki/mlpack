@@ -1,5 +1,5 @@
 /**
- * @file quic_svd_method.hpp
+ * @file methods/pca/decomposition_policies/quic_svd_method.hpp
  * @author Marcus Edel
  *
  * Implementation of the QUIC-SVD policy for use in the Principal Components
@@ -18,15 +18,13 @@
 #include <mlpack/methods/quic_svd/quic_svd.hpp>
 
 namespace mlpack {
-namespace pca {
 
 /**
  * Implementation of the QUIC-SVD policy.
  */
 class QUICSVDPolicy
 {
-  public:
-
+ public:
   /**
    * Use QUIC-SVD method to perform the principal components analysis (PCA).
    *
@@ -49,28 +47,29 @@ class QUICSVDPolicy
    * @param transformedData Matrix to put results of PCA into.
    * @param eigVal Vector to put eigenvalues into.
    * @param eigvec Matrix to put eigenvectors (loadings) into.
-   * @param rank Rank of the decomposition.
+   * @param * (rank) Rank of the decomposition.
    */
-  void Apply(const arma::mat& data,
-             const arma::mat& centeredData,
-             arma::mat& transformedData,
-             arma::vec& eigVal,
-             arma::mat& eigvec,
+  template<typename InMatType, typename MatType, typename VecType>
+  void Apply(const InMatType& /* data */,
+             const MatType& centeredData,
+             MatType& transformedData,
+             VecType& eigVal,
+             MatType& eigvec,
              const size_t /* rank */)
   {
-    // This matrix will store the right singular values; we do not need them.
-    arma::mat v, sigma;
+    // This matrix will store the right singular vectors; we do not need them.
+    MatType v, sigma;
 
     // Do singular value decomposition using the QUIC-SVD algorithm.
-    svd::QUIC_SVD quicsvd(centeredData, eigvec, v, sigma, epsilon, delta);
+    QUIC_SVD<MatType> quicsvd(centeredData, eigvec, v, sigma, epsilon, delta);
 
     // Now we must square the singular values to get the eigenvalues.
     // In addition we must divide by the number of points, because the
     // covariance matrix is X * X' / (N - 1).
-    eigVal = arma::pow(arma::diagvec(sigma), 2) / (data.n_cols - 1);
+    eigVal = pow(arma::diagvec(sigma), 2) / (centeredData.n_cols - 1);
 
     // Project the samples to the principals.
-    transformedData = arma::trans(eigvec) * centeredData;
+    transformedData = trans(eigvec) * centeredData;
   }
 
   //! Get the error tolerance fraction for calculated subspace.
@@ -83,15 +82,14 @@ class QUICSVDPolicy
   //! Modify the cumulative probability for Monte Carlo error lower bound.
   double& Delta() { return delta; }
 
-  private:
-    //! Error tolerance fraction for calculated subspace.
-    double epsilon;
+ private:
+  //! Error tolerance fraction for calculated subspace.
+  double epsilon;
 
-    //! Cumulative probability for Monte Carlo error lower bound.
-    double delta;
+  //! Cumulative probability for Monte Carlo error lower bound.
+  double delta;
 };
 
-} // namespace pca
 } // namespace mlpack
 
 #endif

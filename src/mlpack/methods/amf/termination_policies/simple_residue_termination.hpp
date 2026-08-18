@@ -1,5 +1,5 @@
 /**
- * @file simple_residue_termination.hpp
+ * @file methods/amf/termination_policies/simple_residue_termination.hpp
  * @author Sumedh Ghaisas
  *
  * Termination policy used in AMF (Alternating Matrix Factorization).
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace amf {
 
 /**
  * This class implements a simple residue-based termination policy. The
@@ -40,8 +39,16 @@ class SimpleResidueTermination
    * @param maxIterations Maximum number of iterations.
    */
   SimpleResidueTermination(const double minResidue = 1e-5,
-                           const size_t maxIterations = 10000)
-      : minResidue(minResidue), maxIterations(maxIterations) { }
+                           const size_t maxIterations = 10000) :
+    minResidue(minResidue),
+    maxIterations(maxIterations),
+    residue(0.0),
+    iteration(0),
+    normOld(0),
+    nm(0)
+  {
+    // Nothing to do here.
+  }
 
   /**
    * Initializes the termination policy before stating the factorization.
@@ -53,7 +60,7 @@ class SimpleResidueTermination
   {
     // Initialize the things we keep track of.
     residue = DBL_MAX;
-    iteration = 1;
+    iteration = 0;
     nm = V.n_rows * V.n_cols;
     // Remove history.
     normOld = 0;
@@ -65,7 +72,8 @@ class SimpleResidueTermination
    * @param W Basis matrix of output.
    * @param H Encoding matrix of output.
    */
-  bool IsConverged(arma::mat& W, arma::mat& H)
+  template<typename MatType>
+  bool IsConverged(MatType& W, MatType& H)
   {
     // Calculate the norm and compute the residue, but do it by hand, so as to
     // avoid calculating (W*H), which may be very large.
@@ -82,7 +90,8 @@ class SimpleResidueTermination
     Log::Info << "Iteration " << iteration << "; residue " << residue << ".\n";
 
     // Check if termination criterion is met.
-    return (residue < minResidue || iteration > maxIterations);
+    // If maxIterations == 0, there is no iteration limit.
+    return (residue < minResidue || iteration == maxIterations);
   }
 
   //! Get current value of residue
@@ -99,7 +108,7 @@ class SimpleResidueTermination
   const double& MinResidue() const { return minResidue; }
   double& MinResidue() { return minResidue; }
 
-public:
+ public:
   //! residue threshold
   double minResidue;
   //! iteration threshold
@@ -115,7 +124,6 @@ public:
   size_t nm;
 }; // class SimpleResidueTermination
 
-} // namespace amf
 } // namespace mlpack
 
 

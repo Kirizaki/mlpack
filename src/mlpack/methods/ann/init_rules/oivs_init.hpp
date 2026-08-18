@@ -1,5 +1,5 @@
 /**
- * @file oivs_init.hpp
+ * @file methods/ann/init_rules/oivs_init.hpp
  * @author Marcus Edel
  *
  * Definition and implementation of the Optimal Initial Value Setting method
@@ -33,7 +33,6 @@
 #include "random_init.hpp"
 
 namespace mlpack {
-namespace ann /** Artificial Neural Network. */ {
 
 /**
  * This class is used to initialize the weight matrix with the oivs method. The
@@ -47,15 +46,13 @@ namespace ann /** Artificial Neural Network. */ {
  * w_i &=& \hat{w} \cdot \sqrt{a_i + 1}
  * @f}
  *
- * Where f is the transfer function epsilon, k custom parameters, n the number of
- * neurons in the outgoing layer and gamma a parameter that defines the random
- * interval.
+ * Where f is the transfer function epsilon, k custom parameters, n the number
+ * of neurons in the outgoing layer and gamma a parameter that defines the
+ * random interval.
  *
  * @tparam ActivationFunction The activation function used for the oivs method.
  */
-template<
-    class ActivationFunction = LogisticFunction
->
+template<class ActivationFunction = LogisticFunction>
 class OivsInitialization
 {
  public:
@@ -70,8 +67,8 @@ class OivsInitialization
                      const int k = 5,
                      const double gamma = 0.9) :
       k(k), gamma(gamma),
-      b(std::abs(ActivationFunction::inv(1 - epsilon) -
-                 ActivationFunction::inv(epsilon)))
+      b(std::abs(ActivationFunction::Inv(1 - epsilon) -
+                 ActivationFunction::Inv(epsilon)))
   {
   }
 
@@ -82,13 +79,28 @@ class OivsInitialization
    * @param rows Number of rows.
    * @param cols Number of columns.
    */
-  template<typename eT>
-  void Initialize(arma::Mat<eT>& W, const size_t rows, const size_t cols)
+  template<typename MatType>
+  void Initialize(MatType& W, const size_t rows, const size_t cols)
   {
     RandomInitialization randomInit(-gamma, gamma);
     randomInit.Initialize(W, rows, cols);
 
-    W = (b / (k  * rows)) * arma::sqrt(W + 1);
+    W = typename MatType::elem_type(b / (k * rows)) * sqrt(W + 1);
+  }
+
+  /**
+   * Initialize the elements of the specified weight matrix with the oivs method.
+   *
+   * @param W Weight matrix to initialize.
+   */
+  template<typename MatType>
+  void Initialize(MatType& W,
+      const typename std::enable_if_t<IsMatrix<MatType>::value>* = 0)
+  {
+    RandomInitialization randomInit(-gamma, gamma);
+    randomInit.Initialize(W);
+
+    W = typename MatType::elem_type(b / (k  * W.n_rows)) * sqrt(W + 1);
   }
 
   /**
@@ -100,31 +112,48 @@ class OivsInitialization
    * @param cols Number of columns.
    * @param slices Number of slices.
    */
-  template<typename eT>
-  void Initialize(arma::Cube<eT>& W,
+  template<typename CubeType>
+  void Initialize(CubeType& W,
                   const size_t rows,
                   const size_t cols,
                   const size_t slices)
   {
-    W = arma::Cube<eT>(rows, cols, slices);
+    if (W.is_empty())
+      W.set_size(rows, cols, slices);
 
-    for (size_t i = 0; i < slices; i++)
+    for (size_t i = 0; i < slices; ++i)
       Initialize(W.slice(i), rows, cols);
+  }
+
+  /**
+   * Initialize the elements of the specified weight 3rd order tensor with the
+   * oivs method.
+   *
+   * @param W 3rd order tensor to initialize.
+   */
+  template<typename CubeType>
+  void Initialize(CubeType& W,
+      const typename std::enable_if_t<IsCube<CubeType>::value>* = 0)
+  {
+    if (W.is_empty())
+      Log::Fatal << "Cannot initialize an empty cube." << std::endl;
+
+    for (size_t i = 0; i < W.n_slices; ++i)
+      Initialize(W.slice(i));
   }
 
  private:
   //! Parameter to control the activation region width.
-  const int k;
+  int k;
 
   //! Parameter to define the uniform random range.
-  const double gamma;
+  double gamma;
 
   //! Parameter to control the activation region.
-  const double b;
+  double b;
 }; // class OivsInitialization
 
 
-} // namespace ann
 } // namespace mlpack
 
 #endif

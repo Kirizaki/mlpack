@@ -1,5 +1,5 @@
 /**
- * @file simple_tolerance_termination.hpp
+ * @file methods/amf/termination_policies/simple_tolerance_termination.hpp
  * @author Sumedh Ghaisas
  *
  * Termination policy used in AMF (Alternating Matrix Factorization).
@@ -15,29 +15,37 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace amf {
 
 /**
  * This class implements residue tolerance termination policy. Termination
- * criterion is met when increase in residue value drops below the given tolerance.
- * To accommodate spikes certain number of successive residue drops are accepted.
- * This upper imit on successive drops can be adjusted with reverseStepCount.
- * Secondary termination criterion terminates algorithm when iteration count
- * goes above the threshold.
+ * criterion is met when increase in residue value drops below the given
+ * tolerance.  To accommodate spikes certain number of successive residue drops
+ * are accepted.  This upper limit on successive drops can be adjusted with
+ * reverseStepCount.  Secondary termination criterion terminates algorithm when
+ * iteration count goes above the threshold.
  *
  * @see AMF
  */
-template <class MatType>
+template<typename MatType, typename WHMatType = arma::mat>
 class SimpleToleranceTermination
 {
  public:
   //! empty constructor
   SimpleToleranceTermination(const double tolerance = 1e-5,
                              const size_t maxIterations = 10000,
-                             const size_t reverseStepTolerance = 3)
-            : tolerance(tolerance),
-              maxIterations(maxIterations),
-              reverseStepTolerance(reverseStepTolerance) {}
+                             const size_t reverseStepTolerance = 3) :
+      tolerance(tolerance),
+      maxIterations(maxIterations),
+      V(nullptr),
+      iteration(1),
+      residueOld(DBL_MAX),
+      residue(DBL_MIN),
+      reverseStepTolerance(reverseStepTolerance),
+      reverseStepCount(0),
+      isCopy(false),
+      cIndexOld(0),
+      cIndex(0)
+  { }
 
   /**
    * Initializes the termination policy before stating the factorization.
@@ -54,145 +62,143 @@ class SimpleToleranceTermination
 
     this->V = &V;
 
-    c_index = 0;
-    c_indexOld = 0;
-
-    reverseStepCount = 0;
+    cIndex = 0;
+    cIndexOld = 0;
   }
 
   /**
-   * Check if termination criterio is met.
+   * Check if termination criterion is met.
    *
    * @param W Basis matrix of output.
    * @param H Encoding matrix of output.
    */
-  bool IsConverged(arma::mat& W, arma::mat& H)
+  bool IsConverged(WHMatType& W, WHMatType& H)
   {
-    arma::mat WH;
+    WHMatType WH = W * H;
 
-    WH = W * H;
-
-    // compute residue
+    // Compute residue.
     residueOld = residue;
     size_t n = V->n_rows;
     size_t m = V->n_cols;
     double sum = 0;
     size_t count = 0;
-    for(size_t i = 0;i < n;i++)
+    for (size_t i = 0; i < n; ++i)
     {
-        for(size_t j = 0;j < m;j++)
+      for (size_t j = 0; j < m; ++j)
+      {
+        double temp = 0;
+        if ((temp = (*V)(i, j)) != 0)
         {
-            double temp = 0;
-            if ((temp = (*V)(i,j)) != 0)
-            {
-                temp = (temp - WH(i, j));
-                temp = temp * temp;
-                sum += temp;
-                count++;
-            }
+          temp = (temp - WH(i, j));
+          temp = temp * temp;
+          sum += temp;
+          count++;
         }
+      }
     }
-    residue = sum / count;
-    residue = sqrt(residue);
 
-    // increment iteration count
+    residue = sum;
+    if (count > 0)
+      residue /= count;
+    residue = std::sqrt(residue);
+
+    // Increment iteration count.
     iteration++;
     Log::Info << "Iteration " << iteration << "; residue "
         << ((residueOld - residue) / residueOld) << ".\n";
 
-    // if residue tolerance is not satisfied
+    // If residue tolerance is not satisfied.
     if ((residueOld - residue) / residueOld < tolerance && iteration > 4)
     {
-      // check if this is a first of successive drops
+      // Check if this is a first of successive drops.
       if (reverseStepCount == 0 && isCopy == false)
       {
-        // store a copy of W and H matrix
+        // Store a copy of W and H matrix.
         isCopy = true;
         this->W = W;
         this->H = H;
-        // store residue values
-        c_index = residue;
-        c_indexOld = residueOld;
+        // Store residue values.
+        cIndex = residue;
+        cIndexOld = residueOld;
       }
-      // increase successive drop count
+      // Increase successive drop count.
       reverseStepCount++;
     }
-    // if tolerance is satisfied
+    // If tolerance is satisfied.
     else
     {
-      // initialize successive drop count
+      // Initialize successive drop count.
       reverseStepCount = 0;
-      // if residue is droped below minimum scrap stored values
-      if (residue <= c_indexOld && isCopy == true)
+      // If residue is droped below minimum scrap stored values.
+      if (residue <= cIndexOld && isCopy == true)
       {
         isCopy = false;
       }
     }
 
-    // check if termination criterion is met
+    // Check if termination criterion is met.
     if (reverseStepCount == reverseStepTolerance || iteration > maxIterations)
     {
-      // if stored values are present replace them with current value as they
-      // represent the minimum residue point
+      // If stored values are present replace them with current value as they
+      // represent the minimum residue point.
       if (isCopy)
       {
         W = this->W;
         H = this->H;
-        residue = c_index;
+        residue = cIndex;
       }
       return true;
     }
-    else return false;
+
+    return false;
   }
 
-  //! Get current value of residue
+  //! Get current value of residue.
   const double& Index() const { return residue; }
 
-  //! Get current iteration count
+  //! Get current iteration count.
   const size_t& Iteration() const { return iteration; }
 
-  //! Access upper limit of iteration count
+  //! Access upper limit of iteration count.
   const size_t& MaxIterations() const { return maxIterations; }
   size_t& MaxIterations() { return maxIterations; }
 
-  //! Access tolerance value
+  //! Access tolerance value.
   const double& Tolerance() const { return tolerance; }
   double& Tolerance() { return tolerance; }
 
  private:
-  //! tolerance
+  //! Locally-stored tolerance.
   double tolerance;
-  //! iteration threshold
+  //! Locally-stored iteration threshold.
   size_t maxIterations;
 
-  //! pointer to matrix being factorized
+  //! Pointer to matrix being factorized.
   const MatType* V;
 
-  //! current iteration count
+  //! Current iteration count.
   size_t iteration;
 
-  //! residue values
+  //! Locally-stored residue values.
   double residueOld;
   double residue;
-  double normOld;
 
-  //! tolerance on successive residue drops
+  //! Tolerance on successive residue drops.
   size_t reverseStepTolerance;
-  //! successive residue drops
+  //! Successive residue drops.
   size_t reverseStepCount;
 
-  //! indicates whether a copy of information is available which corresponds to
-  //! minimum residue point
+  //! Indicates whether a copy of information is available which corresponds to
+  //! minimum residue point.
   bool isCopy;
 
-  //! variables to store information of minimum residue poi
-  arma::mat W;
-  arma::mat H;
-  double c_indexOld;
-  double c_index;
+  //! Variables to store information of minimum residue poi.
+  WHMatType W;
+  WHMatType H;
+  double cIndexOld;
+  double cIndex;
 }; // class SimpleToleranceTermination
 
-} // namespace amf
 } // namespace mlpack
 
 #endif // _MLPACK_METHODS_AMF_SIMPLE_TOLERANCE_TERMINATION_HPP_INCLUDED

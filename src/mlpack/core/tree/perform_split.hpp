@@ -1,5 +1,5 @@
 /**
- * @file perform_split.hpp
+ * @file core/tree/perform_split.hpp
  * @author Mikhail Lozhnikov
  *
  * This file contains functions that implement the default binary split
@@ -16,9 +16,9 @@
 #ifndef MLPACK_CORE_TREE_PERFORM_SPLIT_HPP
 #define MLPACK_CORE_TREE_PERFORM_SPLIT_HPP
 
+#include <mlpack/core/util/log.hpp>
+
 namespace mlpack {
-namespace tree /** Trees and tree-building procedures. */ {
-namespace split {
 
 /**
  * This function implements the default split behavior i.e. it rearranges
@@ -152,8 +152,6 @@ size_t PerformSplit(MatType& data,
   return left;
 }
 
-} // namespace split
-} // namespace tree
 } // namespace mlpack
 
 

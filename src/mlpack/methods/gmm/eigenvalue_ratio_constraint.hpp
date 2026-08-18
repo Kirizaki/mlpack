@@ -1,5 +1,5 @@
 /**
- * @file eigenvalue_ratio_constraint.hpp
+ * @file methods/gmm/eigenvalue_ratio_constraint.hpp
  * @author Ryan Curtin
  *
  * Constrain a covariance matrix to have a certain ratio of eigenvalues.
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace gmm {
 
 /**
  * Given a vector of eigenvalue ratios, ensure that the covariance matrix always
@@ -33,10 +32,10 @@ class EigenvalueRatioConstraint
    * which is the largest eigenvalue, so the first element of the vector should
    * be 1.  In addition, all other elements should be less than or equal to 1.
    */
-  EigenvalueRatioConstraint(const arma::vec& ratios) :
-      // Make an alias of the ratios vector.  It will never be modified here.
-      ratios(const_cast<double*>(ratios.memptr()), ratios.n_elem, false)
+  EigenvalueRatioConstraint(const arma::vec& ratios)
   {
+    // Make an alias of the ratios vector.  It will never be modified here.
+    MakeAlias(const_cast<arma::vec&>(this->ratios), ratios, ratios.n_elem);
     // Check validity of ratios.
     if (std::abs(ratios[0] - 1.0) > 1e-20)
       Log::Fatal << "EigenvalueRatioConstraint::EigenvalueRatioConstraint(): "
@@ -64,7 +63,12 @@ class EigenvalueRatioConstraint
     // Eigendecompose the matrix.
     arma::vec eigenvalues;
     arma::mat eigenvectors;
-    arma::eig_sym(eigenvalues, eigenvectors, covariance);
+    covariance = arma::symmatu(covariance);
+    if (!arma::eig_sym(eigenvalues, eigenvectors, covariance))
+    {
+      Log::Fatal << "applying to constraint could not be accomplished."
+          << std::endl;
+    }
 
     // Change the eigenvalues to what we are forcing them to be.  There
     // shouldn't be any negative eigenvalues anyway, so it doesn't matter if we
@@ -76,13 +80,34 @@ class EigenvalueRatioConstraint
     covariance = eigenvectors * arma::diagmat(eigenvalues) * eigenvectors.t();
   }
 
+  /**
+   * Apply the eigenvalue ratio constraint to the given diagonal covariance
+   * matrix (represented as a vector).
+   */
+  void ApplyConstraint(arma::vec& diagCovariance) const
+  {
+    // The matrix is already eigendecomposed but we need to sort the elements.
+    arma::uvec eigvalOrder = arma::sort_index(diagCovariance);
+    arma::vec eigvals = diagCovariance(eigvalOrder);
+
+    // Change the eigenvalues to what we are forcing them to be.  There
+    // shouldn't be any negative eigenvalues anyway, so it doesn't matter if we
+    // are suddenly forcing them to be positive.  If the first eigenvalue is
+    // negative, well, there are going to be some problems later...
+    eigvals = eigvals[0] * ratios;
+
+    // Reassemble the matrix.
+    for (size_t i = 0; i < eigvalOrder.n_elem; ++i)
+      diagCovariance[eigvalOrder[i]] = eigvals[i];
+  }
+
   //! Serialize the constraint.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
     // Strip the const for the sake of loading/saving.  This is the only time it
     // is modified (other than the constructor).
-    ar & data::CreateNVP(const_cast<arma::vec&>(ratios), "ratios");
+    ar(CEREAL_NVP(const_cast<arma::vec&>(ratios)));
   }
 
  private:
@@ -90,7 +115,6 @@ class EigenvalueRatioConstraint
   const arma::vec ratios;
 };
 
-} // namespace gmm
 } // namespace mlpack
 
 #endif

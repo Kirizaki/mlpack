@@ -1,5 +1,5 @@
 /**
- * @file nca_softmax_error_function.hpp
+ * @file methods/nca/nca_softmax_error_function.hpp
  * @author Ryan Curtin
  *
  * Implementation of the stochastic neighbor assignment probability error
@@ -14,9 +14,11 @@
 #define MLPACK_METHODS_NCA_NCA_SOFTMAX_ERROR_FUNCTION_HPP
 
 #include <mlpack/prereqs.hpp>
+#include <mlpack/core/distances/lmetric.hpp>
+#include <mlpack/core/math/make_alias.hpp>
+#include <mlpack/core/math/shuffle_data.hpp>
 
 namespace mlpack {
-namespace nca {
 
 /**
  * The "softmax" stochastic neighbor assignment probability function.
@@ -38,10 +40,17 @@ namespace nca {
  * operate on one point in the dataset.  This is useful for optimizers like
  * stochastic gradient descent (see mlpack::optimization::SGD).
  */
-template<typename MetricType = metric::SquaredEuclideanDistance>
+template<typename MatType = arma::mat,
+         typename LabelsType = arma::Row<size_t>,
+         typename DistanceType = SquaredEuclideanDistance>
 class SoftmaxErrorFunction
 {
  public:
+  // Convenience typedef for element type of data.
+  using ElemType = typename MatType::elem_type;
+  // Convenience typedef for column vector of data.
+  using VecType = typename GetColType<MatType>::type;
+
   /**
    * Initialize with the given kernel; useful when the kernel has some state to
    * store, which is set elsewhere.  If no kernel is given, an empty kernel is
@@ -50,11 +59,16 @@ class SoftmaxErrorFunction
    *
    * @param dataset Matrix containing the dataset.
    * @param labels Vector of class labels for each point in the dataset.
-   * @param kernel Instantiated kernel (optional).
+   * @param metric Instantiated metric (optional).
    */
-  SoftmaxErrorFunction(const arma::mat& dataset,
-                       const arma::Row<size_t>& labels,
-                       MetricType metric = MetricType());
+  SoftmaxErrorFunction(const MatType& dataset,
+                       const LabelsType& labels,
+                       DistanceType metric = DistanceType());
+
+  /**
+   * Shuffle the dataset.
+   */
+  void Shuffle();
 
   /**
    * Evaluate the softmax function for the given covariance matrix.  This is the
@@ -63,19 +77,23 @@ class SoftmaxErrorFunction
    *
    * @param covariance Covariance matrix of Mahalanobis distance.
    */
-  double Evaluate(const arma::mat& covariance);
+  ElemType Evaluate(const MatType& covariance);
 
   /**
    * Evaluate the softmax objective function for the given covariance matrix on
-   * only one point of the dataset.  This is the separable implementation, where
-   * the objective function is decomposed into the sum of many objective
+   * the given batch size from a given inital point of the dataset.
+   * This is the separable implementation, where the objective
+   * function is decomposed into the sum of many objective
    * functions, and here, only one of those constituent objective functions is
    * returned.
    *
    * @param covariance Covariance matrix of Mahalanobis distance.
-   * @param i Index of point to use for objective function.
+   * @param begin Index of the initial point to use for objective function.
+   * @param batchSize Number of points to use for objective function.
    */
-  double Evaluate(const arma::mat& covariance, const size_t i);
+  ElemType Evaluate(const MatType& covariance,
+                    const size_t begin,
+                    const size_t batchSize = 1);
 
   /**
    * Evaluate the gradient of the softmax function for the given covariance
@@ -85,27 +103,33 @@ class SoftmaxErrorFunction
    * @param covariance Covariance matrix of Mahalanobis distance.
    * @param gradient Matrix to store the calculated gradient in.
    */
-  void Gradient(const arma::mat& covariance, arma::mat& gradient);
+  void Gradient(const MatType& covariance, MatType& gradient);
 
   /**
    * Evaluate the gradient of the softmax function for the given covariance
-   * matrix on only one point of the dataset.  This is the separable
-   * implementation, where the objective function is decomposed into the sum of
-   * many objective functions, and here, only one of those constituent objective
-   * functions is returned.
+   * matrix on the given batch size, from a given initial point of the dataset.
+   * This is the separable implementation, where the objective function is
+   * decomposed into the sum of many objective functions, and here,
+   * only one of those constituent objective functions is returned.
+   * The type of the gradient parameter is a template
+   * argument to allow the computation of a sparse gradient.
    *
+   * @tparam GradType The type of the gradient out-param.
    * @param covariance Covariance matrix of Mahalanobis distance.
-   * @param i Index of point to use for objective function.
+   * @param begin Index of the initial point to use for objective function.
+   * @param batchSize Number of points to use for objective function.
    * @param gradient Matrix to store the calculated gradient in.
    */
-  void Gradient(const arma::mat& covariance,
-                const size_t i,
-                arma::mat& gradient);
+  template <typename GradType>
+  void Gradient(const MatType& covariance,
+                const size_t begin,
+                GradType& gradient,
+                const size_t batchSize = 1);
 
   /**
    * Get the initial point.
    */
-  const arma::mat GetInitialPoint() const;
+  const MatType GetInitialPoint() const;
 
   /**
    * Get the number of functions the objective function can be decomposed into.
@@ -114,23 +138,24 @@ class SoftmaxErrorFunction
   size_t NumFunctions() const { return dataset.n_cols; }
 
  private:
-  //! The dataset.
-  const arma::mat& dataset;
-  //! Labels for each point in the dataset.
-  const arma::Row<size_t>& labels;
+  //! The dataset.  This is an alias until Shuffle() is called.
+  MatType dataset;
+  //! Labels for each point in the dataset.  This is an alias until Shuffle() is
+  //! called.
+  LabelsType labels;
 
   //! The instantiated metric.
-  MetricType metric;
+  DistanceType distance;
 
   //! Last coordinates.  Used for the non-separable Evaluate() and Gradient().
-  arma::mat lastCoordinates;
+  MatType lastCoordinates;
   //! Stretched dataset.  Kept internal to avoid memory reallocations.
-  arma::mat stretchedDataset;
+  MatType stretchedDataset;
   //! Holds calculated p_i, for the non-separable Evaluate() and Gradient().
-  arma::vec p;
+  VecType p;
   //! Holds denominators for calculation of p_ij, for the non-separable
   //! Evaluate() and Gradient().
-  arma::vec denominators;
+  VecType denominators;
 
   //! False if nothing has ever been precalculated (only at construction time).
   bool precalculated;
@@ -148,10 +173,9 @@ class SoftmaxErrorFunction
    *
    * @param coordinates Coordinates matrix to use for precalculation.
    */
-  void Precalculate(const arma::mat& coordinates);
+  void Precalculate(const MatType& coordinates);
 };
 
-} // namespace nca
 } // namespace mlpack
 
 // Include implementation.

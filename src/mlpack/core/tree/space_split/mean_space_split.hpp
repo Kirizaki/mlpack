@@ -1,5 +1,5 @@
 /**
- * @file mean_space_split.hpp
+ * @file core/tree/space_split/mean_space_split.hpp
  * @author Marcos Pividori
  *
  * Definition of MeanSpaceSplit, to create a splitting hyperplane considering
@@ -17,9 +17,8 @@
 #include "hyperplane.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType, typename MatType>
+template<typename DistanceType, typename MatType>
 class MeanSpaceSplit
 {
  public:
@@ -41,7 +40,6 @@ class MeanSpaceSplit
       HyperplaneType& hyp);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

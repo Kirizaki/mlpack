@@ -1,5 +1,5 @@
 /***
- * @file furthest_neighbor_sort_impl.hpp
+ * @file methods/neighbor_search/sort_policies/furthest_neighbor_sort_impl.hpp
  * @author Ryan Curtin
  *
  * Implementation of templated methods for the FurthestNeighborSort SortPolicy
@@ -14,10 +14,9 @@
 #define MLPACK_METHODS_NEIGHBOR_SEARCH_FURTHEST_NEIGHBOR_SORT_IMPL_HPP
 
 namespace mlpack {
-namespace neighbor {
 
 template<typename TreeType>
-inline double FurthestNeighborSort::BestNodeToNodeDistance(
+inline double FurthestNS::BestNodeToNodeDistance(
     const TreeType* queryNode,
     const TreeType* referenceNode)
 {
@@ -27,7 +26,7 @@ inline double FurthestNeighborSort::BestNodeToNodeDistance(
 }
 
 template<typename TreeType>
-inline double FurthestNeighborSort::BestNodeToNodeDistance(
+inline double FurthestNS::BestNodeToNodeDistance(
     const TreeType* queryNode,
     const TreeType* referenceNode,
     const double centerToCenterDistance)
@@ -36,7 +35,7 @@ inline double FurthestNeighborSort::BestNodeToNodeDistance(
 }
 
 template<typename TreeType>
-inline double FurthestNeighborSort::BestNodeToNodeDistance(
+inline double FurthestNS::BestNodeToNodeDistance(
     const TreeType* queryNode,
     const TreeType* referenceNode,
     const TreeType* referenceChildNode,
@@ -47,7 +46,7 @@ inline double FurthestNeighborSort::BestNodeToNodeDistance(
 }
 
 template<typename VecType, typename TreeType>
-inline double FurthestNeighborSort::BestPointToNodeDistance(
+inline double FurthestNS::BestPointToNodeDistance(
     const VecType& point,
     const TreeType* referenceNode)
 {
@@ -57,7 +56,7 @@ inline double FurthestNeighborSort::BestPointToNodeDistance(
 }
 
 template<typename VecType, typename TreeType>
-inline double FurthestNeighborSort::BestPointToNodeDistance(
+inline double FurthestNS::BestPointToNodeDistance(
     const VecType& point,
     const TreeType* referenceNode,
     const double pointToCenterDistance)
@@ -65,7 +64,6 @@ inline double FurthestNeighborSort::BestPointToNodeDistance(
   return referenceNode->MaxDistance(point, pointToCenterDistance);
 }
 
-} // namespace neighbor
 } // namespace mlpack
 
 #endif

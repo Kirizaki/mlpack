@@ -1,5 +1,5 @@
 /**
- * @file kmeans_impl.hpp
+ * @file methods/kmeans/kmeans_impl.hpp
  * @author Parikshit Ram (pram@cc.gatech.edu)
  * @author Ryan Curtin
  *
@@ -12,11 +12,11 @@
  */
 #include "kmeans.hpp"
 
-#include <mlpack/core/metrics/lmetric.hpp>
+#include <mlpack/core/distances/lmetric.hpp>
 #include <mlpack/core/util/sfinae_utility.hpp>
+#include <mlpack/core/util/size_checks.hpp>
 
 namespace mlpack {
-namespace kmeans {
 
 /**
  * This gives us a GivesCentroids object that we can use to tell whether or not
@@ -81,23 +81,23 @@ bool GetInitialAssignmentsOrCentroids(
 /**
  * Construct the K-Means object.
  */
-template<typename MetricType,
+template<typename DistanceType,
          typename InitialPartitionPolicy,
          typename EmptyClusterPolicy,
          template<class, class> class LloydStepType,
          typename MatType>
 KMeans<
-    MetricType,
+    DistanceType,
     InitialPartitionPolicy,
     EmptyClusterPolicy,
     LloydStepType,
     MatType>::
 KMeans(const size_t maxIterations,
-       const MetricType metric,
+       const DistanceType distance,
        const InitialPartitionPolicy partitioner,
        const EmptyClusterPolicy emptyClusterAction) :
     maxIterations(maxIterations),
-    metric(metric),
+    distance(distance),
     partitioner(partitioner),
     emptyClusterAction(emptyClusterAction)
 {
@@ -110,13 +110,13 @@ KMeans(const size_t maxIterations,
  * centroids too.  If this is properly inlined, there shouldn't be any
  * performance penalty whatsoever.
  */
-template<typename MetricType,
+template<typename DistanceType,
          typename InitialPartitionPolicy,
          typename EmptyClusterPolicy,
          template<class, class> class LloydStepType,
          typename MatType>
 inline void KMeans<
-    MetricType,
+    DistanceType,
     InitialPartitionPolicy,
     EmptyClusterPolicy,
     LloydStepType,
@@ -134,13 +134,13 @@ Cluster(const MatType& data,
  * Perform k-means clustering on the data, returning a list of cluster
  * assignments and the centroids of each cluster.
  */
-template<typename MetricType,
+template<typename DistanceType,
          typename InitialPartitionPolicy,
          typename EmptyClusterPolicy,
          template<class, class> class LloydStepType,
          typename MatType>
 void KMeans<
-    MetricType,
+    DistanceType,
     InitialPartitionPolicy,
     EmptyClusterPolicy,
     LloydStepType,
@@ -161,15 +161,8 @@ Cluster(const MatType& data,
   // Check validity of initial guess.
   if (initialGuess)
   {
-    if (centroids.n_cols != clusters)
-      Log::Fatal << "KMeans::Cluster(): wrong number of initial cluster "
-        << "centroids (" << centroids.n_cols << ", should be " << clusters
-        << ")!" << std::endl;
-
-    if (centroids.n_rows != data.n_rows)
-      Log::Fatal << "KMeans::Cluster(): initial cluster centroids have wrong "
-        << " dimensionality (" << centroids.n_rows << ", should be "
-        << data.n_rows << ")!" << std::endl;
+    util::CheckSameSizes(centroids, clusters, "KMeans::Cluster()", "clusters");
+    util::CheckSameDimensionality(data, centroids, "KMeans::Cluster()");
   }
 
   // Use the partitioner to come up with the partition assignments and calculate
@@ -207,7 +200,7 @@ Cluster(const MatType& data,
 
   size_t iteration = 0;
 
-  LloydStepType<MetricType, MatType> lloydStep(data, metric);
+  LloydStepType<DistanceType, MatType> lloydStep(data, distance);
   arma::mat centroidsOther;
   double cNorm;
 
@@ -222,17 +215,17 @@ Cluster(const MatType& data,
 
     // If we are not allowing empty clusters, then check that all of our
     // clusters have points.
-    for (size_t i = 0; i < clusters; i++)
+    for (size_t i = 0; i < counts.n_elem; ++i)
     {
       if (counts[i] == 0)
       {
         Log::Info << "Cluster " << i << " is empty.\n";
         if (iteration % 2 == 0)
           emptyClusterAction.EmptyCluster(data, i, centroids, centroidsOther,
-              counts, metric, iteration);
+              counts, distance, iteration);
         else
           emptyClusterAction.EmptyCluster(data, i, centroidsOther, centroids,
-              counts, metric, iteration);
+              counts, distance, iteration);
       }
     }
 
@@ -241,7 +234,6 @@ Cluster(const MatType& data,
         << cNorm << ".\n";
     if (std::isnan(cNorm) || std::isinf(cNorm))
       cNorm = 1e-4; // Keep iterating.
-
   } while (cNorm > 1e-5 && iteration != maxIterations);
 
   // If we ended on an even iteration, then the centroids are in the
@@ -268,13 +260,13 @@ Cluster(const MatType& data,
  * Perform k-means clustering on the data, returning a list of cluster
  * assignments and the centroids of each cluster.
  */
-template<typename MetricType,
+template<typename DistanceType,
          typename InitialPartitionPolicy,
          typename EmptyClusterPolicy,
          template<class, class> class LloydStepType,
          typename MatType>
 void KMeans<
-    MetricType,
+    DistanceType,
     InitialPartitionPolicy,
     EmptyClusterPolicy,
     LloydStepType,
@@ -289,10 +281,7 @@ Cluster(const MatType& data,
   // Now, the initial assignments.  First determine if they are necessary.
   if (initialAssignmentGuess)
   {
-    if (assignments.n_elem != data.n_cols)
-      Log::Fatal << "KMeans::Cluster(): initial cluster assignments (length "
-          << assignments.n_elem << ") not the same size as the dataset (size "
-          << data.n_cols << ")!" << std::endl;
+    util::CheckSameSizes(data, assignments, "KMeans::Cluster()", "assignments");
 
     // Calculate initial centroids.
     arma::Row<size_t> counts;
@@ -312,21 +301,23 @@ Cluster(const MatType& data,
   Cluster(data, clusters, centroids,
       initialAssignmentGuess || initialCentroidGuess);
 
-  // Calculate final assignments.
+  // Calculate final assignments in parallel over the entire dataset.
   assignments.set_size(data.n_cols);
-  for (size_t i = 0; i < data.n_cols; ++i)
+
+  #pragma omp parallel for
+  for (size_t i = 0; i < (size_t) data.n_cols; ++i)
   {
     // Find the closest centroid to this point.
     double minDistance = std::numeric_limits<double>::infinity();
     size_t closestCluster = centroids.n_cols; // Invalid value.
 
-    for (size_t j = 0; j < centroids.n_cols; j++)
+    for (size_t j = 0; j < centroids.n_cols; ++j)
     {
-      const double distance = metric.Evaluate(data.col(i), centroids.col(j));
+      const double dist = distance.Evaluate(data.col(i), centroids.col(j));
 
-      if (distance < minDistance)
+      if (dist < minDistance)
       {
-        minDistance = distance;
+        minDistance = dist;
         closestCluster = j;
       }
     }
@@ -336,23 +327,22 @@ Cluster(const MatType& data,
   }
 }
 
-template<typename MetricType,
+template<typename DistanceType,
          typename InitialPartitionPolicy,
          typename EmptyClusterPolicy,
          template<class, class> class LloydStepType,
          typename MatType>
 template<typename Archive>
-void KMeans<MetricType,
+void KMeans<DistanceType,
             InitialPartitionPolicy,
             EmptyClusterPolicy,
             LloydStepType,
-            MatType>::Serialize(Archive& ar, const unsigned int /* version */)
+            MatType>::serialize(Archive& ar, const uint32_t /* version */)
 {
-  ar & data::CreateNVP(maxIterations, "max_iterations");
-  ar & data::CreateNVP(metric, "metric");
-  ar & data::CreateNVP(partitioner, "partitioner");
-  ar & data::CreateNVP(emptyClusterAction, "emptyClusterAction");
+  ar(CEREAL_NVP(maxIterations));
+  ar(CEREAL_NVP(distance));
+  ar(CEREAL_NVP(partitioner));
+  ar(CEREAL_NVP(emptyClusterAction));
 }
 
-} // namespace kmeans
 } // namespace mlpack

@@ -1,5 +1,5 @@
 /**
- * @file hyperbolic_tangent_kernel.hpp
+ * @file core/kernels/hyperbolic_tangent_kernel.hpp
  * @author Ajinkya Kale <kaleajinkya@gmail.com>
  *
  * Implementation of the hyperbolic tangent kernel.
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace kernel {
 
 /**
  * Hyperbolic tangent kernel.  For any two vectors @f$ x @f$, @f$ y @f$ and a
@@ -59,25 +58,25 @@ class HyperbolicTangentKernel
   template<typename VecTypeA, typename VecTypeB>
   double Evaluate(const VecTypeA& a, const VecTypeB& b)
   {
-    return tanh(scale * arma::dot(a, b) + offset);
+    return tanh(scale * dot(a, b) + offset);
   }
 
   //! Get scale factor.
   double Scale() const { return scale; }
   //! Modify scale factor.
-  double& Scale() { return scale; }
+  void Scale(const double scale) { this->scale = scale; }
 
   //! Get offset for the kernel.
   double Offset() const { return offset; }
   //! Modify offset for the kernel.
-  double& Offset() { return offset; }
+  void Offset(const double offset) { this->offset = offset; }
 
   //! Serialize the kernel.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    ar & data::CreateNVP(scale, "scale");
-    ar & data::CreateNVP(offset, "offset");
+    ar(CEREAL_NVP(scale));
+    ar(CEREAL_NVP(offset));
   }
 
  private:
@@ -85,7 +84,6 @@ class HyperbolicTangentKernel
   double offset;
 };
 
-} // namespace kernel
 } // namespace mlpack
 
 #endif

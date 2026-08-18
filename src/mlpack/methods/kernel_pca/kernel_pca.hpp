@@ -1,5 +1,5 @@
 /**
- * @file kernel_pca.hpp
+ * @file methods/kernel_pca/kernel_pca.hpp
  * @author Ajinkya Kale
  * @author Marcus Edel
  *
@@ -14,11 +14,12 @@
 #ifndef MLPACK_METHODS_KERNEL_PCA_KERNEL_PCA_HPP
 #define MLPACK_METHODS_KERNEL_PCA_KERNEL_PCA_HPP
 
-#include <mlpack/prereqs.hpp>
-#include <mlpack/methods/kernel_pca/kernel_rules/naive_method.hpp>
+#include <mlpack/core.hpp>
+
+#include "kernel_rules/naive_method.hpp"
+#include "kernel_rules/nystroem_method.hpp"
 
 namespace mlpack {
-namespace kpca {
 
 /**
  * This class performs kernel principal components analysis (Kernel PCA), for a
@@ -122,10 +123,8 @@ class KernelPCA
   //! If true, the data will be scaled (by standard deviation) when Apply() is
   //! run.
   bool centerTransformedData;
-
 }; // class KernelPCA
 
-} // namespace kpca
 } // namespace mlpack
 
 // Include implementation.

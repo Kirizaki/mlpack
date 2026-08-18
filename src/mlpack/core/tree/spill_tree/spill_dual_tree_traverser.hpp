@@ -1,5 +1,5 @@
 /**
- * @file spill_dual_tree_traverser.hpp
+ * @file core/tree/spill_tree/spill_dual_tree_traverser.hpp
  * @author Ryan Curtin
  * @author Marcos Pividori
  *
@@ -23,17 +23,17 @@
 #include "spill_tree.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename HyperplaneMetricType> class HyperplaneType,
-         template<typename SplitMetricType, typename SplitMatType>
+         template<typename HyperplaneDistanceType, typename HyperplaneMatType>
+             class HyperplaneType,
+         template<typename SplitDistanceType, typename SplitMatType>
              class SplitType>
 template<typename RuleType, bool Defeatist>
-class SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>::
-    SpillDualTreeTraverser
+class SpillTree<DistanceType, StatisticType, MatType, HyperplaneType,
+                SplitType>::SpillDualTreeTraverser
 {
  public:
   /**
@@ -46,10 +46,12 @@ class SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>::
    *
    * @param queryNode The query node to be traversed.
    * @param referenceNode The reference node to be traversed.
-   * @param score The score of the current node combination.
+   * @param bruteForce If true, then do a brute-force search on the reference
+   *     node instead of traversing any further.
    */
   void Traverse(SpillTree& queryNode,
-                SpillTree& referenceNode);
+                SpillTree& referenceNode,
+                const bool bruteForce = false);
 
   //! Get the number of prunes.
   size_t NumPrunes() const { return numPrunes; }
@@ -92,11 +94,9 @@ class SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>::
   typename RuleType::TraversalInfoType traversalInfo;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.
 #include "spill_dual_tree_traverser_impl.hpp"
 
 #endif // MLPACK_CORE_TREE_SPILL_TREE_SPILL_DUAL_TREE_TRAVERSER_HPP
-

@@ -1,5 +1,5 @@
 /**
- * @file single_tree_traverser.hpp
+ * @file core/tree/octree/single_tree_traverser.hpp
  * @author Ryan Curtin
  *
  * Definition of the single tree traverser for the octree.
@@ -16,11 +16,10 @@
 #include "octree.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType, typename StatisticType, typename MatType>
+template<typename DistanceType, typename StatisticType, typename MatType>
 template<typename RuleType>
-class Octree<MetricType, StatisticType, MatType>::SingleTreeTraverser
+class Octree<DistanceType, StatisticType, MatType>::SingleTreeTraverser
 {
  public:
   /**
@@ -49,7 +48,6 @@ class Octree<MetricType, StatisticType, MatType>::SingleTreeTraverser
   size_t numPrunes;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

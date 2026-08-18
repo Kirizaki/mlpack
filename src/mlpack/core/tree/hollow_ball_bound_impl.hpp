@@ -1,5 +1,5 @@
 /**
- * @file hollow_ball_bound_impl.hpp
+ * @file core/tree/hollow_ball_bound_impl.hpp
  *
  * Bounds that are useful for binary space partitioning trees.
  * Implementation of HollowBallBound ball bound metric policy class.
@@ -16,15 +16,14 @@
 #include "hollow_ball_bound.hpp"
 
 namespace mlpack {
-namespace bound {
 
 //! Empty Constructor.
-template<typename TMetricType, typename ElemType>
-HollowBallBound<TMetricType, ElemType>::HollowBallBound() :
+template<typename TDistanceType, typename ElemType>
+HollowBallBound<TDistanceType, ElemType>::HollowBallBound() :
     radii(std::numeric_limits<ElemType>::lowest(),
           std::numeric_limits<ElemType>::lowest()),
-    metric(new MetricType()),
-    ownsMetric(true)
+    distance(new DistanceType()),
+    ownsDistance(true)
 { /* Nothing to do. */ }
 
 /**
@@ -32,14 +31,15 @@ HollowBallBound<TMetricType, ElemType>::HollowBallBound() :
  *
  * @param dimension Dimensionality of ball bound.
  */
-template<typename TMetricType, typename ElemType>
-HollowBallBound<TMetricType, ElemType>::HollowBallBound(const size_t dimension) :
+template<typename TDistanceType, typename ElemType>
+HollowBallBound<TDistanceType, ElemType>::
+HollowBallBound(const size_t dimension) :
     radii(std::numeric_limits<ElemType>::lowest(),
           std::numeric_limits<ElemType>::lowest()),
     center(dimension),
     hollowCenter(dimension),
-    metric(new MetricType()),
-    ownsMetric(true)
+    distance(new DistanceType()),
+    ownsDistance(true)
 { /* Nothing to do. */ }
 
 /**
@@ -49,9 +49,9 @@ HollowBallBound<TMetricType, ElemType>::HollowBallBound(const size_t dimension) 
  * @param outerRadius Outer radius of hollow ball bound.
  * @param center Center of hollow ball bound.
  */
-template<typename TMetricType, typename ElemType>
+template<typename TDistanceType, typename ElemType>
 template<typename VecType>
-HollowBallBound<TMetricType, ElemType>::
+HollowBallBound<TDistanceType, ElemType>::
 HollowBallBound(const ElemType innerRadius,
                 const ElemType outerRadius,
                 const VecType& center) :
@@ -59,91 +59,120 @@ HollowBallBound(const ElemType innerRadius,
           outerRadius),
     center(center),
     hollowCenter(center),
-    metric(new MetricType()),
-    ownsMetric(true)
+    distance(new DistanceType()),
+    ownsDistance(true)
 { /* Nothing to do. */ }
 
 //! Copy Constructor. To prevent memory leaks.
-template<typename TMetricType, typename ElemType>
-HollowBallBound<TMetricType, ElemType>::HollowBallBound(
+template<typename TDistanceType, typename ElemType>
+HollowBallBound<TDistanceType, ElemType>::HollowBallBound(
     const HollowBallBound& other) :
     radii(other.radii),
     center(other.center),
     hollowCenter(other.hollowCenter),
-    metric(other.metric),
-    ownsMetric(false)
+    distance(other.distance),
+    ownsDistance(false)
 { /* Nothing to do. */ }
 
 //! For the same reason as the copy constructor: to prevent memory leaks.
-template<typename TMetricType, typename ElemType>
-HollowBallBound<TMetricType, ElemType>& HollowBallBound<TMetricType, ElemType>::
-operator=(const HollowBallBound& other)
+template<typename TDistanceType, typename ElemType>
+HollowBallBound<TDistanceType, ElemType>&
+HollowBallBound<TDistanceType, ElemType>::operator=(
+    const HollowBallBound& other)
 {
-  radii = other.radii;
-  center = other.center;
-  hollowCenter = other.hollowCenter;
-  metric = other.metric;
-  ownsMetric = false;
+  if (this != &other)
+  {
+    if (ownsDistance)
+      delete distance;
 
+    radii = other.radii;
+    center = other.center;
+    hollowCenter = other.hollowCenter;
+    distance = other.distance;
+    ownsDistance = false;
+  }
   return *this;
 }
 
 //! Move constructor.
-template<typename TMetricType, typename ElemType>
-HollowBallBound<TMetricType, ElemType>::HollowBallBound(
+template<typename TDistanceType, typename ElemType>
+HollowBallBound<TDistanceType, ElemType>::HollowBallBound(
     HollowBallBound&& other) :
     radii(other.radii),
     center(std::move(other.center)),
     hollowCenter(std::move(other.hollowCenter)),
-    metric(other.metric),
-    ownsMetric(other.ownsMetric)
+    distance(other.distance),
+    ownsDistance(other.ownsDistance)
 {
   // Fix the other bound.
   other.radii.Hi() = 0.0;
   other.radii.Lo() = 0.0;
   other.center = arma::Col<ElemType>();
   other.hollowCenter = arma::Col<ElemType>();
-  other.metric = NULL;
-  other.ownsMetric = false;
+  other.distance = NULL;
+  other.ownsDistance = false;
+}
+
+//! Move assignment operator.
+template<typename TDistanceType, typename ElemType>
+HollowBallBound<TDistanceType, ElemType>&
+HollowBallBound<TDistanceType, ElemType>::operator=(HollowBallBound&& other)
+{
+  if (this != &other)
+  {
+    radii = other.radii;
+    center = std::move(other.center);
+    hollowCenter = std::move(other.hollowCenter);
+    distance = other.distance;
+    ownsDistance = other.ownsDistance;
+
+    other.radii.Hi() = 0.0;
+    other.radii.Lo() = 0.0;
+    other.center = arma::Col<ElemType>();
+    other.hollowCenter = arma::Col<ElemType>();
+    other.distance = nullptr;
+    other.ownsDistance = false;
+  }
+  return *this;
 }
 
 //! Destructor to release allocated memory.
-template<typename TMetricType, typename ElemType>
-HollowBallBound<TMetricType, ElemType>::~HollowBallBound()
+template<typename TDistanceType, typename ElemType>
+HollowBallBound<TDistanceType, ElemType>::~HollowBallBound()
 {
-  if (ownsMetric)
-    delete metric;
+  if (ownsDistance)
+    delete distance;
 }
 
 //! Get the range in a certain dimension.
-template<typename TMetricType, typename ElemType>
-math::RangeType<ElemType> HollowBallBound<TMetricType, ElemType>::operator[](
+template<typename TDistanceType, typename ElemType>
+RangeType<ElemType> HollowBallBound<TDistanceType, ElemType>::operator[](
     const size_t i) const
 {
   if (radii.Hi() < 0)
-    return math::Range();
+    return Range();
   else
-    return math::Range(center[i] - radii.Hi(), center[i] + radii.Hi());
+    return Range(center[i] - radii.Hi(), center[i] + radii.Hi());
 }
 
 /**
  * Determines if a point is within the bound.
  */
-template<typename TMetricType, typename ElemType>
+template<typename TDistanceType, typename ElemType>
 template<typename VecType>
-bool HollowBallBound<TMetricType, ElemType>::Contains(
+bool HollowBallBound<TDistanceType, ElemType>::Contains(
     const VecType& point) const
 {
   if (radii.Hi() < 0)
     return false;
   else
   {
-    ElemType dist = metric->Evaluate(center, point);
+    ElemType dist = distance->Evaluate(center, point);
     if (dist > radii.Hi())
       return false; // The point is situated outside the outer ball.
 
     // Check if the point is situated outside the hole.
-    dist = metric->Evaluate(hollowCenter, point);
+    dist = distance->Evaluate(hollowCenter, point);
 
     return (dist >= radii.Lo());
   }
@@ -152,18 +181,18 @@ bool HollowBallBound<TMetricType, ElemType>::Contains(
 /**
  * Determines if another bound is within this bound.
  */
-template<typename TMetricType, typename ElemType>
-bool HollowBallBound<TMetricType, ElemType>::Contains(
+template<typename TDistanceType, typename ElemType>
+bool HollowBallBound<TDistanceType, ElemType>::Contains(
     const HollowBallBound& other) const
 {
   if (radii.Hi() < 0)
     return false;
   else
   {
-    const ElemType dist = metric->Evaluate(center, other.center);
-    const ElemType hollowCenterDist = metric->Evaluate(hollowCenter,
+    const ElemType dist = distance->Evaluate(center, other.center);
+    const ElemType hollowCenterDist = distance->Evaluate(hollowCenter,
         other.center);
-    const ElemType hollowHollowDist = metric->Evaluate(hollowCenter,
+    const ElemType hollowHollowDist = distance->Evaluate(hollowCenter,
         other.hollowCenter);
 
     // The outer ball of the second bound does not contain the hole of the first
@@ -187,9 +216,9 @@ bool HollowBallBound<TMetricType, ElemType>::Contains(
 /**
  * Calculates minimum bound-to-point squared distance.
  */
-template<typename TMetricType, typename ElemType>
+template<typename TDistanceType, typename ElemType>
 template<typename VecType>
-ElemType HollowBallBound<TMetricType, ElemType>::MinDistance(
+ElemType HollowBallBound<TDistanceType, ElemType>::MinDistance(
     const VecType& point,
     typename std::enable_if_t<IsVector<VecType>::value>* /* junk */) const
 {
@@ -197,14 +226,15 @@ ElemType HollowBallBound<TMetricType, ElemType>::MinDistance(
     return std::numeric_limits<ElemType>::max();
   else
   {
-    const ElemType outerDistance = metric->Evaluate(point, center) - radii.Hi();
+    const ElemType outerDistance = distance->Evaluate(point, center) -
+        radii.Hi();
 
     if (outerDistance >= 0)
       return outerDistance; // The outer ball does not contain the point.
 
     // Check if the point is situated in the hole.
-    const ElemType innerDistance = math::ClampNonNegative(radii.Lo() -
-        metric->Evaluate(point, hollowCenter));
+    const ElemType innerDistance = std::max(radii.Lo() -
+        distance->Evaluate(point, hollowCenter), (ElemType) 0.0);
 
     return innerDistance;
   }
@@ -213,8 +243,8 @@ ElemType HollowBallBound<TMetricType, ElemType>::MinDistance(
 /**
  * Calculates minimum bound-to-bound squared distance.
  */
-template<typename TMetricType, typename ElemType>
-ElemType HollowBallBound<TMetricType, ElemType>::MinDistance(
+template<typename TDistanceType, typename ElemType>
+ElemType HollowBallBound<TDistanceType, ElemType>::MinDistance(
     const HollowBallBound& other)
     const
 {
@@ -222,7 +252,7 @@ ElemType HollowBallBound<TMetricType, ElemType>::MinDistance(
     return std::numeric_limits<ElemType>::max();
   else
   {
-    const ElemType outerDistance = metric->Evaluate(center, other.center) -
+    const ElemType outerDistance = distance->Evaluate(center, other.center) -
         radii.Hi() - other.radii.Hi();
     if (outerDistance >= 0)
       return outerDistance; // The outer hollows do not overlap.
@@ -230,14 +260,15 @@ ElemType HollowBallBound<TMetricType, ElemType>::MinDistance(
     // Check if the hole of the second bound contains the outer ball of the
     // first bound.
     const ElemType innerDistance1 = other.radii.Lo() -
-        metric->Evaluate(center, other.hollowCenter) - radii.Hi();
+        distance->Evaluate(center, other.hollowCenter) - radii.Hi();
     if (innerDistance1 >= 0)
       return innerDistance1;
 
     // Check if the hole of the first bound contains the outer ball of the
     // second bound.
-    const ElemType innerDistance2 = math::ClampNonNegative(radii.Lo() -
-        metric->Evaluate(hollowCenter, other.center) - other.radii.Hi());
+    const ElemType innerDistance2 = std::max(radii.Lo() -
+        distance->Evaluate(hollowCenter, other.center) - other.radii.Hi(),
+        (ElemType) 0.0);
 
     return innerDistance2;
   }
@@ -246,30 +277,30 @@ ElemType HollowBallBound<TMetricType, ElemType>::MinDistance(
 /**
  * Computes maximum distance.
  */
-template<typename TMetricType, typename ElemType>
+template<typename TDistanceType, typename ElemType>
 template<typename VecType>
-ElemType HollowBallBound<TMetricType, ElemType>::MaxDistance(
+ElemType HollowBallBound<TDistanceType, ElemType>::MaxDistance(
     const VecType& point,
     typename std::enable_if_t<IsVector<VecType>::value>* /* junk */) const
 {
   if (radii.Hi() < 0)
     return std::numeric_limits<ElemType>::max();
   else
-    return metric->Evaluate(point, center) + radii.Hi();
+    return distance->Evaluate(point, center) + radii.Hi();
 }
 
 /**
  * Computes maximum distance.
  */
-template<typename TMetricType, typename ElemType>
-ElemType HollowBallBound<TMetricType, ElemType>::MaxDistance(
+template<typename TDistanceType, typename ElemType>
+ElemType HollowBallBound<TDistanceType, ElemType>::MaxDistance(
   const HollowBallBound& other)
     const
 {
   if (radii.Hi() < 0)
     return std::numeric_limits<ElemType>::max();
   else
-    return metric->Evaluate(other.center, center) + radii.Hi() +
+    return distance->Evaluate(other.center, center) + radii.Hi() +
         other.radii.Hi();
 }
 
@@ -278,27 +309,27 @@ ElemType HollowBallBound<TMetricType, ElemType>::MaxDistance(
  *
  * Example: bound1.MinDistanceSq(other) for minimum squared distance.
  */
-template<typename TMetricType, typename ElemType>
+template<typename TDistanceType, typename ElemType>
 template<typename VecType>
-math::RangeType<ElemType> HollowBallBound<TMetricType, ElemType>::RangeDistance(
+RangeType<ElemType> HollowBallBound<TDistanceType, ElemType>::RangeDistance(
     const VecType& point,
     typename std::enable_if_t<IsVector<VecType>::value>* /* junk */) const
 {
   if (radii.Hi() < 0)
-    return math::Range(std::numeric_limits<ElemType>::max(),
-                       std::numeric_limits<ElemType>::max());
+    return RangeType<ElemType>(std::numeric_limits<ElemType>::max(),
+                               std::numeric_limits<ElemType>::max());
   else
   {
-    math::RangeType<ElemType> range;
-    const ElemType dist = metric->Evaluate(point, center);
+    RangeType<ElemType> range;
+    const ElemType dist = distance->Evaluate(point, center);
 
     if (dist >= radii.Hi()) // The outer ball does not contain the point.
       range.Lo() = dist - radii.Hi();
     else
     {
       // Check if the point is situated in the hole.
-      range.Lo() = math::ClampNonNegative(radii.Lo() -
-          metric->Evaluate(point, hollowCenter));
+      range.Lo() = std::max(radii.Lo() -
+          distance->Evaluate(point, hollowCenter), (ElemType) 0.0);
     }
     range.Hi() = dist + radii.Hi();
 
@@ -306,18 +337,18 @@ math::RangeType<ElemType> HollowBallBound<TMetricType, ElemType>::RangeDistance(
   }
 }
 
-template<typename TMetricType, typename ElemType>
-math::RangeType<ElemType> HollowBallBound<TMetricType, ElemType>::RangeDistance(
+template<typename TDistanceType, typename ElemType>
+RangeType<ElemType> HollowBallBound<TDistanceType, ElemType>::RangeDistance(
     const HollowBallBound& other) const
 {
   if (radii.Hi() < 0)
-    return math::Range(std::numeric_limits<ElemType>::max(),
+    return Range(std::numeric_limits<ElemType>::max(),
                        std::numeric_limits<ElemType>::max());
   else
   {
-    math::RangeType<ElemType> range;
+    RangeType<ElemType> range;
 
-    const ElemType dist = metric->Evaluate(center, other.center);
+    const ElemType dist = distance->Evaluate(center, other.center);
 
     const ElemType outerDistance = dist - radii.Hi() - other.radii.Hi();
     if (outerDistance >= 0)
@@ -325,7 +356,7 @@ math::RangeType<ElemType> HollowBallBound<TMetricType, ElemType>::RangeDistance(
     else
     {
       const ElemType innerDistance1 = other.radii.Lo() -
-          metric->Evaluate(center, other.hollowCenter) - radii.Hi();
+          distance->Evaluate(center, other.hollowCenter) - radii.Hi();
       // Check if the outer ball of the first bound is contained in the
       // hole of the second bound.
       if (innerDistance1 >= 0)
@@ -334,8 +365,9 @@ math::RangeType<ElemType> HollowBallBound<TMetricType, ElemType>::RangeDistance(
       {
         // Check if the outer ball of the second bound is contained in the
         // hole of the first bound.
-        range.Lo() = math::ClampNonNegative(radii.Lo() -
-            metric->Evaluate(hollowCenter, other.center) - other.radii.Hi());
+        range.Lo() = std::max(radii.Lo() -
+            distance->Evaluate(hollowCenter, other.center) - other.radii.Hi(),
+            (ElemType) 0.0);
       }
     }
     range.Hi() = dist + radii.Hi() + other.radii.Hi();
@@ -349,10 +381,10 @@ math::RangeType<ElemType> HollowBallBound<TMetricType, ElemType>::RangeDistance(
  * The difference lies in the way we initialize the ball bound. The way we
  * expand the bound is same.
  */
-template<typename TMetricType, typename ElemType>
+template<typename TDistanceType, typename ElemType>
 template<typename MatType>
-const HollowBallBound<TMetricType, ElemType>&
-HollowBallBound<TMetricType, ElemType>::operator|=(const MatType& data)
+const HollowBallBound<TDistanceType, ElemType>&
+HollowBallBound<TDistanceType, ElemType>::operator|=(const MatType& data)
 {
   if (radii.Hi() < 0)
   {
@@ -367,8 +399,8 @@ HollowBallBound<TMetricType, ElemType>::operator|=(const MatType& data)
   // Now iteratively add points.
   for (size_t i = 0; i < data.n_cols; ++i)
   {
-    const ElemType dist = metric->Evaluate(center, data.col(i));
-    const ElemType hollowDist = metric->Evaluate(hollowCenter, data.col(i));
+    const ElemType dist = distance->Evaluate(center, data.col(i));
+    const ElemType hollowDist = distance->Evaluate(hollowCenter, data.col(i));
 
     // See if the new point lies outside the bound.
     if (dist > radii.Hi())
@@ -389,9 +421,10 @@ HollowBallBound<TMetricType, ElemType>::operator|=(const MatType& data)
 /**
  * Expand the bound to include the given bound.
  */
-template<typename TMetricType, typename ElemType>
-const HollowBallBound<TMetricType, ElemType>&
-HollowBallBound<TMetricType, ElemType>::operator|=(const HollowBallBound& other)
+template<typename TDistanceType, typename ElemType>
+const HollowBallBound<TDistanceType, ElemType>&
+HollowBallBound<TDistanceType, ElemType>::operator|=(
+    const HollowBallBound& other)
 {
   if (radii.Hi() < 0)
   {
@@ -402,13 +435,13 @@ HollowBallBound<TMetricType, ElemType>::operator|=(const HollowBallBound& other)
     return *this;
   }
 
-  const ElemType dist = metric->Evaluate(center, other.center);
+  const ElemType dist = distance->Evaluate(center, other.center);
   // Check if the outer balls overlap.
   if (radii.Hi() < dist + other.radii.Hi())
     radii.Hi() = dist + other.radii.Hi();
 
-  const ElemType innerDist = math::ClampNonNegative(other.radii.Lo() -
-      metric->Evaluate(hollowCenter, other.hollowCenter));
+  const ElemType innerDist = std::max(other.radii.Lo() -
+      distance->Evaluate(hollowCenter, other.hollowCenter), (ElemType) 0.0);
   // Check if the hole of the first bound is not contained in the hole of the
   // second bound.
   if (radii.Lo() > innerDist)
@@ -419,28 +452,28 @@ HollowBallBound<TMetricType, ElemType>::operator|=(const HollowBallBound& other)
 
 
 //! Serialize the BallBound.
-template<typename TMetricType, typename ElemType>
+template<typename TDistanceType, typename ElemType>
 template<typename Archive>
-void HollowBallBound<TMetricType, ElemType>::Serialize(
+void HollowBallBound<TDistanceType, ElemType>::serialize(
     Archive& ar,
-    const unsigned int /* version */)
+    const uint32_t /* version */)
 {
-  ar & data::CreateNVP(radii, "radii");
-  ar & data::CreateNVP(center, "center");
-  ar & data::CreateNVP(hollowCenter, "hollowCenter");
+  ar(CEREAL_NVP(radii));
+  ar(CEREAL_NVP(center));
+  ar(CEREAL_NVP(hollowCenter));
 
-  if (Archive::is_loading::value)
+  if (cereal::is_loading<Archive>())
   {
-    // If we're loading, delete the local metric since we'll have a new one.
-    if (ownsMetric)
-      delete metric;
+    // If we're loading, delete the local distance since we'll have a new one.
+    if (ownsDistance)
+      delete distance;
+
+    ownsDistance = true;
   }
 
-  ar & data::CreateNVP(metric, "metric");
-  ar & data::CreateNVP(ownsMetric, "ownsMetric");
+  ar(CEREAL_POINTER(distance));
 }
 
-} // namespace bound
 } // namespace mlpack
 
 #endif // MLPACK_CORE_TREE_HOLLOW_BALL_BOUND_IMPL_HPP

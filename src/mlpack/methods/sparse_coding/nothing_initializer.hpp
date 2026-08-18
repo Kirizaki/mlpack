@@ -1,5 +1,5 @@
 /**
- * @file nothing_initializer.hpp
+ * @file methods/sparse_coding/nothing_initializer.hpp
  * @author Ryan Curtin
  *
  * An initializer for SparseCoding which does precisely nothing.  It is useful
@@ -17,7 +17,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace sparse_coding {
 
 /**
  * A DictionaryInitializer for SparseCoding which does not initialize anything;
@@ -32,15 +31,15 @@ class NothingInitializer
    * for SparseCoding if the dictionary is not set manually before running the
    * method.
    */
-  static void Initialize(const arma::mat& /* data */,
+  template<typename MatType>
+  static void Initialize(const MatType& /* data */,
                          const size_t /* atoms */,
-                         arma::mat& /* dictionary */)
+                         MatType& /* dictionary */)
   {
     // Do nothing!
   }
 };
 
-} // namespace sparse_coding
 } // namespace mlpack
 
 #endif

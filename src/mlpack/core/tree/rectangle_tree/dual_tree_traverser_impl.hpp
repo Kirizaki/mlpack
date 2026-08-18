@@ -1,5 +1,5 @@
 /**
- * @file dual_tree_traverser_impl.hpp
+ * @file core/tree/rectangle_tree/dual_tree_traverser_impl.hpp
  * @author Andrew Wells
  *
  * A class for traversing rectangle type trees with a given set of rules
@@ -11,8 +11,8 @@
  * 3-clause BSD license along with mlpack.  If not, see
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
-#ifndef MLPAC_CORE_TREE_RECTANGLE_TREE_DUAL_TREE_TRAVERSER_IMPL_HPP
-#define MLPAC_CORE_TREE_RECTANGLE_TREE_DUAL_TREE_TRAVERSER_IMPL_HPP
+#ifndef MLPACK_CORE_TREE_RECTANGLE_TREE_DUAL_TREE_TRAVERSER_IMPL_HPP
+#define MLPACK_CORE_TREE_RECTANGLE_TREE_DUAL_TREE_TRAVERSER_IMPL_HPP
 
 #include "dual_tree_traverser.hpp"
 
@@ -20,16 +20,15 @@
 #include <stack>
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
          typename SplitType,
          typename DescentType,
          template<typename> class AuxiliaryInformationType>
 template<typename RuleType>
-RectangleTree<MetricType, StatisticType, MatType, SplitType, DescentType,
+RectangleTree<DistanceType, StatisticType, MatType, SplitType, DescentType,
               AuxiliaryInformationType>::
 DualTreeTraverser<RuleType>::DualTreeTraverser(RuleType& rule) :
     rule(rule),
@@ -39,14 +38,14 @@ DualTreeTraverser<RuleType>::DualTreeTraverser(RuleType& rule) :
     numBaseCases(0)
 { /* Nothing to do */ }
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
          typename SplitType,
          typename DescentType,
          template<typename> class AuxiliaryInformationType>
 template<typename RuleType>
-void RectangleTree<MetricType, StatisticType, MatType, SplitType, DescentType,
+void RectangleTree<DistanceType, StatisticType, MatType, SplitType, DescentType,
                    AuxiliaryInformationType>::
 DualTreeTraverser<RuleType>::Traverse(RectangleTree& queryNode,
                                       RectangleTree& referenceNode)
@@ -78,7 +77,7 @@ DualTreeTraverser<RuleType>::Traverse(RectangleTree& queryNode,
       if (childScore == DBL_MAX)
         continue;  // We don't require a search in this reference node.
 
-      for(size_t ref = 0; ref < referenceNode.Count(); ++ref)
+      for (size_t ref = 0; ref < referenceNode.Count(); ++ref)
         rule.BaseCase(queryNode.Point(query), referenceNode.Point(ref));
 
       numBaseCases += referenceNode.Count();
@@ -105,7 +104,7 @@ DualTreeTraverser<RuleType>::Traverse(RectangleTree& queryNode,
 
     // We sort the children of the reference node by their scores.
     std::vector<NodeAndScore> nodesAndScores(referenceNode.NumChildren());
-    for (size_t i = 0; i < referenceNode.NumChildren(); i++)
+    for (size_t i = 0; i < referenceNode.NumChildren(); ++i)
     {
       rule.TraversalInfo() = traversalInfo;
       nodesAndScores[i].node = &(referenceNode.Child(i));
@@ -116,7 +115,7 @@ DualTreeTraverser<RuleType>::Traverse(RectangleTree& queryNode,
     std::sort(nodesAndScores.begin(), nodesAndScores.end(), nodeComparator);
     numScores += nodesAndScores.size();
 
-    for (size_t i = 0; i < nodesAndScores.size(); i++)
+    for (size_t i = 0; i < nodesAndScores.size(); ++i)
     {
       rule.TraversalInfo() = nodesAndScores[i].travInfo;
       if (rule.Rescore(queryNode, *(nodesAndScores[i].node),
@@ -136,11 +135,11 @@ DualTreeTraverser<RuleType>::Traverse(RectangleTree& queryNode,
     // We need to traverse down both the reference and the query trees.
     // We loop through all of the query nodes, and for each of them, we
     // loop through the reference nodes to see where we need to descend.
-    for (size_t j = 0; j < queryNode.NumChildren(); j++)
+    for (size_t j = 0; j < queryNode.NumChildren(); ++j)
     {
       // We sort the children of the reference node by their scores.
       std::vector<NodeAndScore> nodesAndScores(referenceNode.NumChildren());
-      for (size_t i = 0; i < referenceNode.NumChildren(); i++)
+      for (size_t i = 0; i < referenceNode.NumChildren(); ++i)
       {
         rule.TraversalInfo() = traversalInfo;
         nodesAndScores[i].node = &(referenceNode.Child(i));
@@ -151,7 +150,7 @@ DualTreeTraverser<RuleType>::Traverse(RectangleTree& queryNode,
       std::sort(nodesAndScores.begin(), nodesAndScores.end(), nodeComparator);
       numScores += nodesAndScores.size();
 
-      for (size_t i = 0; i < nodesAndScores.size(); i++)
+      for (size_t i = 0; i < nodesAndScores.size(); ++i)
       {
         rule.TraversalInfo() = nodesAndScores[i].travInfo;
         if (rule.Rescore(queryNode.Child(j), *(nodesAndScores[i].node),
@@ -169,7 +168,6 @@ DualTreeTraverser<RuleType>::Traverse(RectangleTree& queryNode,
   }
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

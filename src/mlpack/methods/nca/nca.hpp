@@ -1,5 +1,5 @@
 /**
- * @file nca.hpp
+ * @file methods/nca/nca.hpp
  * @author Ryan Curtin
  *
  * Declaration of NCA class (Neighborhood Components Analysis).
@@ -12,14 +12,11 @@
 #ifndef MLPACK_METHODS_NCA_NCA_HPP
 #define MLPACK_METHODS_NCA_NCA_HPP
 
-#include <mlpack/prereqs.hpp>
-#include <mlpack/core/metrics/lmetric.hpp>
-#include <mlpack/core/optimizers/sgd/sgd.hpp>
+#include <mlpack/core.hpp>
 
 #include "nca_softmax_error_function.hpp"
 
 namespace mlpack {
-namespace nca /** Neighborhood Components Analysis. */ {
 
 /**
  * An implementation of Neighborhood Components Analysis, both a linear
@@ -44,8 +41,8 @@ namespace nca /** Neighborhood Components Analysis. */ {
  * }
  * @endcode
  */
-template<typename MetricType = metric::SquaredEuclideanDistance,
-         template<typename> class OptimizerType = optimization::SGD>
+template<typename DistanceType = SquaredEuclideanDistance,
+         typename DeprecatedOptimizerType = ens::StandardSGD>
 class NCA
 {
  public:
@@ -56,15 +53,19 @@ class NCA
    *
    * @param dataset Input dataset.
    * @param labels Input dataset labels.
-   * @param stepSize Step size for stochastic gradient descent.
-   * @param maxIterations Maximum iterations for stochastic gradient descent.
-   * @param tolerance Tolerance for termination of stochastic gradient descent.
-   * @param shuffle Whether or not to shuffle the dataset during SGD.
-   * @param metric Instantiated metric to use.
+   * @param distance Instantiated distance metric to use.
    */
+  [[deprecated("Will be removed in mlpack 5.0.0.  Pass the dataset directly to "
+               "LearnDistance() instead.")]]
   NCA(const arma::mat& dataset,
       const arma::Row<size_t>& labels,
-      MetricType metric = MetricType());
+      DistanceType distance = DistanceType());
+
+  /**
+   * Construct the Neighborhood Components Analysis object, optionally with an
+   * instantiated distance metric.
+   */
+  NCA(DistanceType distance = DistanceType());
 
   /**
    * Perform Neighborhood Components Analysis.  The output distance learning
@@ -73,38 +74,113 @@ class NCA
    * dataset.n_rows), that matrix will be used as the starting point for
    * optimization.
    *
-   * @param output_matrix Covariance matrix of Mahalanobis distance.
+   * @tparam CallbackTypes Types of Callback functions.
+   * @param outputMatrix Covariance matrix of Mahalanobis distance.
+   * @param callbacks Callback function for ensmallen optimizer `OptimizerType`.
+   *      See https://www.ensmallen.org/docs.html#callback-documentation.
    */
-  void LearnDistance(arma::mat& outputMatrix);
+  template<typename... CallbackTypes,
+           typename = std::enable_if_t<IsEnsCallbackTypes<
+               CallbackTypes...>::value>,
+           typename = std::enable_if_t<
+               !FirstElementIsArma<CallbackTypes...>::value>>
+  [[deprecated("Will be removed in mlpack 5.0.0.  Use the version that takes a "
+               "dataset as a parameter.")]]
+  void LearnDistance(arma::mat& outputMatrix, CallbackTypes&&... callbacks);
+
+  /**
+   * Perform Neighborhood Components Analysis.  The output distance learning
+   * matrix is written into the passed reference.  If LearnDistance() is called
+   * with an outputMatrix which has the correct size (dataset.n_rows x
+   * dataset.n_rows), that matrix will be used as the starting point for
+   * optimization.
+   *
+   * @param dataset Dataset to learn distance metric on.
+   * @param labels Labels for dataset.
+   * @param outputMatrix Covariance matrix of Mahalanobis distance.
+   * @param callbacks Callback function for ensmallen optimizer `OptimizerType`.
+   *      See https://www.ensmallen.org/docs.html#callback-documentation.
+   */
+  template<typename MatType,
+           typename LabelsType,
+           typename... CallbackTypes,
+           typename = std::enable_if_t<!IsEnsOptimizer<
+               typename First<CallbackTypes...>::type,
+               SoftmaxErrorFunction<MatType, LabelsType, DistanceType>,
+               MatType
+           >::value>,
+           typename = std::enable_if_t<
+               IsEnsCallbackTypes<CallbackTypes...>::value>>
+  void LearnDistance(const MatType& dataset,
+                     const LabelsType& labels,
+                     MatType& outputMatrix,
+                     CallbackTypes&&... callbacks) const;
+
+  /**
+   * Perform Neighborhood Components Analysis.  The output distance learning
+   * matrix is written into the passed reference.  If LearnDistance() is called
+   * with an outputMatrix which has the correct size (dataset.n_rows x
+   * dataset.n_rows), that matrix will be used as the starting point for
+   * optimization.
+   *
+   * @param dataset Dataset to learn distance metric on.
+   * @param labels Labels for dataset.
+   * @param optimizer Instantiated ensmallen optimizer to use for NCA.
+   * @param outputMatrix Covariance matrix of Mahalanobis distance.
+   * @param callbacks Callback function for ensmallen optimizer `OptimizerType`.
+   *      See https://www.ensmallen.org/docs.html#callback-documentation.
+   */
+  template<typename MatType,
+           typename LabelsType,
+           typename OptimizerType,
+           typename... CallbackTypes,
+           typename = std::enable_if_t<IsEnsOptimizer<
+               OptimizerType,
+               SoftmaxErrorFunction<MatType, LabelsType, DistanceType>,
+               MatType
+           >::value>>
+  void LearnDistance(const MatType& dataset,
+                     const LabelsType& labels,
+                     MatType& outputMatrix,
+                     OptimizerType& optimizer,
+                     CallbackTypes&&... callbacks) const;
 
   //! Get the dataset reference.
-  const arma::mat& Dataset() const { return dataset; }
+  [[deprecated("Will be removed in mlpack 5.0.0.")]]
+  const arma::mat& Dataset() const { return *dataset; }
   //! Get the labels reference.
-  const arma::Row<size_t>& Labels() const { return labels; }
+  [[deprecated("Will be removed in mlpack 5.0.0.")]]
+  const arma::Row<size_t>& Labels() const { return *labels; }
 
   //! Get the optimizer.
-  const OptimizerType<SoftmaxErrorFunction<MetricType> >& Optimizer() const
-  { return optimizer; }
-  OptimizerType<SoftmaxErrorFunction<MetricType> >& Optimizer()
-  { return optimizer; }
+  [[deprecated("Will be removed in mlpack 5.0.0.  Use the LearnDistance() "
+               "version that takes the optimizer as a parameter instead.")]]
+  const DeprecatedOptimizerType& Optimizer() const { return optimizer; }
+  //! Modify the optimizer.
+  [[deprecated("Will be removed in mlpack 5.0.0.  Use the LearnDistance() "
+               "version that takes the optimizer as a parameter instead.")]]
+  DeprecatedOptimizerType& Optimizer() { return optimizer; }
+
+  //! Get the distance.
+  const DistanceType Distance() const { return distance; }
+  //! Modify the distance.
+  DistanceType& Distance() { return distance; }
+
+  template<typename Archive>
+  void serialize(Archive& ar, const uint32_t /* version */);
 
  private:
-  //! Dataset reference.
-  const arma::mat& dataset;
-  //! Labels reference.
-  const arma::Row<size_t>& labels;
+  //! Dataset pointer (will be removed in mlpack 5.0.0).
+  const arma::mat* dataset;
+  //! Labels reference (will be removed in mlpack 5.0.0).
+  const arma::Row<size_t>* labels;
+  //! The optimizer to use (will be removed in mlpack 5.0.0).
+  DeprecatedOptimizerType optimizer;
 
-  //! Metric to be used.
-  MetricType metric;
-
-  //! The function to optimize.
-  SoftmaxErrorFunction<MetricType> errorFunction;
-
-  //! The optimizer to use.
-  OptimizerType<SoftmaxErrorFunction<MetricType> > optimizer;
+  //! Distance to be used.
+  DistanceType distance;
 };
 
-} // namespace nca
 } // namespace mlpack
 
 // Include the implementation.

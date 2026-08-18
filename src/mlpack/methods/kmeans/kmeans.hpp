@@ -1,5 +1,5 @@
 /**
- * @file kmeans.hpp
+ * @file methods/kmeans/kmeans.hpp
  * @author Parikshit Ram (pram@cc.gatech.edu)
  *
  * K-Means clustering.
@@ -12,17 +12,26 @@
 #ifndef MLPACK_METHODS_KMEANS_KMEANS_HPP
 #define MLPACK_METHODS_KMEANS_KMEANS_HPP
 
-#include <mlpack/prereqs.hpp>
+#include <mlpack/core.hpp>
 
-#include <mlpack/core/metrics/lmetric.hpp>
+// Include initialization strategies.
 #include "sample_initialization.hpp"
-#include "max_variance_new_cluster.hpp"
-#include "naive_kmeans.hpp"
+#include "kmeans_plus_plus_initialization.hpp"
+#include "random_partition.hpp"
 
-#include <mlpack/core/tree/binary_space_tree.hpp>
+// Include empty cluster policies.
+#include "max_variance_new_cluster.hpp"
+#include "kill_empty_clusters.hpp"
+#include "allow_empty_clusters.hpp"
+
+// Include Lloyd step types.
+#include "naive_kmeans.hpp"
+#include "dual_tree_kmeans.hpp"
+#include "elkan_kmeans.hpp"
+#include "hamerly_kmeans.hpp"
+#include "pelleg_moore_kmeans.hpp"
 
 namespace mlpack {
-namespace kmeans /** K-Means clustering. */ {
 
 /**
  * This class implements K-Means clustering, using a variety of possible
@@ -45,12 +54,12 @@ namespace kmeans /** K-Means clustering. */ {
  *
  * // Cluster using the Manhattan distance, 100 iterations maximum, saving only
  * // the centroids.
- * KMeans<metric::ManhattanDistance> k(100);
+ * KMeans<ManhattanDistance> k(100);
  * k.Cluster(data, 6, centroids); // 6 clusters.
  * @endcode
  *
- * @tparam MetricType The distance metric to use for this KMeans; see
- *     metric::LMetric for an example.
+ * @tparam DistanceType The distance metric to use for this KMeans; see LMetric
+ *     for an example.
  * @tparam InitialPartitionPolicy Initial partitioning policy; must implement a
  *     default constructor and either 'void Cluster(const arma::mat&, const
  *     size_t, arma::Row<size_t>&)' or 'void Cluster(const arma::mat&, const
@@ -58,14 +67,14 @@ namespace kmeans /** K-Means clustering. */ {
  * @tparam EmptyClusterPolicy Policy for what to do on an empty cluster; must
  *     implement a default constructor and 'void EmptyCluster(const arma::mat&
  *     data, const size_t emptyCluster, const arma::mat& oldCentroids,
- *     arma::mat& newCentroids, arma::Col<size_t>& counts, MetricType& metric,
- *     const size_t iteration)'.
+ *     arma::mat& newCentroids, arma::Col<size_t>& counts,
+ *     DistanceType& distance, const size_t iteration)'.
  * @tparam LloydStepType Implementation of single Lloyd step to use.
  *
  * @see RandomPartition, SampleInitialization, RefinedStart, AllowEmptyClusters,
  *      MaxVarianceNewCluster, NaiveKMeans, ElkanKMeans
  */
-template<typename MetricType = metric::EuclideanDistance,
+template<typename DistanceType = EuclideanDistance,
          typename InitialPartitionPolicy = SampleInitialization,
          typename EmptyClusterPolicy = MaxVarianceNewCluster,
          template<class, class> class LloydStepType = NaiveKMeans,
@@ -79,15 +88,15 @@ class KMeans
    *
    * @param maxIterations Maximum number of iterations allowed before giving up
    *     (0 is valid, but the algorithm may never terminate).
-   * @param metric Optional MetricType object; for when the metric has state
-   *     it needs to store.
+   * @param distance Optional DistanceType object; for when the distance metric
+   *     has state it needs to store.
    * @param partitioner Optional InitialPartitionPolicy object; for when a
    *     specially initialized partitioning policy is required.
    * @param emptyClusterAction Optional EmptyClusterPolicy object; for when a
    *     specially initialized empty cluster policy is required.
    */
   KMeans(const size_t maxIterations = 1000,
-         const MetricType metric = MetricType(),
+         const DistanceType distance = DistanceType(),
          const InitialPartitionPolicy partitioner = InitialPartitionPolicy(),
          const EmptyClusterPolicy emptyClusterAction = EmptyClusterPolicy());
 
@@ -124,7 +133,7 @@ class KMeans
    *      initial cluster centroids.
    */
   void Cluster(const MatType& data,
-               const size_t clusters,
+               size_t clusters,
                arma::mat& centroids,
                const bool initialGuess = false);
 
@@ -161,9 +170,16 @@ class KMeans
   size_t& MaxIterations() { return maxIterations; }
 
   //! Get the distance metric.
-  const MetricType& Metric() const { return metric; }
+  [[deprecated("Will be removed in mlpack 5.0.0; use Distance()")]]
+  const DistanceType& Metric() const { return distance; }
   //! Modify the distance metric.
-  MetricType& Metric() { return metric; }
+  [[deprecated("Will be removed in mlpack 5.0.0; use Distance()")]]
+  DistanceType& Metric() { return distance; }
+
+  //! Get the distance metric.
+  const DistanceType& Distance() const { return distance; }
+  //! Modify the distance metric.
+  DistanceType& Distance() { return distance; }
 
   //! Get the initial partitioning policy.
   const InitialPartitionPolicy& Partitioner() const { return partitioner; }
@@ -178,23 +194,26 @@ class KMeans
 
   //! Serialize the k-means object.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int version);
+  void serialize(Archive& ar, const uint32_t version);
 
  private:
   //! Maximum number of iterations before giving up.
   size_t maxIterations;
   //! Instantiated distance metric.
-  MetricType metric;
+  DistanceType distance;
   //! Instantiated initial partitioning policy.
   InitialPartitionPolicy partitioner;
   //! Instantiated empty cluster policy.
   EmptyClusterPolicy emptyClusterAction;
 };
 
-} // namespace kmeans
 } // namespace mlpack
 
 // Include implementation.
 #include "kmeans_impl.hpp"
+
+// The refined start initialization strategy uses KMeans, so it must be included
+// afterwards.
+#include "refined_start.hpp"
 
 #endif // MLPACK_METHODS_KMEANS_KMEANS_HPP

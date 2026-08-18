@@ -1,5 +1,5 @@
 /**
- * @file incomplete_incremental_termination.hpp
+ * @file methods/amf/termination_policies/incomplete_incremental_termination.hpp
  * @author Sumedh Ghaisas
  *
  * Termination policy used in AMF (Alternating Matrix Factorization).
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace amf {
 
 /**
  * This class acts as a wrapper for basic termination policies to be used by
@@ -35,7 +34,8 @@ class IncompleteIncrementalTermination
    */
   IncompleteIncrementalTermination(
       TerminationPolicy tPolicy = TerminationPolicy()) :
-      tPolicy(tPolicy) { }
+      tPolicy(tPolicy), incrementalIndex(0), iteration(0)
+  { /* Nothing to do here. */ }
 
   /**
    * Initializes the termination policy before stating the factorization.
@@ -58,7 +58,8 @@ class IncompleteIncrementalTermination
    * @param W Basis matrix of output.
    * @param H Encoding matrix of output.
    */
-  bool IsConverged(arma::mat& W, arma::mat& H)
+  template<typename MatType>
+  bool IsConverged(MatType& W, MatType& H)
   {
     // increment iteration count
     iteration++;
@@ -72,7 +73,7 @@ class IncompleteIncrementalTermination
   }
 
   //! Get current value of residue.
-  const double& Index() const { return tPolicy.Index(); }
+  double Index() const { return tPolicy.Index(); }
 
   //! Get current iteration count.
   const size_t& Iteration() const { return iteration; }
@@ -97,7 +98,6 @@ class IncompleteIncrementalTermination
   size_t iteration;
 }; // class IncompleteIncrementalTermination
 
-} // namespace amf
 } // namespace mlpack
 
 #endif

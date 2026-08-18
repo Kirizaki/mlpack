@@ -1,12 +1,13 @@
 /**
- * @file distribution_test.cpp
+ * @file tests/distribution_test.cpp
  * @author Ryan Curtin
  * @author Yannis Mentekidis
+ * @author Rohan Raj
  *
  * Tests for the classes:
- *  * mlpack::distribution::DiscreteDistribution
- *  * mlpack::distribution::GaussianDistribution
- *  * mlpack::distribution::GammaDistribution
+ *  * DiscreteDistribution
+ *  * GaussianDistribution
+ *  * GammaDistribution
  *
  * mlpack is free software; you may redistribute it and/or modify it under the
  * terms of the 3-clause BSD license.  You should have received a copy of the
@@ -15,13 +16,11 @@
  */
 #include <mlpack/core.hpp>
 
-#include <boost/test/unit_test.hpp>
-#include "test_tools.hpp"
+#include "catch.hpp"
+#include "serialization.hpp"
+#include "test_catch_tools.hpp"
 
 using namespace mlpack;
-using namespace mlpack::distribution;
-
-BOOST_AUTO_TEST_SUITE(DistributionTest);
 
 /*********************************/
 /** Discrete Distribution Tests **/
@@ -30,92 +29,323 @@ BOOST_AUTO_TEST_SUITE(DistributionTest);
 /**
  * Make sure we initialize correctly.
  */
-BOOST_AUTO_TEST_CASE(DiscreteDistributionConstructorTest)
+TEMPLATE_TEST_CASE("DiscreteDistributionConstructorTest", "[DistributionTest]",
+    (std::pair<double, double>),
+    (std::pair<double, size_t>),
+    (std::pair<float, float>),
+    (std::pair<float, size_t>),
+    (std::pair<float, unsigned short>))
 {
-  DiscreteDistribution d(5);
+  using ElemType = typename TestType::first_type;
+  using ObsElemType = typename TestType::second_type;
+  using MatType = arma::Mat<ElemType>;
+  using ObsMatType = arma::Mat<ObsElemType>;
 
-  BOOST_REQUIRE_EQUAL(d.Probabilities().n_elem, 5);
-  BOOST_REQUIRE_CLOSE(d.Probability("0"), 0.2, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("1"), 0.2, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("2"), 0.2, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("3"), 0.2, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("4"), 0.2, 1e-5);
+  DiscreteDistribution<MatType, ObsMatType> d(5);
+
+  REQUIRE(d.Probabilities().n_elem == 5);
+  REQUIRE(d.Probability("0") == Approx(0.2).epsilon(1e-7));
+  REQUIRE(d.Probability("1") == Approx(0.2).epsilon(1e-7));
+  REQUIRE(d.Probability("2") == Approx(0.2).epsilon(1e-7));
+  REQUIRE(d.Probability("3") == Approx(0.2).epsilon(1e-7));
+  REQUIRE(d.Probability("4") == Approx(0.2).epsilon(1e-7));
 }
 
 /**
  * Make sure we get the probabilities of observations right.
  */
-BOOST_AUTO_TEST_CASE(DiscreteDistributionProbabilityTest)
+TEMPLATE_TEST_CASE("DiscreteDistributionProbabilityTest", "[DistributionTest]",
+    (std::pair<double, double>),
+    (std::pair<double, size_t>),
+    (std::pair<float, float>),
+    (std::pair<float, size_t>),
+    (std::pair<float, unsigned short>))
 {
-  DiscreteDistribution d(5);
+  using ElemType = typename TestType::first_type;
+  using ObsElemType = typename TestType::second_type;
+  using MatType = arma::Mat<ElemType>;
+  using ObsMatType = arma::Mat<ObsElemType>;
+
+  DiscreteDistribution<MatType, ObsMatType> d(5);
 
   d.Probabilities() = "0.2 0.4 0.1 0.1 0.2";
 
-  BOOST_REQUIRE_CLOSE(d.Probability("0"), 0.2, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("1"), 0.4, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("2"), 0.1, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("3"), 0.1, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("4"), 0.2, 1e-5);
+  REQUIRE(d.Probability("0") == Approx(0.2).epsilon(1e-7));
+  REQUIRE(d.Probability("1") == Approx(0.4).epsilon(1e-7));
+  REQUIRE(d.Probability("2") == Approx(0.1).epsilon(1e-7));
+  REQUIRE(d.Probability("3") == Approx(0.1).epsilon(1e-7));
+  REQUIRE(d.Probability("4") == Approx(0.2).epsilon(1e-7));
 }
 
 /**
  * Make sure we get random observations correct.
  */
-BOOST_AUTO_TEST_CASE(DiscreteDistributionRandomTest)
+TEMPLATE_TEST_CASE("DiscreteDistributionRandomTest", "[DistributionTest]",
+    (std::pair<double, double>),
+    (std::pair<double, size_t>),
+    (std::pair<float, float>),
+    (std::pair<float, size_t>),
+    (std::pair<float, unsigned short>))
 {
-  DiscreteDistribution d(3);
+  using ElemType = typename TestType::first_type;
+  using ObsElemType = typename TestType::second_type;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+  using ObsMatType = arma::Mat<ObsElemType>;
+
+  DiscreteDistribution<MatType, ObsMatType> d(arma::Col<size_t>("3"));
 
   d.Probabilities() = "0.3 0.6 0.1";
 
-  arma::vec actualProb(3);
+  VecType actualProb(3);
+
   actualProb.zeros();
 
-  for (size_t i = 0; i < 50000; i++)
+  for (size_t i = 0; i < 50000; ++i)
     actualProb((size_t) (d.Random()[0] + 0.5))++;
 
   // Normalize.
-  Log::Debug << actualProb.t();
   actualProb /= accu(actualProb);
 
   // 8% tolerance, because this can be a noisy process.
-  BOOST_REQUIRE_CLOSE(actualProb(0), 0.3, 8.0);
-  BOOST_REQUIRE_CLOSE(actualProb(1), 0.6, 8.0);
-  BOOST_REQUIRE_CLOSE(actualProb(2), 0.1, 8.0);
+  REQUIRE(actualProb(0) == Approx(0.3).epsilon(0.08));
+  REQUIRE(actualProb(1) == Approx(0.6).epsilon(0.08));
+  REQUIRE(actualProb(2) == Approx(0.1).epsilon(0.08));
 }
 
 /**
  * Make sure we can estimate from observations correctly.
  */
-BOOST_AUTO_TEST_CASE(DiscreteDistributionTrainTest)
+TEMPLATE_TEST_CASE("DiscreteDistributionTrainTest", "[DistributionTest]",
+    (std::pair<double, double>),
+    (std::pair<double, size_t>),
+    (std::pair<float, float>),
+    (std::pair<float, size_t>),
+    (std::pair<float, unsigned short>))
 {
-  DiscreteDistribution d(4);
+  using ElemType = typename TestType::first_type;
+  using ObsElemType = typename TestType::second_type;
+  using MatType = arma::Mat<ElemType>;
+  using ObsMatType = arma::Mat<ObsElemType>;
 
-  arma::mat obs("0 0 1 1 2 2 2 3");
+  DiscreteDistribution<MatType, ObsMatType> d(4);
+
+  ObsMatType obs("0 0 1 1 2 2 2 3");
 
   d.Train(obs);
 
-  BOOST_REQUIRE_CLOSE(d.Probability("0"), 0.25, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("1"), 0.25, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("2"), 0.375, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("3"), 0.125, 1e-5);
+  REQUIRE(d.Probability("0") == Approx(0.25).epsilon(1e-7));
+  REQUIRE(d.Probability("1") == Approx(0.25).epsilon(1e-7));
+  REQUIRE(d.Probability("2") == Approx(0.375).epsilon(1e-7));
+  REQUIRE(d.Probability("3") == Approx(0.125).epsilon(1e-7));
 }
 
 /**
  * Estimate from observations with probabilities.
  */
-BOOST_AUTO_TEST_CASE(DiscreteDistributionTrainProbTest)
+TEMPLATE_TEST_CASE("DiscreteDistributionTrainProbTest", "[DistributionTest]",
+    (std::pair<double, double>),
+    (std::pair<double, size_t>),
+    (std::pair<float, float>),
+    (std::pair<float, size_t>),
+    (std::pair<float, unsigned short>))
 {
-  DiscreteDistribution d(3);
+  using ElemType = typename TestType::first_type;
+  using ObsElemType = typename TestType::second_type;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+  using ObsMatType = arma::Mat<ObsElemType>;
 
-  arma::mat obs("0 0 1 2");
+  DiscreteDistribution<MatType, ObsMatType> d(3);
 
-  arma::vec prob("0.25 0.25 0.5 1.0");
+  ObsMatType obs("0 0 1 2");
+  VecType prob("0.25 0.25 0.5 1.0");
 
   d.Train(obs, prob);
 
-  BOOST_REQUIRE_CLOSE(d.Probability("0"), 0.25, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("1"), 0.25, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.Probability("2"), 0.5, 1e-5);
+  REQUIRE(d.Probability("0") == Approx(0.25).epsilon(1e-7));
+  REQUIRE(d.Probability("1") == Approx(0.25).epsilon(1e-7));
+  REQUIRE(d.Probability("2") == Approx(0.5).epsilon(1e-7));
+}
+
+/**
+ * Achieve multidimensional probability distribution.
+ */
+TEMPLATE_TEST_CASE("MultiDiscreteDistributionTrainProbTest",
+    "[DistributionTest]",
+    (std::pair<double, double>),
+    (std::pair<double, size_t>),
+    (std::pair<float, float>),
+    (std::pair<float, size_t>),
+    (std::pair<float, unsigned short>))
+{
+  using ElemType = typename TestType::first_type;
+  using ObsElemType = typename TestType::second_type;
+  using MatType = arma::Mat<ElemType>;
+  using ObsMatType = arma::Mat<ObsElemType>;
+
+  DiscreteDistribution<MatType, ObsMatType> d("10 10 10");
+
+  ObsMatType obs("0 1 1 1 2 2 2 2 2 2;"
+                 "0 0 0 1 1 1 2 2 2 2;"
+                 "0 0 0 1 1 2 2 2 2 2;");
+
+  d.Train(obs);
+  REQUIRE(d.Probability("0 0 0") == Approx(0.009).epsilon(1e-7));
+  REQUIRE(d.Probability("0 1 2") == Approx(0.015).epsilon(1e-7));
+  REQUIRE(d.Probability("2 1 0") == Approx(0.054).epsilon(1e-7));
+}
+
+/**
+ * Make sure we initialize multidimensional probability distribution
+ * correctly.
+ */
+TEMPLATE_TEST_CASE("MultiDiscreteDistributionConstructorTest",
+    "[DistributionTest]",
+    (std::pair<double, double>),
+    (std::pair<double, size_t>),
+    (std::pair<float, float>),
+    (std::pair<float, size_t>),
+    (std::pair<float, unsigned short>))
+{
+  using ElemType = typename TestType::first_type;
+  using ObsElemType = typename TestType::second_type;
+  using MatType = arma::Mat<ElemType>;
+  using ObsMatType = arma::Mat<ObsElemType>;
+
+  DiscreteDistribution<MatType, ObsMatType> d("4 4 4 4");
+
+  REQUIRE(d.Probabilities(0).size() == 4);
+  REQUIRE(d.Dimensionality() == 4);
+  REQUIRE(d.Probability("0 0 0 0") == Approx(0.00390625).epsilon(1e-7));
+  REQUIRE(d.Probability("0 1 2 3") == Approx(0.00390625).epsilon(1e-7));
+}
+
+/**
+ * Achieve multidimensional probability distribution.
+ */
+TEMPLATE_TEST_CASE("MultiDiscreteDistributionTrainTest", "[DistributionTest]",
+    (std::pair<double, double>),
+    (std::pair<double, size_t>),
+    (std::pair<float, float>),
+    (std::pair<float, size_t>),
+    (std::pair<float, unsigned short>))
+{
+  using ElemType = typename TestType::first_type;
+  using ObsElemType = typename TestType::second_type;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+  using ObsMatType = arma::Mat<ObsElemType>;
+
+  std::vector<VecType> pro;
+  pro.push_back(VecType("0.1, 0.3, 0.6"));
+  pro.push_back(VecType("0.3, 0.3, 0.3"));
+  pro.push_back(VecType("0.25, 0.25, 0.5"));
+
+  DiscreteDistribution<MatType, ObsMatType> d(pro);
+
+  REQUIRE(d.Probability("0 0 0") == Approx(0.0083333).epsilon(1e-5));
+  REQUIRE(d.Probability("0 1 2") == Approx(0.0166666).epsilon(1e-5));
+  REQUIRE(d.Probability("2 1 0") == Approx(0.05).epsilon(1e-7));
+}
+
+/**
+ * Estimate multidimensional probability distribution from observations with
+ * probabilities.
+ */
+TEMPLATE_TEST_CASE("MultiDiscreteDistributionTrainProTest",
+    "[DistributionTest]",
+    (std::pair<double, double>),
+    (std::pair<double, size_t>),
+    (std::pair<float, float>),
+    (std::pair<float, size_t>),
+    (std::pair<float, unsigned short>))
+{
+  using ElemType = typename TestType::first_type;
+  using ObsElemType = typename TestType::second_type;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+  using ObsMatType = arma::Mat<ObsElemType>;
+
+  DiscreteDistribution<MatType, ObsMatType> d("5 5 5");
+
+  ObsMatType obs("0 0 1 1 2;"
+                 "0 1 1 2 2;"
+                 "0 1 1 2 2");
+
+  VecType prob("0.25 0.25 0.25 0.25 1");
+
+  d.Train(obs, prob);
+
+  REQUIRE(d.Probability("0 0 0") == Approx(0.00390625).epsilon(1e-7));
+  REQUIRE(d.Probability("1 0 1") == Approx(0.0078125).epsilon(1e-7));
+  REQUIRE(d.Probability("2 1 0") == Approx(0.015625).epsilon(1e-7));
+}
+
+/**
+ * Test the LogProbability() function, for multiple points in the multivariate
+ * Discrete case.
+ */
+TEMPLATE_TEST_CASE("DiscreteLogProbabilityTest", "[DistributionTest]",
+    (std::pair<double, double>),
+    (std::pair<double, size_t>),
+    (std::pair<float, float>),
+    (std::pair<float, size_t>),
+    (std::pair<float, unsigned short>))
+{
+  using ElemType = typename TestType::first_type;
+  using ObsElemType = typename TestType::second_type;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+  using ObsMatType = arma::Mat<ObsElemType>;
+
+  // Same case as before.
+  DiscreteDistribution<MatType, ObsMatType> d("5 5");
+
+  ObsMatType obs("0 2;"
+                 "1 2;");
+
+  VecType logProb;
+
+  d.LogProbability(obs, logProb);
+
+  REQUIRE(logProb.n_elem == 2);
+
+  REQUIRE(logProb(0) == Approx(-3.2188758248682).epsilon(1e-5));
+  REQUIRE(logProb(1) == Approx(-3.2188758248682).epsilon(1e-5));
+}
+
+/**
+ * Test the Probability() function, for multiple points in the multivariate
+ * Discrete case.
+ */
+TEMPLATE_TEST_CASE("DiscreteProbabilityTest", "[DistributionTest]",
+    (std::pair<double, double>),
+    (std::pair<double, size_t>),
+    (std::pair<float, float>),
+    (std::pair<float, size_t>),
+    (std::pair<float, unsigned short>))
+{
+  using ElemType = typename TestType::first_type;
+  using ObsElemType = typename TestType::second_type;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+  using ObsMatType = arma::Mat<ObsElemType>;
+
+  // Same case as before.
+  DiscreteDistribution<MatType, ObsMatType> d("5 5");
+
+  ObsMatType obs("0 2;"
+                 "1 2;");
+
+  VecType prob;
+
+  d.Probability(obs, prob);
+
+  REQUIRE(prob.n_elem == 2);
+
+  REQUIRE(prob(0) == Approx(0.0400000000000).epsilon(1e-5));
+  REQUIRE(prob(1) == Approx(0.0400000000000).epsilon(1e-5));
 }
 
 /*********************************/
@@ -125,150 +355,191 @@ BOOST_AUTO_TEST_CASE(DiscreteDistributionTrainProbTest)
 /**
  * Make sure Gaussian distributions are initialized correctly.
  */
-BOOST_AUTO_TEST_CASE(GaussianDistributionEmptyConstructor)
+TEMPLATE_TEST_CASE("GaussianDistributionEmptyConstructor", "[DistributionTest]",
+    float, double)
 {
-  GaussianDistribution d;
+  using MatType = arma::Mat<TestType>;
 
-  BOOST_REQUIRE_EQUAL(d.Mean().n_elem, 0);
-  BOOST_REQUIRE_EQUAL(d.Covariance().n_elem, 0);
+  GaussianDistribution<MatType> d;
+
+  REQUIRE(d.Mean().n_elem == 0);
+  REQUIRE(d.Covariance().n_elem == 0);
 }
 
 /**
  * Make sure Gaussian distributions are initialized to the correct
  * dimensionality.
  */
-BOOST_AUTO_TEST_CASE(GaussianDistributionDimensionalityConstructor)
+TEMPLATE_TEST_CASE("GaussianDistributionDimensionalityConstructor",
+                   "[DistributionTest]", float, double)
 {
-  GaussianDistribution d(4);
+  using MatType = arma::Mat<TestType>;
 
-  BOOST_REQUIRE_EQUAL(d.Mean().n_elem, 4);
-  BOOST_REQUIRE_EQUAL(d.Covariance().n_rows, 4);
-  BOOST_REQUIRE_EQUAL(d.Covariance().n_cols, 4);
+  GaussianDistribution<MatType> d(4);
+
+  REQUIRE(d.Mean().n_elem == 4);
+  REQUIRE(d.Covariance().n_rows == 4);
+  REQUIRE(d.Covariance().n_cols == 4);
 }
 
 /**
  * Make sure Gaussian distributions are initialized correctly when we give a
  * mean and covariance.
  */
-BOOST_AUTO_TEST_CASE(GaussianDistributionDistributionConstructor)
+TEMPLATE_TEST_CASE("GaussianDistributionDistributionConstructor",
+    "[DistributionTest]", float, double)
 {
-  arma::vec mean(3);
-  arma::mat covariance(3, 3);
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  VecType mean(3);
+  MatType covariance(3, 3);
 
   mean.randu();
   covariance.randu();
   covariance *= covariance.t();
-  covariance += arma::eye<arma::mat>(3, 3);
+  covariance += arma::eye<MatType>(3, 3);
 
-  GaussianDistribution d(mean, covariance);
+  GaussianDistribution<MatType> d(mean, covariance);
 
-  for (size_t i = 0; i < 3; i++)
-    BOOST_REQUIRE_CLOSE(d.Mean()[i], mean[i], 1e-5);
+  for (size_t i = 0; i < 3; ++i)
+    REQUIRE(d.Mean()[i] == Approx(mean[i]).epsilon(1e-7));
 
-  for (size_t i = 0; i < 3; i++)
-    for (size_t j = 0; j < 3; j++)
-      BOOST_REQUIRE_CLOSE(d.Covariance()(i, j), covariance(i, j), 1e-5);
+  for (size_t i = 0; i < 3; ++i)
+    for (size_t j = 0; j < 3; ++j)
+      REQUIRE(d.Covariance()(i, j) == Approx(covariance(i, j)).epsilon(1e-7));
 }
 
 /**
  * Make sure the probability of observations is correct.
  */
-BOOST_AUTO_TEST_CASE(GaussianDistributionProbabilityTest)
+TEMPLATE_TEST_CASE("GaussianDistributionProbabilityTest", "[DistributionTest]",
+    float, double)
 {
-  arma::vec mean("5 6 3 3 2");
-  arma::mat cov("6 1 1 1 2;"
-                "1 7 1 0 0;"
-                "1 1 4 1 1;"
-                "1 0 1 7 0;"
-                "2 0 1 0 6");
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
 
-  GaussianDistribution d(mean, cov);
+  VecType mean("5 6 3 3 2");
+  MatType cov("6 1 1 1 2;"
+              "1 7 1 0 0;"
+              "1 1 4 1 1;"
+              "1 0 1 7 0;"
+              "2 0 1 0 6");
 
-  BOOST_REQUIRE_CLOSE(d.LogProbability("0 1 2 3 4"), -13.432076798791542, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.LogProbability("3 2 3 7 8"), -15.814880322345738, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.LogProbability("2 2 0 8 1"), -13.754462857772776, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.LogProbability("2 1 5 0 1"), -13.283283233107898, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.LogProbability("3 0 5 1 0"), -13.800326511545279, 1e-5);
-  BOOST_REQUIRE_CLOSE(d.LogProbability("4 0 6 1 0"), -14.900192463287908, 1e-5);
+  GaussianDistribution<MatType> d(mean, cov);
+
+  REQUIRE(d.LogProbability("0 1 2 3 4") ==
+      Approx(-13.432076798791542).epsilon(1e-7));
+  REQUIRE(d.LogProbability("3 2 3 7 8") ==
+      Approx(-15.814880322345738).epsilon(1e-7));
+  REQUIRE(d.LogProbability("2 2 0 8 1") ==
+      Approx(-13.754462857772776).epsilon(1e-7));
+  REQUIRE(d.LogProbability("2 1 5 0 1") ==
+      Approx(-13.283283233107898).epsilon(1e-7));
+  REQUIRE(d.LogProbability("3 0 5 1 0") ==
+      Approx(-13.800326511545279).epsilon(1e-7));
+  REQUIRE(d.LogProbability("4 0 6 1 0") ==
+      Approx(-14.900192463287908).epsilon(1e-7));
 }
 
 /**
  * Test GaussianDistribution::Probability() in the univariate case.
  */
-BOOST_AUTO_TEST_CASE(GaussianUnivariateProbabilityTest)
+TEMPLATE_TEST_CASE("GaussianUnivariateProbabilityTest", "[DistributionTest]",
+    float, double)
 {
-  GaussianDistribution g(arma::vec("0.0"), arma::mat("1.0"));
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 1e-4 : 1e-7;
+
+  GaussianDistribution<MatType> g(VecType("0.0"), MatType("1.0"));
 
   // Simple case.
-  BOOST_REQUIRE_CLOSE(g.Probability(arma::vec("0.0")), 0.398942280401433, 1e-5);
-  BOOST_REQUIRE_CLOSE(g.Probability(arma::vec("1.0")), 0.241970724519143, 1e-5);
-  BOOST_REQUIRE_CLOSE(g.Probability(arma::vec("-1.0")), 0.241970724519143,
-      1e-5);
+  REQUIRE(g.Probability(VecType("0.0")) ==
+      Approx(0.398942280401433).epsilon(tol));
+  REQUIRE(g.Probability(VecType("1.0")) ==
+      Approx(0.241970724519143).epsilon(tol));
+  REQUIRE(g.Probability(VecType("-1.0")) ==
+      Approx(0.241970724519143).epsilon(tol));
 
   // A few more cases...
-  arma::mat covariance;
+  MatType covariance;
 
   covariance = 2.0;
   g.Covariance(std::move(covariance));
-  BOOST_REQUIRE_CLOSE(g.Probability(arma::vec("0.0")), 0.282094791773878, 1e-5);
-  BOOST_REQUIRE_CLOSE(g.Probability(arma::vec("1.0")), 0.219695644733861, 1e-5);
-  BOOST_REQUIRE_CLOSE(g.Probability(arma::vec("-1.0")), 0.219695644733861,
-      1e-5);
+  REQUIRE(g.Probability(VecType("0.0")) ==
+      Approx(0.282094791773878).epsilon(tol));
+  REQUIRE(g.Probability(VecType("1.0")) ==
+      Approx(0.219695644733861).epsilon(tol));
+  REQUIRE(g.Probability(VecType("-1.0")) ==
+      Approx(0.219695644733861).epsilon(tol));
 
   g.Mean().fill(1.0);
   covariance = 1.0;
   g.Covariance(std::move(covariance));
-  BOOST_REQUIRE_CLOSE(g.Probability(arma::vec("1.0")), 0.398942280401433, 1e-5);
+  REQUIRE(g.Probability(VecType("1.0")) ==
+      Approx(0.398942280401433).epsilon(tol));
 
   covariance = 2.0;
   g.Covariance(std::move(covariance));
-  BOOST_REQUIRE_CLOSE(g.Probability(arma::vec("-1.0")), 0.103776874355149,
-      1e-5);
+  REQUIRE(g.Probability(VecType("-1.0")) ==
+      Approx(0.103776874355149).epsilon(tol));
 }
 
 /**
  * Test GaussianDistribution::Probability() in the multivariate case.
  */
-BOOST_AUTO_TEST_CASE(GaussianMultivariateProbabilityTest)
+TEMPLATE_TEST_CASE("GaussianMultivariateProbabilityTest", "[DistributionTest]",
+    float, double)
 {
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 1e-4 : 1e-7;
+
   // Simple case.
-  arma::vec mean = "0 0";
-  arma::mat cov = "1 0; 0 1";
-  arma::vec x = "0 0";
+  VecType mean = "0 0";
+  MatType cov = "1 0; 0 1";
+  VecType x = "0 0";
 
-  GaussianDistribution g(mean, cov);
+  GaussianDistribution<MatType> g(mean, cov);
 
-  BOOST_REQUIRE_CLOSE(g.Probability(x), 0.159154943091895, 1e-5);
+  REQUIRE(g.Probability(x) == Approx(0.159154943091895).epsilon(tol));
 
-  arma::mat covariance;
+  MatType covariance;
   covariance = "2 0; 0 2";
   g.Covariance(std::move(covariance));
 
-  BOOST_REQUIRE_CLOSE(g.Probability(x), 0.0795774715459477, 1e-5);
+  REQUIRE(g.Probability(x) == Approx(0.0795774715459477).epsilon(tol));
 
   x = "1 1";
 
-  BOOST_REQUIRE_CLOSE(g.Probability(x), 0.0482661763150270, 1e-5);
-  BOOST_REQUIRE_CLOSE(g.Probability(-x), 0.0482661763150270, 1e-5);
+  REQUIRE(g.Probability(x) == Approx(0.0482661763150270).epsilon(tol));
+  REQUIRE(g.Probability(-x) == Approx(0.0482661763150270).epsilon(tol));
 
   g.Mean() = "1 1";
-  BOOST_REQUIRE_CLOSE(g.Probability(x), 0.0795774715459477, 1e-5);
+  REQUIRE(g.Probability(x) == Approx(0.0795774715459477).epsilon(tol));
   g.Mean() *= -1;
-  BOOST_REQUIRE_CLOSE(g.Probability(-x), 0.0795774715459477, 1e-5);
+  REQUIRE(g.Probability(-x) == Approx(0.0795774715459477).epsilon(tol));
 
   g.Mean() = "1 1";
   covariance = "2 1.5; 1.5 4";
   g.Covariance(std::move(covariance));
 
-  BOOST_REQUIRE_CLOSE(g.Probability(x), 0.066372199406187285, 1e-5);
+  REQUIRE(g.Probability(x) == Approx(0.066372199406187285).epsilon(tol));
   g.Mean() *= -1;
-  BOOST_REQUIRE_CLOSE(g.Probability(-x), 0.066372199406187285, 1e-5);
+  REQUIRE(g.Probability(-x) == Approx(0.066372199406187285).epsilon(tol));
 
   g.Mean() = "1 1";
   x = "-1 4";
 
-  BOOST_REQUIRE_CLOSE(g.Probability(x), 0.00072147262356379415, 1e-5);
-  BOOST_REQUIRE_CLOSE(g.Probability(-x), 0.00085851785428674523, 1e-5);
+  REQUIRE(g.Probability(x) == Approx(0.00072147262356379415).epsilon(tol));
+  REQUIRE(g.Probability(-x) == Approx(0.00085851785428674523).epsilon(tol));
 
   // Higher-dimensional case.
   x = "0 1 2 3 4";
@@ -281,244 +552,424 @@ BOOST_AUTO_TEST_CASE(GaussianMultivariateProbabilityTest)
                "2 0 1 0 6";
   g.Covariance(std::move(covariance));
 
-  BOOST_REQUIRE_CLOSE(g.Probability(x), 1.4673143531128877e-06, 1e-5);
-  BOOST_REQUIRE_CLOSE(g.Probability(-x), 7.7404143494891786e-09, 1e-8);
+  REQUIRE(g.Probability(x) == Approx(1.4673143531128877e-06).epsilon(tol));
+  REQUIRE(g.Probability(-x) == Approx(7.7404143494891786e-09).epsilon(
+      0.01 * tol).margin(0.01 * tol));
 
   g.Mean() *= -1;
-  BOOST_REQUIRE_CLOSE(g.Probability(-x), 1.4673143531128877e-06, 1e-5);
-  BOOST_REQUIRE_CLOSE(g.Probability(x), 7.7404143494891786e-09, 1e-8);
-
+  REQUIRE(g.Probability(-x) == Approx(1.4673143531128877e-06).epsilon(tol));
+  REQUIRE(g.Probability(x) == Approx(7.7404143494891786e-09).epsilon(
+      0.01 * tol).margin(0.01 * tol));
 }
 
 /**
  * Test the phi() function, for multiple points in the multivariate Gaussian
  * case.
  */
-BOOST_AUTO_TEST_CASE(GaussianMultipointMultivariateProbabilityTest)
+TEMPLATE_TEST_CASE("GaussianMultipointMultivariateProbabilityTest",
+    "[DistributionTest]", float, double)
 {
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
   // Same case as before.
-  arma::vec mean = "5 6 3 3 2";
-  arma::mat cov("6 1 1 1 2;"
-                "1 7 1 0 0;"
-                "1 1 4 1 1;"
-                "1 0 1 7 0;"
-                "2 0 1 0 6");
+  VecType mean = "5 6 3 3 2";
+  MatType cov("6 1 1 1 2;"
+              "1 7 1 0 0;"
+              "1 1 4 1 1;"
+              "1 0 1 7 0;"
+              "2 0 1 0 6");
 
-  arma::mat points = "0 3 2 2 3 4;"
-                     "1 2 2 1 0 0;"
-                     "2 3 0 5 5 6;"
-                     "3 7 8 0 1 1;"
-                     "4 8 1 1 0 0;";
+  MatType points = "0 3 2 2 3 4;"
+                   "1 2 2 1 0 0;"
+                   "2 3 0 5 5 6;"
+                   "3 7 8 0 1 1;"
+                   "4 8 1 1 0 0;";
 
-  arma::vec phis;
-  GaussianDistribution g(mean, cov);
+  VecType phis;
+  GaussianDistribution<MatType> g(mean, cov);
   g.LogProbability(points, phis);
 
-  BOOST_REQUIRE_EQUAL(phis.n_elem, 6);
+  REQUIRE(phis.n_elem == 6);
 
-  BOOST_REQUIRE_CLOSE(phis(0), -13.432076798791542, 1e-5);
-  BOOST_REQUIRE_CLOSE(phis(1), -15.814880322345738, 1e-5);
-  BOOST_REQUIRE_CLOSE(phis(2), -13.754462857772776, 1e-5);
-  BOOST_REQUIRE_CLOSE(phis(3), -13.283283233107898, 1e-5);
-  BOOST_REQUIRE_CLOSE(phis(4), -13.800326511545279, 1e-5);
-  BOOST_REQUIRE_CLOSE(phis(5), -14.900192463287908, 1e-5);
+  REQUIRE(phis(0) == Approx(-13.432076798791542).epsilon(1e-7));
+  REQUIRE(phis(1) == Approx(-15.814880322345738).epsilon(1e-7));
+  REQUIRE(phis(2) == Approx(-13.754462857772776).epsilon(1e-7));
+  REQUIRE(phis(3) == Approx(-13.283283233107898).epsilon(1e-7));
+  REQUIRE(phis(4) == Approx(-13.800326511545279).epsilon(1e-7));
+  REQUIRE(phis(5) == Approx(-14.900192463287908).epsilon(1e-7));
 }
 
 /**
  * Make sure random observations follow the probability distribution correctly.
  */
-BOOST_AUTO_TEST_CASE(GaussianDistributionRandomTest)
+TEMPLATE_TEST_CASE("GaussianDistributionRandomTest", "[DistributionTest]",
+    float, double)
 {
-  arma::vec mean("1.0 2.25");
-  arma::mat cov("0.85 0.60;"
-                "0.60 1.45");
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
 
-  GaussianDistribution d(mean, cov);
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 0.3 : 0.125;
 
-  arma::mat obs(2, 5000);
+  VecType mean("1.0 2.25");
+  MatType cov("0.85 0.60;"
+              "0.60 1.45");
 
-  for (size_t i = 0; i < 5000; i++)
+  GaussianDistribution<MatType> d(mean, cov);
+
+  MatType obs(2, 7500);
+
+  for (size_t i = 0; i < 7500; ++i)
     obs.col(i) = d.Random();
 
   // Now make sure that reflects the actual distribution.
-  arma::vec obsMean = arma::mean(obs, 1);
-  arma::mat obsCov = ccov(obs);
+  VecType obsMean = arma::mean(obs, 1);
+  MatType obsCov = ColumnCovariance(obs);
 
-  // 10% tolerance because this can be noisy.
-  BOOST_REQUIRE_CLOSE(obsMean[0], mean[0], 10.0);
-  BOOST_REQUIRE_CLOSE(obsMean[1], mean[1], 10.0);
+  // 12.5% tolerance because this can be noisy.  (30% for floats.)
+  REQUIRE(obsMean[0] == Approx(mean[0]).epsilon(tol));
+  REQUIRE(obsMean[1] == Approx(mean[1]).epsilon(tol));
 
-  BOOST_REQUIRE_CLOSE(obsCov(0, 0), cov(0, 0), 10.0);
-  BOOST_REQUIRE_CLOSE(obsCov(0, 1), cov(0, 1), 10.0);
-  BOOST_REQUIRE_CLOSE(obsCov(1, 0), cov(1, 0), 10.0);
-  BOOST_REQUIRE_CLOSE(obsCov(1, 1), cov(1, 1), 10.0);
+  REQUIRE(obsCov(0, 0) == Approx(cov(0, 0)).epsilon(tol));
+  REQUIRE(obsCov(0, 1) == Approx(cov(0, 1)).epsilon(tol));
+  REQUIRE(obsCov(1, 0) == Approx(cov(1, 0)).epsilon(tol));
+  REQUIRE(obsCov(1, 1) == Approx(cov(1, 1)).epsilon(tol));
 }
 
 /**
  * Make sure that we can properly estimate from given observations.
  */
-BOOST_AUTO_TEST_CASE(GaussianDistributionTrainTest)
+TEMPLATE_TEST_CASE("GaussianDistributionTrainTest", "[DistributionTest]", float,
+    double)
 {
-  arma::vec mean("1.0 3.0 0.0 2.5");
-  arma::mat cov("3.0 0.0 1.0 4.0;"
-                "0.0 2.4 0.5 0.1;"
-                "1.0 0.5 6.3 0.0;"
-                "4.0 0.1 0.0 9.1");
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 1e-3 : 1e-5;
+
+  VecType mean("1.0 3.0 0.0 2.5");
+  MatType cov("3.0 0.0 1.0 4.0;"
+              "0.0 2.4 0.5 0.1;"
+              "1.0 0.5 6.3 0.0;"
+              "4.0 0.1 0.0 9.1");
 
   // Now generate the observations.
-  arma::mat observations(4, 10000);
+  MatType observations(4, 10000);
 
-  arma::mat transChol = trans(chol(cov));
-  for (size_t i = 0; i < 10000; i++)
-    observations.col(i) = transChol * arma::randn<arma::vec>(4) + mean;
+  MatType transChol = trans(chol(cov));
+  for (size_t i = 0; i < 10000; ++i)
+    observations.col(i) = transChol * arma::randn<VecType>(4) + mean;
 
   // Now estimate.
-  GaussianDistribution d;
+  GaussianDistribution<MatType> d;
 
   // Find actual mean and covariance of data.
-  arma::vec actualMean = arma::mean(observations, 1);
-  arma::mat actualCov = ccov(observations);
+  VecType actualMean = arma::mean(observations, 1);
+  MatType actualCov = ColumnCovariance(observations);
 
   d.Train(observations);
 
   // Check that everything is estimated right.
-  for (size_t i = 0; i < 4; i++)
-    BOOST_REQUIRE_SMALL(d.Mean()[i] - actualMean[i], 1e-5);
+  for (size_t i = 0; i < 4; ++i)
+    REQUIRE(d.Mean()[i] - actualMean[i] == Approx(0.0).margin(tol));
 
-  for (size_t i = 0; i < 4; i++)
-    for (size_t j = 0; j < 4; j++)
-      BOOST_REQUIRE_SMALL(d.Covariance()(i, j) - actualCov(i, j), 1e-5);
-}
-
-/******************************/
-/** Gamma Distribution Tests **/
-/******************************/
-
-/**
- * Make sure that using an object to fit one reference set and then asking
- * to fit another works properly.
- */
-BOOST_AUTO_TEST_CASE(GammaDistributionTrainTest)
-{
-  // Create a gamma distribution random generator.
-  double alphaReal = 5.3;
-  double betaReal = 1.5;
-  std::gamma_distribution<double> dist(alphaReal, betaReal);
-
-  // Create a N x d gamma distribution data and fit the results.
-  size_t N = 200;
-  size_t d = 2;
-  arma::mat rdata(d, N);
-
-  // Random generation of gamma-like points.
-  for (size_t j = 0; j < d; ++j)
-    for (size_t i = 0; i < N; ++i)
-      rdata(j, i) = dist(math::randGen);
-
-  // Create Gamma object and call Train() on reference set.
-  GammaDistribution gDist;
-  gDist.Train(rdata);
-
-  // Training must estimate d pairs of alpha and beta parameters.
-  BOOST_REQUIRE_EQUAL(gDist.Dimensionality(), d);
-  BOOST_REQUIRE_EQUAL(gDist.Dimensionality(), d);
-
-  // Create a N' x d' gamma distribution, fit results without new object.
-  size_t N2 = 350;
-  size_t d2 = 4;
-  arma::mat rdata2(d2, N2);
-
-  // Random generation of gamma-like points.
-  for (size_t j = 0; j < d2; ++j)
-    for (size_t i = 0; i < N2; ++i)
-      rdata2(j, i) = dist(math::randGen);
-
-  // Fit results using old object.
-  gDist.Train(rdata2);
-
-  // Training must estimate d' pairs of alpha and beta parameters.
-  BOOST_REQUIRE_EQUAL(gDist.Dimensionality(), d2);
-  BOOST_REQUIRE_EQUAL(gDist.Dimensionality(), d2);
+  for (size_t i = 0; i < 4; ++i)
+    for (size_t j = 0; j < 4; ++j)
+    {
+      REQUIRE(d.Covariance()(i, j) - actualCov(i, j) ==
+          Approx(0.0).margin(tol));
+    }
 }
 
 /**
- * This test verifies that the fitting procedure for GammaDistribution works
- * properly when probabilities for each sample is given.
+ * This test verifies the fitting of GaussianDistribution works properly when
+ * probabilities for each sample is given.
  */
-BOOST_AUTO_TEST_CASE(GammaDistributionTrainWithProbabilitiesTest)
+TEMPLATE_TEST_CASE("GaussianDistributionTrainWithProbabilitiesTest",
+    "[DistributionTest]", float, double)
 {
-  double alphaReal = 5.4;
-  double betaReal = 6.7;
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
 
-  // Create a gamma distribution random generator.
-  std::gamma_distribution<double> dist(alphaReal, betaReal);
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 0.25 : 0.1;
 
-  size_t N = 50000;
-  size_t d = 2;
-  arma::mat rdata(d, N);
+  VecType mean = ("5.0");
+  VecType cov = ("2.0");
 
-  for (size_t j = 0; j < d; j++)
-    for (size_t i = 0; i < N; i++)
-      rdata(j, i) = dist(math::randGen);
+  GaussianDistribution<MatType> dist(mean, cov);
+  size_t N = 15000;
+  size_t d = 1;
 
-  // Fill the probabilities randomly.
-  arma::vec probabilities(N, arma::fill::randu);
+  MatType rdata(d, N);
+  for (size_t i = 0; i < N; ++i)
+    rdata.col(i) = dist.Random();
 
-  // Fit results with probabilities and data.
-  GammaDistribution gDist;
-  gDist.Train(rdata, probabilities);
+  VecType probabilities(N);
+  for (size_t i = 0; i < N; ++i)
+    probabilities(i) = Random();
 
-  // Fit results with only data.
-  GammaDistribution gDist2;
-  gDist2.Train(rdata);
+  // Fit distribution with probabilities and data.
+  GaussianDistribution<MatType> guDist;
+  guDist.Train(rdata, probabilities);
 
-  BOOST_REQUIRE_CLOSE(gDist2.Alpha(0), gDist.Alpha(0), 1.5);
-  BOOST_REQUIRE_CLOSE(gDist2.Beta(0), gDist.Beta(0), 1.5);
+  // Fit distribution only with data.
+  GaussianDistribution<MatType> guDist2;
+  guDist2.Train(rdata);
 
-  BOOST_REQUIRE_CLOSE(gDist2.Alpha(1), gDist.Alpha(1), 1.5);
-  BOOST_REQUIRE_CLOSE(gDist2.Beta(1), gDist.Beta(1), 1.5);
+  REQUIRE(guDist.Mean()[0] == Approx(guDist2.Mean()[0]).epsilon(tol));
+  REQUIRE(guDist.Covariance()[0] ==
+      Approx(guDist2.Covariance()[0]).epsilon(tol));
 
-  BOOST_REQUIRE_CLOSE(alphaReal, gDist.Alpha(0), 2.5);
-  BOOST_REQUIRE_CLOSE(betaReal, gDist.Beta(0), 2.5);
-
-  BOOST_REQUIRE_CLOSE(alphaReal, gDist.Alpha(1), 2.5);
-  BOOST_REQUIRE_CLOSE(betaReal, gDist.Beta(1), 2.5);
+  REQUIRE(guDist.Mean()[0] == Approx(mean[0]).epsilon(tol));
+  REQUIRE(guDist.Covariance()[0] == Approx(cov[0]).epsilon(tol));
 }
 
 /**
  * This test ensures that the same result is obtained when trained with
  * probabilities all set to 1 and with no probabilities at all.
  */
-BOOST_AUTO_TEST_CASE(GammaDistributionTrainAllProbabilities1Test)
+TEMPLATE_TEST_CASE("GaussianDistributionWithProbabilties1Test",
+    "[DistributionTest]", float, double)
 {
-  double alphaReal = 5.4;
-  double betaReal = 6.7;
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const ElemType tol1 = (std::is_same_v<ElemType, float>) ? 1e-10 : 1e-17;
+  const ElemType tol2 = (std::is_same_v<ElemType, float>) ? 1e-2 : 1e-4;
+
+  VecType mean = ("5.0");
+  VecType cov  = ("4.0");
+
+  GaussianDistribution<MatType> dist(mean, cov);
+  size_t N = 50000;
+  size_t d = 1;
+
+  MatType rdata(d, N);
+  for (size_t i = 0; i < N; ++i)
+      rdata.col(i) = Random();
+
+  VecType probabilities(N, arma::fill::ones);
+
+  // Fit the distribution with only data.
+  GaussianDistribution<MatType> guDist;
+  guDist.Train(rdata);
+
+  // Fit the distribution with data and each probability as 1.
+  GaussianDistribution<MatType> guDist2;
+  guDist2.Train(rdata, probabilities);
+
+  REQUIRE(guDist.Mean()[0] == Approx(guDist2.Mean()[0]).epsilon(tol1));
+  REQUIRE(guDist.Covariance()[0] ==
+      Approx(guDist2.Covariance()[0]).epsilon(tol2));
+}
+
+/**
+ * This test draws points from two different normal distributions, sets the
+ * probabilities for points from the first distribution to something small and
+ * the probabilities for the second to something large.
+ *
+ * We expect that the distribution we recover after training to be the same as
+ * the second normal distribution (the one with high probabilities).
+ */
+TEMPLATE_TEST_CASE("GaussianDistributionTrainWithTwoDistProbabilitiesTest",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  VecType mean1 = ("5.0");
+  VecType cov1 = ("4.0");
+
+  VecType mean2 = ("3.0");
+  VecType cov2 = ("1.0");
+
+  // Create two GaussianDistributions with different parameters.
+  GaussianDistribution<MatType> dist1(mean1, cov1);
+  GaussianDistribution<MatType> dist2(mean2, cov2);
+
+  size_t N = 50000;
+  size_t d = 1;
+
+  MatType rdata(d, N);
+  VecType probabilities(N);
+
+  // Fill even numbered columns with random points from dist1 and odd numbered
+  // columns with random points from dist2.
+  for (size_t j = 0; j < N; ++j)
+  {
+    if (j % 2 == 0)
+      rdata.col(j) = dist1.Random();
+    else
+      rdata.col(j) = dist2.Random();
+  }
+
+  // Assign high probabilities to points drawn from dist1 and low probabilities
+  // to numbers drawn from dist2.
+  for (size_t i = 0 ; i < N ; ++i)
+  {
+    if (i % 2 == 0)
+      probabilities(i) = Random(0.98, 1);
+    else
+      probabilities(i) = Random(0, 0.02);
+  }
+
+  GaussianDistribution<MatType> guDist;
+  guDist.Train(rdata, probabilities);
+
+  REQUIRE(guDist.Mean()[0] == Approx(mean1[0]).epsilon(0.05));
+  REQUIRE(guDist.Covariance()[0] == Approx(cov1[0]).epsilon(0.05));
+}
+
+/******************************/
+/** Gamma Distribution Tests **/
+/******************************/
+/**
+ * Make sure that using an object to fit one reference set and then asking
+ * to fit another works properly.
+ */
+TEMPLATE_TEST_CASE("GammaDistributionTrainTest", "[DistributionTest]", float,
+    double)
+{
+  using ElemType = TestType;
+  using MatType = arma::Mat<ElemType>;
 
   // Create a gamma distribution random generator.
-  std::gamma_distribution<double> dist(alphaReal, betaReal);
+  ElemType alphaReal = 5.3;
+  ElemType betaReal = 1.5;
+  std::gamma_distribution<ElemType> dist(alphaReal, betaReal);
+
+  // Create a N x d gamma distribution data and fit the results.
+  size_t N = 200;
+  size_t d = 2;
+  MatType rdata(d, N);
+
+  // Random generation of gamma-like points.
+  for (size_t j = 0; j < d; ++j)
+    for (size_t i = 0; i < N; ++i)
+      rdata(j, i) = dist(RandGen());
+
+  // Create GammaDistribution object and call Train() on reference set.
+  GammaDistribution<MatType> gDist;
+  gDist.Train(rdata);
+
+  // Training must estimate d pairs of alpha and beta parameters.
+  REQUIRE(gDist.Dimensionality() == d);
+  REQUIRE(gDist.Dimensionality() == d);
+
+  // Create a N' x d' gamma distribution, fit results without new object.
+  size_t N2 = 350;
+  size_t d2 = 4;
+  MatType rdata2(d2, N2);
+
+  // Random generation of gamma-like points.
+  for (size_t j = 0; j < d2; ++j)
+    for (size_t i = 0; i < N2; ++i)
+      rdata2(j, i) = dist(RandGen());
+
+  // Fit results using old object.
+  gDist.Train(rdata2);
+
+  // Training must estimate d' pairs of alpha and beta parameters.
+  REQUIRE(gDist.Dimensionality() == d2);
+  REQUIRE(gDist.Dimensionality() == d2);
+}
+
+/**
+ * This test verifies that the fitting procedure for GammaDistribution works
+ * properly when probabilities for each sample is given.
+ */
+TEMPLATE_TEST_CASE("GammaDistributionTrainWithProbabilitiesTest",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 0.03 : 0.015;
+
+  ElemType alphaReal = 5.4;
+  ElemType betaReal = 6.7;
+
+  // Create a gamma distribution random generator.
+  std::gamma_distribution<ElemType> dist(alphaReal, betaReal);
+
+  size_t N = 50000;
+  size_t d = 2;
+  MatType rdata(d, N);
+
+  for (size_t j = 0; j < d; ++j)
+    for (size_t i = 0; i < N; ++i)
+      rdata(j, i) = dist(RandGen());
+
+  // Fill the probabilities randomly.
+  VecType probabilities(N, arma::fill::randu);
+
+  // Fit results with probabilities and data.
+  GammaDistribution<MatType> gDist;
+  gDist.Train(rdata, probabilities);
+
+  // Fit results with only data.
+  GammaDistribution<MatType> gDist2;
+  gDist2.Train(rdata);
+
+  REQUIRE(gDist2.Alpha(0) == Approx(gDist.Alpha(0)).epsilon(tol));
+  REQUIRE(gDist2.Beta(0) == Approx(gDist.Beta(0)).epsilon(tol));
+
+  REQUIRE(gDist2.Alpha(1) == Approx(gDist.Alpha(1)).epsilon(tol));
+  REQUIRE(gDist2.Beta(1) == Approx(gDist.Beta(1)).epsilon(tol));
+
+  REQUIRE(alphaReal == Approx(gDist.Alpha(0)).epsilon(2 * tol));
+  REQUIRE(betaReal == Approx(gDist.Beta(0)).epsilon(2 * tol));
+
+  REQUIRE(alphaReal == Approx(gDist.Alpha(1)).epsilon(2 * tol));
+  REQUIRE(betaReal == Approx(gDist.Beta(1)).epsilon(2 * tol));
+}
+
+/**
+ * This test ensures that the same result is obtained when trained with
+ * probabilities all set to 1 and with no probabilities at all.
+ */
+TEMPLATE_TEST_CASE("GammaDistributionTrainAllProbabilities1Test",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  ElemType alphaReal = 5.4;
+  ElemType betaReal = 6.7;
+
+  // Create a gamma distribution random generator.
+  std::gamma_distribution<ElemType> dist(alphaReal, betaReal);
 
   size_t N = 1000;
   size_t d = 2;
-  arma::mat rdata(d, N);
+  MatType rdata(d, N);
 
-  for (size_t j = 0; j < d; j++)
-    for (size_t i = 0; i < N; i++)
-      rdata(j, i) = dist(math::randGen);
+  for (size_t j = 0; j < d; ++j)
+    for (size_t i = 0; i < N; ++i)
+      rdata(j, i) = dist(RandGen());
 
   // Fit results with only data.
-  GammaDistribution gDist;
+  GammaDistribution<MatType> gDist;
   gDist.Train(rdata);
 
   // Fit results with data and each probability as 1.
-  GammaDistribution gDist2;
-  arma::vec allProbabilities1(N, arma::fill::ones);
+  GammaDistribution<MatType> gDist2;
+  VecType allProbabilities1(N, arma::fill::ones);
   gDist2.Train(rdata, allProbabilities1);
 
-  BOOST_REQUIRE_CLOSE(gDist2.Alpha(0), gDist.Alpha(0), 1e-5);
-  BOOST_REQUIRE_CLOSE(gDist2.Beta(0), gDist.Beta(0), 1e-5);
+  REQUIRE(gDist2.Alpha(0) == Approx(gDist.Alpha(0)).epsilon(1e-7));
+  REQUIRE(gDist2.Beta(0) == Approx(gDist.Beta(0)).epsilon(1e-7));
 
-  BOOST_REQUIRE_CLOSE(gDist2.Alpha(1), gDist.Alpha(1), 1e-5);
-  BOOST_REQUIRE_CLOSE(gDist2.Beta(1), gDist.Beta(1), 1e-5);
+  REQUIRE(gDist2.Alpha(1) == Approx(gDist.Alpha(1)).epsilon(1e-7));
+  REQUIRE(gDist2.Beta(1) == Approx(gDist.Beta(1)).epsilon(1e-7));
 }
 
 /**
@@ -528,51 +979,58 @@ BOOST_AUTO_TEST_CASE(GammaDistributionTrainAllProbabilities1Test)
  * gamma distribution recovered has the same parameters as the second gamma
  * distribution with high probabilities.
  */
-BOOST_AUTO_TEST_CASE(GammaDistributionTrainTwoDistProbabilities1Test)
+TEMPLATE_TEST_CASE("GammaDistributionTrainTwoDistProbabilities1Test",
+    "[DistributionTest]", float, double)
 {
-  double alphaReal = 5.4;
-  double betaReal = 6.7;
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
 
-  double alphaReal2 = 1.9;
-  double betaReal2 = 8.4;
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 0.25 : 0.075;
+
+  ElemType alphaReal = 5.4;
+  ElemType betaReal = 6.7;
+
+  ElemType alphaReal2 = 1.9;
+  ElemType betaReal2 = 8.4;
 
   // Create two gamma distribution random generators.
-  std::gamma_distribution<double> dist(alphaReal, betaReal);
-  std::gamma_distribution<double> dist2(alphaReal2, betaReal2);
+  std::gamma_distribution<ElemType> dist(alphaReal, betaReal);
+  std::gamma_distribution<ElemType> dist2(alphaReal2, betaReal2);
 
   size_t N = 50000;
   size_t d = 2;
-  arma::mat rdata(d, N);
-  arma::vec probabilities(N);
+  MatType rdata(d, N);
+  VecType probabilities(N);
 
   // Draw points alternately from the two different distributions.
-  for (size_t j = 0; j < d; j++)
+  for (size_t j = 0; j < d; ++j)
   {
-    for (size_t i = 0; i < N; i++)
+    for (size_t i = 0; i < N; ++i)
     {
       if (i % 2 == 0)
-        rdata(j, i) = dist(math::randGen);
+        rdata(j, i) = dist(RandGen());
       else
-        rdata(j, i) = dist2(math::randGen);
+        rdata(j, i) = dist2(RandGen());
     }
   }
 
-  for (size_t i = 0; i < N; i++)
+  for (size_t i = 0; i < N; ++i)
   {
     if (i % 2 == 0)
-      probabilities(i) = 0.02 * math::Random();
+      probabilities(i) = 0.02 * Random();
     else
-      probabilities(i) = 0.98 + 0.02 * math::Random();
+      probabilities(i) = 0.98 + 0.02 * Random();
   }
 
-  GammaDistribution gDist;
+  GammaDistribution<MatType> gDist;
   gDist.Train(rdata, probabilities);
 
-  BOOST_REQUIRE_CLOSE(alphaReal2, gDist.Alpha(0), 5);
-  BOOST_REQUIRE_CLOSE(betaReal2, gDist.Beta(0), 5);
+  REQUIRE(alphaReal2 == Approx(gDist.Alpha(0)).epsilon(tol));
+  REQUIRE(betaReal2 == Approx(gDist.Beta(0)).epsilon(tol));
 
-  BOOST_REQUIRE_CLOSE(alphaReal2, gDist.Alpha(1), 5);
-  BOOST_REQUIRE_CLOSE(betaReal2, gDist.Beta(1), 5);
+  REQUIRE(alphaReal2 == Approx(gDist.Alpha(1)).epsilon(tol));
+  REQUIRE(betaReal2 == Approx(gDist.Beta(1)).epsilon(tol));
 }
 
 /**
@@ -581,13 +1039,16 @@ BOOST_AUTO_TEST_CASE(GammaDistributionTrainTwoDistProbabilities1Test)
  * with different alpha/beta parameters so we make sure we don't have some weird
  * bug that always converges to the same number.
  */
-BOOST_AUTO_TEST_CASE(GammaDistributionFittingTest)
+TEMPLATE_TEST_CASE("GammaDistributionFittingTest", "[DistributionTest]", float,
+    double)
 {
-  math::RandomSeed(std::time(NULL));
+  using ElemType = TestType;
+  using MatType = arma::Mat<ElemType>;
+
   // Offset from the actual alpha/beta. 10% is quite a relaxed tolerance since
   // the random points we generate are few (for test speed) and might be fitted
   // better by a similar distribution.
-  double errorTolerance = 10;
+  ElemType errorTolerance = 10;
 
   size_t N = 5000;
   size_t d = 1; // Only 1 dimension is required for this.
@@ -595,62 +1056,66 @@ BOOST_AUTO_TEST_CASE(GammaDistributionFittingTest)
   /** Iteration 1 (first parameter set) **/
 
   // Create a gamma-random generator and data.
-  double alphaReal = 5.3;
-  double betaReal = 1.5;
-  std::gamma_distribution<double> dist(alphaReal, betaReal);
+  ElemType alphaReal = 5.3;
+  ElemType betaReal = 1.5;
+  std::gamma_distribution<ElemType> dist(alphaReal, betaReal);
 
   // Random generation of gamma-like points.
-  arma::mat rdata(d, N);
+  MatType rdata(d, N);
   for (size_t j = 0; j < d; ++j)
     for (size_t i = 0; i < N; ++i)
-      rdata(j, i) = dist(math::randGen);
+      rdata(j, i) = dist(RandGen());
 
   // Create Gamma object and call Train() on reference set.
-  GammaDistribution gDist;
+  GammaDistribution<MatType> gDist;
   gDist.Train(rdata);
 
   // Estimated parameter must be close to real.
-  BOOST_REQUIRE_CLOSE(gDist.Alpha(0), alphaReal, errorTolerance);
-  BOOST_REQUIRE_CLOSE(gDist.Beta(0), betaReal, errorTolerance);
+  REQUIRE(gDist.Alpha(0) == Approx(alphaReal).epsilon(errorTolerance / 100));
+  REQUIRE(gDist.Beta(0) == Approx(betaReal).epsilon(errorTolerance / 100));
 
   /** Iteration 2 (different parameter set) **/
 
   // Create a gamma-random generator and data.
-  double alphaReal2 = 7.2;
-  double betaReal2 = 0.9;
-  std::gamma_distribution<double> dist2(alphaReal2, betaReal2);
+  ElemType alphaReal2 = 7.2;
+  ElemType betaReal2 = 0.9;
+  std::gamma_distribution<ElemType> dist2(alphaReal2, betaReal2);
 
   // Random generation of gamma-like points.
-  arma::mat rdata2(d, N);
+  MatType rdata2(d, N);
   for (size_t j = 0; j < d; ++j)
     for (size_t i = 0; i < N; ++i)
-      rdata2(j, i) = dist2(math::randGen);
+      rdata2(j, i) = dist2(RandGen());
 
   // Create Gamma object and call Train() on reference set.
-  GammaDistribution gDist2;
+  GammaDistribution<MatType> gDist2;
   gDist2.Train(rdata2);
 
   // Estimated parameter must be close to real.
-  BOOST_REQUIRE_CLOSE(gDist2.Alpha(0), alphaReal2, errorTolerance);
-  BOOST_REQUIRE_CLOSE(gDist2.Beta(0), betaReal2, errorTolerance);
+  REQUIRE(gDist2.Alpha(0) == Approx(alphaReal2).epsilon(errorTolerance / 100));
+  REQUIRE(gDist2.Beta(0) == Approx(betaReal2).epsilon(errorTolerance / 100));
 }
 
 /**
  * Test that Train() and the constructor that takes data give the same resulting
  * distribution.
  */
-BOOST_AUTO_TEST_CASE(GammaDistributionTrainConstructorTest)
+TEMPLATE_TEST_CASE("GammaDistributionTrainConstructorTest",
+    "[DistributionTest]", float, double)
 {
-  const arma::mat data = arma::randu<arma::mat>(10, 500);
+  using ElemType = TestType;
+  using MatType = arma::Mat<ElemType>;
 
-  GammaDistribution d1(data);
-  GammaDistribution d2;
+  const MatType data = arma::randu<MatType>(10, 500);
+
+  GammaDistribution<MatType> d1(data);
+  GammaDistribution<MatType> d2;
   d2.Train(data);
 
   for (size_t i = 0; i < 10; ++i)
   {
-    BOOST_REQUIRE_CLOSE(d1.Alpha(i), d2.Alpha(i), 1e-5);
-    BOOST_REQUIRE_CLOSE(d1.Beta(i), d2.Beta(i), 1e-5);
+    REQUIRE(d1.Alpha(i) == Approx(d2.Alpha(i)).epsilon(1e-7));
+    REQUIRE(d1.Beta(i) == Approx(d2.Beta(i)).epsilon(1e-7));
   }
 }
 
@@ -658,116 +1123,722 @@ BOOST_AUTO_TEST_CASE(GammaDistributionTrainConstructorTest)
  * Test that Train() with a dataset and Train() with dataset statistics return
  * the same results.
  */
-BOOST_AUTO_TEST_CASE(GammaDistributionTrainStatisticsTest)
+TEMPLATE_TEST_CASE("GammaDistributionTrainStatisticsTest", "[DistributionTest]",
+    float, double)
 {
-  const arma::mat data = arma::randu<arma::mat>(1, 500);
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const MatType data = arma::randu<MatType>(1, 500);
 
   // Train object d1 with the data.
-  GammaDistribution d1(data);
+  GammaDistribution<MatType> d1(data);
 
   // Train object d2 with the data's statistics.
-  GammaDistribution d2;
-  const arma::vec meanLogx = arma::mean(arma::log(data), 1);
-  const arma::vec meanx = arma::mean(data, 1);
-  const arma::vec logMeanx = arma::log(meanx);
+  GammaDistribution<MatType> d2;
+  const VecType meanLogx = arma::mean(log(data), 1);
+  const VecType meanx = arma::mean(data, 1);
+  const VecType logMeanx = log(meanx);
   d2.Train(logMeanx, meanLogx, meanx);
 
-  BOOST_REQUIRE_CLOSE(d1.Alpha(0), d2.Alpha(0), 1e-5);
-  BOOST_REQUIRE_CLOSE(d1.Beta(0), d2.Beta(0), 1e-5);
+  REQUIRE(d1.Alpha(0) == Approx(d2.Alpha(0)).epsilon(1e-7));
+  REQUIRE(d1.Beta(0) == Approx(d2.Beta(0)).epsilon(1e-7));
 }
 
 /**
  * Tests that Random() generates points that can be reasonably well fit by the
  * distribution that generated them.
  */
-BOOST_AUTO_TEST_CASE(GammaDistributionRandomTest)
+TEMPLATE_TEST_CASE("GammaDistributionRandomTest", "[DistributionTest]", float,
+    double)
 {
-  const arma::vec a("2.0 2.5 3.0"), b("0.4 0.6 1.3");
-  const size_t numPoints = 2000;
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const VecType a("2.0 2.5 3.0"), b("0.4 0.6 1.3");
+  const size_t numPoints = 4000;
 
   // Distribution to generate points.
-  GammaDistribution d1(a, b);
-  arma::mat data(3, numPoints); // 3-d points.
+  GammaDistribution<MatType> d1(a, b);
+  MatType data(3, numPoints); // 3-d points.
 
   for (size_t i = 0; i < numPoints; ++i)
     data.col(i) = d1.Random();
 
   // Distribution to fit points.
-  GammaDistribution d2(data);
+  GammaDistribution<MatType> d2(data);
   for (size_t i = 0; i < 3; ++i)
   {
-    BOOST_REQUIRE_CLOSE(d2.Alpha(i), a(i), 10); // Within 10%
-    BOOST_REQUIRE_CLOSE(d2.Beta(i), b(i), 10);
+    REQUIRE(d2.Alpha(i) == Approx(a(i)).epsilon(0.15)); // Within 15%
+    REQUIRE(d2.Beta(i) == Approx(b(i)).epsilon(0.15));
   }
 }
 
-BOOST_AUTO_TEST_CASE(GammaDistributionProbabilityTest)
+TEMPLATE_TEST_CASE("GammaDistributionProbabilityTest", "[DistributionTest]",
+    float, double)
 {
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
   // Train two 1-dimensional distributions.
-  const arma::vec a1("2.0"), b1("0.9"), a2("3.1"), b2("1.4");
-  arma::mat x1("2.0"), x2("2.94");
-  arma::vec prob1, prob2;
+  const VecType a1("2.0"), b1("0.9"), a2("3.1"), b2("1.4");
+  MatType x1("2.0"), x2("2.94");
+  VecType prob1, prob2;
 
   // Evaluated at wolfram|alpha
-  GammaDistribution d1(a1, b1);
+  GammaDistribution<MatType> d1(a1, b1);
   d1.Probability(x1, prob1);
-  BOOST_REQUIRE_CLOSE(prob1(0), 0.267575, 1e-3);
+  REQUIRE(prob1(0) == Approx(0.267575).epsilon(1e-5));
 
   // Evaluated at wolfram|alpha
-  GammaDistribution d2(a2, b2);
+  GammaDistribution<MatType> d2(a2, b2);
   d2.Probability(x2, prob2);
-  BOOST_REQUIRE_CLOSE(prob2(0), 0.189043, 1e-3);
+  REQUIRE(prob2(0) == Approx(0.189043).epsilon(1e-5));
 
   // Check that the overload that returns the probability for 1 dimension
   // agrees.
-  BOOST_REQUIRE_CLOSE(prob2(0), d2.Probability(2.94, 0), 1e-5);
+  REQUIRE(prob2(0) == Approx(d2.Probability(2.94, 0)).epsilon(1e-7));
 
   // Combine into one 2-dimensional distribution.
-  const arma::vec a3("2.0 3.1"), b3("0.9 1.4");
-  arma::mat x3(2, 2);
-  x3 << 2.0 << 2.94 << arma::endr
-     << 2.0 << 2.94;
-  arma::vec prob3;
+  const VecType a3("2.0 3.1"), b3("0.9 1.4");
+  MatType x3(2, 2);
+  x3 = { { 2.0, 2.94 },
+         { 2.0, 2.94 } };
+  VecType prob3;
 
   // Expect that the 2-dimensional distribution returns the product of the
   // 1-dimensional distributions (evaluated at wolfram|alpha).
-  GammaDistribution d3(a3, b3);
+  GammaDistribution<MatType> d3(a3, b3);
   d3.Probability(x3, prob3);
-  BOOST_REQUIRE_CLOSE(prob3(0), 0.04408, 1e-2);
-  BOOST_REQUIRE_CLOSE(prob3(1), 0.026165, 1e-2);
+  REQUIRE(prob3(0) == Approx(0.04408).epsilon(1e-4));
+  REQUIRE(prob3(1) == Approx(0.026165).epsilon(1e-4));
 }
 
-BOOST_AUTO_TEST_CASE(GammaDistributionLogProbabilityTest)
+TEMPLATE_TEST_CASE("GammaDistributionLogProbabilityTest", "[DistributionTest]",
+    float, double)
 {
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
   // Train two 1-dimensional distributions.
-  const arma::vec a1("2.0"), b1("0.9"), a2("3.1"), b2("1.4");
-  arma::mat x1("2.0"), x2("2.94");
-  arma::vec prob1, prob2;
+  const VecType a1("2.0"), b1("0.9"), a2("3.1"), b2("1.4");
+  MatType x1("2.0"), x2("2.94");
+  VecType logprob1, logprob2;
 
   // Evaluated at wolfram|alpha
-  GammaDistribution d1(a1, b1);
-  d1.LogProbability(x1, prob1);
-  BOOST_REQUIRE_CLOSE(prob1(0), std::log(0.267575), 1e-3);
+  GammaDistribution<MatType> d1(a1, b1);
+  d1.LogProbability(x1, logprob1);
+  REQUIRE(logprob1(0) == Approx(std::log(0.267575)).epsilon(1e-5));
 
   // Evaluated at wolfram|alpha
-  GammaDistribution d2(a2, b2);
-  d2.LogProbability(x2, prob2);
-  BOOST_REQUIRE_CLOSE(prob2(0), std::log(0.189043), 1e-3);
+  GammaDistribution<MatType> d2(a2, b2);
+  d2.LogProbability(x2, logprob2);
+  REQUIRE(logprob2(0) == Approx(std::log(0.189043)).epsilon(1e-5));
+
+  // Check that the overload that returns the log probability for
+  // 1 dimension agrees.
+  REQUIRE(logprob2(0) == Approx(d2.LogProbability(2.94, 0)).epsilon(1e-7));
 
   // Combine into one 2-dimensional distribution.
-  const arma::vec a3("2.0 3.1"), b3("0.9 1.4");
-  arma::mat x3(2, 2);
-  x3
-    << 2.0 << 2.94 << arma::endr
-    << 2.0 << 2.94;
-  arma::vec prob3;
+  const VecType a3("2.0 3.1"), b3("0.9 1.4");
+  MatType x3(2, 2);
+  x3 = { { 2.0, 2.94 },
+         { 2.0, 2.94 } };
+  VecType logprob3;
 
   // Expect that the 2-dimensional distribution returns the product of the
   // 1-dimensional distributions (evaluated at wolfram|alpha).
-  GammaDistribution d3(a3, b3);
-  d3.LogProbability(x3, prob3);
-  BOOST_REQUIRE_CLOSE(prob3(0), std::log(0.04408), 1e-3);
-  BOOST_REQUIRE_CLOSE(prob3(1), std::log(0.026165), 1e-3);
+  GammaDistribution<MatType> d3(a3, b3);
+  d3.LogProbability(x3, logprob3);
+  REQUIRE(logprob3(0) == Approx(std::log(0.04408)).epsilon(1e-5));
+  REQUIRE(logprob3(1) == Approx(std::log(0.026165)).epsilon(1e-5));
 }
 
-BOOST_AUTO_TEST_SUITE_END();
+/**
+ * Discrete Distribution serialization test.
+ */
+TEMPLATE_TEST_CASE("DiscreteDistributionTest", "[DistributionTest]",
+    (std::pair<double, double>),
+    (std::pair<double, size_t>),
+    (std::pair<float, float>),
+    (std::pair<float, size_t>),
+    (std::pair<float, unsigned short>))
+{
+  using ElemType = typename TestType::first_type;
+  using ObsElemType = typename TestType::second_type;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+  using ObsVecType = arma::Col<ObsElemType>;
+  using ObsMatType = arma::Mat<ObsElemType>;
+
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 1e-4 : 1e-8;
+
+  // I assume that I am properly saving vectors, so, this should be
+  // straightforward.
+  VecType prob;
+  prob.randu(12);
+  std::vector<VecType> probVector = std::vector<VecType>(1, prob);
+  DiscreteDistribution<MatType, ObsMatType> t(probVector);
+
+  DiscreteDistribution<MatType, ObsMatType> xmlT, jsonT, binaryT;
+
+  // Load and save with all serializers.
+  SerializeObjectAll(t, xmlT, jsonT, binaryT);
+
+  for (size_t i = 0; i < 12; ++i)
+  {
+    ObsVecType obs(1);
+    obs[0] = (ObsElemType) i;
+    const ElemType prob = t.Probability(obs);
+    if (prob == 0.0)
+    {
+      REQUIRE(xmlT.Probability(obs) == Approx(0.0).margin(tol));
+      REQUIRE(jsonT.Probability(obs) == Approx(0.0).margin(tol));
+      REQUIRE(binaryT.Probability(obs) == Approx(0.0).margin(tol));
+    }
+    else
+    {
+      REQUIRE(prob == Approx(xmlT.Probability(obs)).epsilon(tol));
+      REQUIRE(prob == Approx(jsonT.Probability(obs)).epsilon(tol));
+      REQUIRE(prob == Approx(binaryT.Probability(obs)).epsilon(tol));
+    }
+  }
+}
+
+/**
+ * Gaussian Distribution serialization test.
+ */
+TEST_CASE("GaussianDistributionTest", "[DistributionTest]")
+{
+  arma::vec mean(10);
+  mean.randu();
+  // Generate a covariance matrix.
+  arma::mat cov;
+  cov.randu(10, 10);
+  cov = (cov * cov.t());
+
+  GaussianDistribution<> g(mean, cov);
+  GaussianDistribution<> xmlG, jsonG, binaryG;
+
+  SerializeObjectAll(g, xmlG, jsonG, binaryG);
+
+  REQUIRE(g.Dimensionality() == xmlG.Dimensionality());
+  REQUIRE(g.Dimensionality() == jsonG.Dimensionality());
+  REQUIRE(g.Dimensionality() == binaryG.Dimensionality());
+
+  // First, check the means.
+  CheckMatrices(g.Mean(), xmlG.Mean(), jsonG.Mean(), binaryG.Mean());
+
+  // Now, check the covariance.
+  CheckMatrices(g.Covariance(), xmlG.Covariance(), jsonG.Covariance(),
+      binaryG.Covariance());
+
+  // Lastly, run some observations through and make sure the probability is the
+  // same.  This should test anything cached internally.
+  arma::mat randomObs;
+  randomObs.randu(10, 500);
+
+  for (size_t i = 0; i < 500; ++i)
+  {
+    const double prob = g.Probability(randomObs.unsafe_col(i));
+
+    if (prob == 0.0)
+    {
+      REQUIRE(xmlG.Probability(randomObs.unsafe_col(i)) ==
+          Approx(0.0).margin(1e-8));
+      REQUIRE(jsonG.Probability(randomObs.unsafe_col(i)) ==
+          Approx(0.0).margin(1e-8));
+      REQUIRE(binaryG.Probability(randomObs.unsafe_col(i)) ==
+          Approx(0.0).margin(1e-8));
+    }
+    else
+    {
+      REQUIRE(prob ==
+          Approx(xmlG.Probability(randomObs.unsafe_col(i))).epsilon(1e-10));
+      REQUIRE(prob ==
+          Approx(jsonG.Probability(randomObs.unsafe_col(i))).epsilon(1e-10));
+      REQUIRE(prob ==
+          Approx(binaryG.Probability(randomObs.unsafe_col(i))).epsilon(1e-10));
+    }
+  }
+}
+
+/**
+ * Laplace Distribution serialization test.
+ */
+TEMPLATE_TEST_CASE("LaplaceDistributionTest", "[DistributionTest]", float,
+    double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  VecType mean(20);
+  mean.randu();
+
+  LaplaceDistribution<MatType> l(mean, 2.5);
+  LaplaceDistribution<MatType> xmlL, jsonL, binaryL;
+
+  SerializeObjectAll(l, xmlL, jsonL, binaryL);
+
+  REQUIRE(l.Scale() == Approx(xmlL.Scale()).epsilon(1e-10));
+  REQUIRE(l.Scale() == Approx(jsonL.Scale()).epsilon(1e-10));
+  REQUIRE(l.Scale() == Approx(binaryL.Scale()).epsilon(1e-10));
+
+  CheckMatrices(l.Mean(), xmlL.Mean(), jsonL.Mean(), binaryL.Mean());
+}
+
+/**
+ * Laplace Distribution Probability Test.
+ */
+TEMPLATE_TEST_CASE("LaplaceDistributionProbabilityTest", "[DistributionTest]",
+    float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  LaplaceDistribution<MatType> l(VecType("0.0"), 1.0);
+
+  // Simple case.
+  REQUIRE(l.Probability(VecType("0.0")) ==
+      Approx(0.500000000000000).epsilon(1e-7));
+  REQUIRE(l.Probability(VecType("1.0")) ==
+      Approx(0.183939720585721).epsilon(1e-7));
+
+  MatType points = "0.0 1.0;";
+
+  VecType probabilities;
+
+  l.Probability(points, probabilities);
+
+  REQUIRE(probabilities.n_elem == 2);
+
+  REQUIRE(probabilities(0) == Approx(0.500000000000000).epsilon(1e-7));
+  REQUIRE(probabilities(1) == Approx(0.183939720585721).epsilon(1e-7));
+}
+
+/**
+ * Laplace Distribution Log Probability Test.
+ */
+TEMPLATE_TEST_CASE("LaplaceDistributionLogProbabilityTest",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  LaplaceDistribution<MatType> l(VecType("0.0"), 1.0);
+
+  // Simple case.
+  REQUIRE(l.LogProbability(VecType("0.0")) ==
+      Approx(-0.693147180559945).epsilon(1e-7));
+  REQUIRE(l.LogProbability(VecType("1.0")) ==
+      Approx(-1.693147180559946).epsilon(1e-7));
+
+  MatType points = "0.0 1.0;";
+
+  VecType logProbabilities;
+
+  l.LogProbability(points, logProbabilities);
+
+  REQUIRE(logProbabilities.n_elem == 2);
+
+  REQUIRE(logProbabilities(0) ==
+      Approx(-0.693147180559945).epsilon(1e-7));
+
+  REQUIRE(logProbabilities(1) ==
+      Approx(-1.693147180559946).epsilon(1e-7));
+}
+
+/**
+ * Regression distribution serialization test.
+ */
+TEST_CASE("RegressionDistributionTest", "[DistributionTest]")
+{
+  // Generate some random data.
+  arma::mat data;
+  data.randn(15, 800);
+  arma::rowvec responses;
+  responses.randn(800);
+
+  RegressionDistribution<> rd(data, responses);
+  RegressionDistribution<> xmlRd, jsonRd, binaryRd;
+
+  // Okay, now save it and load it.
+  SerializeObjectAll(rd, xmlRd, jsonRd, binaryRd);
+
+  // Check the gaussian distribution.
+  CheckMatrices(rd.Err().Mean(),
+                xmlRd.Err().Mean(),
+                jsonRd.Err().Mean(),
+                binaryRd.Err().Mean());
+  CheckMatrices(rd.Err().Covariance(),
+                xmlRd.Err().Covariance(),
+                jsonRd.Err().Covariance(),
+                binaryRd.Err().Covariance());
+
+  // Check the regression function.
+  if (rd.Rf().Lambda() == 0.0)
+  {
+    REQUIRE(xmlRd.Rf().Lambda() == Approx(0.0).margin(1e-8));
+    REQUIRE(jsonRd.Rf().Lambda() == Approx(0.0).margin(1e-8));
+    REQUIRE(binaryRd.Rf().Lambda() == Approx(0.0).margin(1e-8));
+  }
+  else
+  {
+    REQUIRE(rd.Rf().Lambda() == Approx(xmlRd.Rf().Lambda()).epsilon(1e-10));
+    REQUIRE(rd.Rf().Lambda() == Approx(jsonRd.Rf().Lambda()).epsilon(1e-10));
+    REQUIRE(rd.Rf().Lambda() == Approx(binaryRd.Rf().Lambda()).epsilon(1e-10));
+  }
+
+  CheckMatrices(rd.Rf().Parameters(),
+                xmlRd.Rf().Parameters(),
+                jsonRd.Rf().Parameters(),
+                binaryRd.Rf().Parameters());
+}
+
+/*****************************************************/
+/** Diagonal Covariance Gaussian Distribution Tests **/
+/*****************************************************/
+
+/**
+ * Make sure Diagonal Covariance Gaussian distributions are initialized
+ * correctly.
+ */
+TEMPLATE_TEST_CASE("DiagonalGaussianDistributionEmptyConstructor",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+
+  DiagonalGaussianDistribution<arma::Mat<ElemType>> d;
+
+  REQUIRE(d.Mean().n_elem == 0);
+  REQUIRE(d.Covariance().n_elem == 0);
+}
+
+/**
+ * Make sure Diagonal Covariance Gaussian distributions are initialized to
+ * the correct dimensionality.
+ */
+TEMPLATE_TEST_CASE("DiagonalGaussianDistributionDimensionalityConstructor",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+
+  DiagonalGaussianDistribution<arma::Mat<ElemType>> d(4);
+
+  REQUIRE(d.Mean().n_elem == 4);
+  REQUIRE(d.Covariance().n_elem == 4);
+}
+
+/**
+ * Make sure Diagonal Covariance Gaussian distributions are initialized
+ * correctly when we give a mean and covariance.
+ */
+TEMPLATE_TEST_CASE("DiagonalGaussianDistributionConstructor",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  VecType mean = arma::randu<VecType>(3);
+  VecType covariance = arma::randu<VecType>(3);
+
+  DiagonalGaussianDistribution<MatType> d(mean, covariance);
+
+  // Make sure the mean and covariance is correct.
+  for (size_t i = 0; i < 3; ++i)
+  {
+    REQUIRE(d.Mean()(i) == Approx(mean(i)).epsilon(1e-7));
+    REQUIRE(d.Covariance()(i) == Approx(covariance(i)).epsilon(1e-7));
+  }
+}
+
+/**
+ * Make sure the probability of observations is correct.
+ * The values were calculated using 'dmvnorm' in R.
+ */
+TEMPLATE_TEST_CASE("DiagonalGaussianDistributionProbabilityTest",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  VecType mean("2 5 3 4 1");
+  VecType cov("3 1 5 3 2");
+
+  DiagonalGaussianDistribution<MatType> d(mean, cov);
+
+  // Observations lists randomly selected.
+  REQUIRE(d.LogProbability("3 5 2 7 8") ==
+    Approx(-20.861264167855161).epsilon(1e-7));
+  REQUIRE(d.LogProbability("7 8 4 0 5") ==
+    Approx(-22.277930834521829).epsilon(1e-7));
+  REQUIRE(d.LogProbability("6 8 7 7 5") ==
+    Approx(-21.111264167855161).epsilon(1e-7));
+  REQUIRE(d.LogProbability("2 9 5 6 3") ==
+    Approx(-16.9112641678551621).epsilon(1e-7));
+  REQUIRE(d.LogProbability("5 8 2 9 7") ==
+    Approx(-26.111264167855161).epsilon(1e-7));
+}
+
+/**
+ * Test DiagonalGaussianDistribution::Probability() in the univariate case.
+ * The values were calculated using 'dmvnorm' in R.
+ */
+TEMPLATE_TEST_CASE("DiagonalGaussianUnivariateProbabilityTest",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 1e-4 : 1e-7;
+
+  DiagonalGaussianDistribution<MatType> d(VecType("0.0"), VecType("1.0"));
+
+  // Mean: 0.0, Covariance: 1.0
+  REQUIRE(d.Probability("0.0") == Approx(0.3989422804014327).epsilon(tol));
+  REQUIRE(d.Probability("1.0") == Approx(0.24197072451914337).epsilon(tol));
+  REQUIRE(d.Probability("-1.0") == Approx(0.24197072451914337).epsilon(tol));
+
+  // Mean: 0.0, Covariance: 2.0
+  d.Covariance("2.0");
+  REQUIRE(d.Probability("0.0") == Approx(0.28209479177387814).epsilon(tol));
+  REQUIRE(d.Probability("1.0") == Approx(0.21969564473386122).epsilon(tol));
+  REQUIRE(d.Probability("-1.0") == Approx(0.21969564473386122).epsilon(tol));
+
+  // Mean: 1.0, Covariance: 1.0
+  d.Mean() = "1.0";
+  d.Covariance("1.0");
+  REQUIRE(d.Probability("0.0") == Approx(0.24197072451914337).epsilon(tol));
+  REQUIRE(d.Probability("1.0") == Approx(0.3989422804014327).epsilon(tol));
+  REQUIRE(d.Probability("-1.0") == Approx(0.053990966513188056).epsilon(tol));
+
+  // Mean: 1.0, Covariance: 2.0
+  d.Covariance("2.0");
+  REQUIRE(d.Probability("0.0") == Approx(0.21969564473386122).epsilon(tol));
+  REQUIRE(d.Probability("1.0") == Approx(0.28209479177387814).epsilon(tol));
+  REQUIRE(d.Probability("-1.0") == Approx(0.10377687435514872).epsilon(tol));
+}
+
+/**
+ * Test DiagonalGaussianDistribution::Probability() in the multivariate case.
+ * The values were calculated using 'dmvnorm' in R.
+ */
+TEMPLATE_TEST_CASE("DiagonalGaussianMultivariateProbabilityTest",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 1e-4 : 1e-7;
+
+  VecType mean("0 0");
+  VecType cov("2 2");
+  VecType obs("0 0");
+
+  DiagonalGaussianDistribution<MatType> d(mean, cov);
+
+  REQUIRE(d.Probability(obs) == Approx(0.079577471545947673).epsilon(tol));
+
+  obs = "1 1";
+  REQUIRE(d.Probability(obs) == Approx(0.048266176315026957).epsilon(tol));
+
+  d.Mean() = "1 3";
+  REQUIRE(d.Probability(obs) == Approx(0.029274915762159581).epsilon(tol));
+  REQUIRE(d.Probability(-obs) == Approx(0.00053618878559782773).epsilon(tol));
+
+  // Higher dimensional case.
+  d.Mean() = "1 3 6 2 7";
+  d.Covariance("3 1 5 3 2");
+  obs = "2 5 7 3 8";
+  REQUIRE(d.Probability(obs) == Approx(7.2790083003378082e-05).epsilon(tol));
+}
+
+/**
+ * Test the phi() function, for multiple points in the multivariate Gaussian
+ * case. The values were calculated using 'dmvnorm' in R.
+ */
+TEMPLATE_TEST_CASE("DiagonalGaussianMultipointMultivariateProbabilityTest",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  VecType mean = "2 5 3 7 2";
+  VecType cov("9 2 1 4 8");
+  MatType points = "3 5 2 7 5 8;"
+                   "2 6 8 3 4 6;"
+                   "1 4 2 7 8 2;"
+                   "6 8 4 7 9 2;"
+                   "4 6 7 7 3 2";
+  VecType phis;
+  DiagonalGaussianDistribution<MatType> d(mean, cov);
+  d.LogProbability(points, phis);
+
+  REQUIRE(phis.n_elem == 6);
+
+  REQUIRE(phis(0) == Approx(-12.453302051926864).epsilon(1e-7));
+  REQUIRE(phis(1) == Approx(-10.147746496371308).epsilon(1e-7));
+  REQUIRE(phis(2) == Approx(-13.210246496371308).epsilon(1e-7));
+  REQUIRE(phis(3) == Approx(-19.724135385260197).epsilon(1e-7));
+  REQUIRE(phis(4) == Approx(-21.585246496371308).epsilon(1e-7));
+  REQUIRE(phis(5) == Approx(-13.647746496371308).epsilon(1e-7));
+}
+
+/**
+ * Make sure random observations follow the probability distribution correctly.
+ */
+TEMPLATE_TEST_CASE("DiagonalGaussianDistributionRandomTest",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 0.2 : 0.1;
+
+  VecType mean("2.5 1.25");
+  VecType cov("0.50 0.25");
+
+  DiagonalGaussianDistribution<MatType> d(mean, cov);
+
+  MatType obs(2, 5000);
+  for (size_t i = 0; i < 5000; ++i)
+    obs.col(i) = d.Random();
+
+  // Make sure that reflects the actual distribution.
+  VecType obsMean = arma::mean(obs, 1);
+  MatType obsCov = ColumnCovariance(obs);
+
+  // 10% tolerance because this can be noisy.  (20% for floats.)
+  REQUIRE(obsMean(0) == Approx(mean(0)).epsilon(tol));
+  REQUIRE(obsMean(1) == Approx(mean(1)).epsilon(tol));
+
+  REQUIRE(obsCov(0, 0) == Approx(cov(0)).epsilon(tol));
+  REQUIRE(obsCov(1, 1) == Approx(cov(1)).epsilon(tol));
+}
+
+/**
+ * Make sure that we can properly estimate from given observations.
+ */
+TEMPLATE_TEST_CASE("DiagonalGaussianDistributionTrainTest",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 1e-3 : 1e-5;
+
+  VecType mean("2.5 1.5 8.2 3.1");
+  VecType cov("1.2 3.1 8.3 4.3");
+
+  // Generate the observations.
+  MatType observations(4, 10000);
+
+  for (size_t i = 0; i < 10000; ++i)
+    observations.col(i) = (sqrt(cov) % arma::randn<VecType>(4)) + mean;
+
+  DiagonalGaussianDistribution<MatType> d;
+
+  // Calculate the actual mean and covariance of data using armadillo.
+  VecType actualMean = arma::mean(observations, 1);
+  MatType actualCov = ColumnCovariance(observations);
+
+  // Estimate the parameters.
+  d.Train(observations);
+
+  // Check that the estimated parameters are right.
+  for (size_t i = 0; i < 4; ++i)
+  {
+    REQUIRE(d.Mean()(i) - actualMean(i) == Approx(0.0).margin(tol));
+    REQUIRE(d.Covariance()(i) - actualCov(i, i) == Approx(0.0).margin(tol));
+  }
+}
+
+/**
+ * Make sure the unbiased estimator of the weighted sample works correctly.
+ * The values were calculated using 'cov.wt' in R.
+ */
+TEMPLATE_TEST_CASE("DiagonalGaussianUnbiasedEstimatorTest",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 1e-4 : 1e-7;
+
+  // Generate the observations.
+  MatType observations("3 5 2 7;"
+                       "2 6 8 3;"
+                       "1 4 2 7;"
+                       "6 8 4 7");
+
+  VecType probs("0.3 0.4 0.1 0.2");
+
+  DiagonalGaussianDistribution<MatType> d;
+
+  // Estimate the parameters.
+  d.Train(observations, probs);
+
+  REQUIRE(d.Mean()(0) == Approx(4.5).epsilon(tol));
+  REQUIRE(d.Mean()(1) == Approx(4.4).epsilon(tol));
+  REQUIRE(d.Mean()(2) == Approx(3.5).epsilon(tol));
+  REQUIRE(d.Mean()(3) == Approx(6.8).epsilon(tol));
+
+  REQUIRE(d.Covariance()(0) == Approx(3.78571428571428603).epsilon(tol));
+  REQUIRE(d.Covariance()(1) == Approx(6.34285714285714253).epsilon(tol));
+  REQUIRE(d.Covariance()(2) == Approx(6.64285714285714235).epsilon(tol));
+  REQUIRE(d.Covariance()(3) == Approx(2.22857142857142865).epsilon(tol));
+}
+
+/**
+ * Make sure that if all weights are the same, i.e. w_i / V1 = 1 / N, then
+ * the weighted mean and covariance reduce to the unweighted sample mean and
+ * covariance.
+ */
+TEMPLATE_TEST_CASE("DiagonalGaussianWeightedParametersReductionTest",
+    "[DistributionTest]", float, double)
+{
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  const ElemType tol = (std::is_same_v<ElemType, float>) ? 1e-4 : 1e-7;
+
+  VecType mean("2.5 1.5 8.2 3.1");
+  VecType cov("1.2 3.1 8.3 4.3");
+
+  // Generate the observations.
+  MatType obs(4, 5);
+  VecType probs("0.2 0.2 0.2 0.2 0.2");
+
+  for (size_t i = 0; i < 5; ++i)
+    obs.col(i) = (sqrt(cov) % arma::randn<VecType>(4)) + mean;
+
+  DiagonalGaussianDistribution<MatType> d1;
+  DiagonalGaussianDistribution<MatType> d2;
+
+  // Estimate the parameters.
+  d1.Train(obs);
+  d2.Train(obs, probs);
+
+  // Check if these are equal.
+  for (size_t i = 0; i < 4; ++i)
+  {
+    REQUIRE(d1.Mean()(i) == Approx(d2.Mean()(i)).epsilon(tol));
+    REQUIRE(d1.Covariance()(i) == Approx(d2.Covariance()(i)).epsilon(tol));
+  }
+}

@@ -1,5 +1,5 @@
 /**
- * @file r_plus_plus_tree_descent_heuristic.hpp
+ * @file core/tree/rectangle_tree/r_plus_plus_tree_descent_heuristic.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of RPlusPlusTreeDescentHeuristic, a class that chooses the best
@@ -10,21 +10,18 @@
  * 3-clause BSD license along with mlpack.  If not, see
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
-#ifndef MLPACK_CORE_TREE_RECTANGLE_TREE_R_PLUS_PLUS_TREE_DESCENT_HEURISTIC_HPP
-#define MLPACK_CORE_TREE_RECTANGLE_TREE_R_PLUS_PLUS_TREE_DESCENT_HEURISTIC_HPP
+#ifndef MLPACK_CORE_TREE_RECTANGLE_TREE_RPP_TREE_DESCENT_HEURISTIC_HPP
+#define MLPACK_CORE_TREE_RECTANGLE_TREE_RPP_TREE_DESCENT_HEURISTIC_HPP
 
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace tree {
 
 class RPlusPlusTreeDescentHeuristic
 {
  public:
   /**
-   * Evaluate the node using a heuristic. Returns the number of the node
-   * with minimum largest Hilbert value is greater than the Hilbert value of
-   * the point being inserted.
+   * Evaluate the node using the R++-tree heuristic.
    *
    * @param node The node that is being evaluated.
    * @param point The number of the point that is being inserted.
@@ -33,9 +30,7 @@ class RPlusPlusTreeDescentHeuristic
   static size_t ChooseDescentNode(TreeType* node, const size_t point);
 
   /**
-   * Evaluate the node using a heuristic. Returns the number of the node
-   * with minimum largest Hilbert value is greater than the largest
-   * Hilbert value of the point being inserted.
+   * Evaluate the node using the R++-tree heuristic.
    *
    * @param node The node that is being evaluated.
    * @param insertedNode The node that is being inserted.
@@ -45,9 +40,8 @@ class RPlusPlusTreeDescentHeuristic
                                   const TreeType* insertedNode);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #include "r_plus_plus_tree_descent_heuristic_impl.hpp"
 
-#endif // MLPACK_CORE_TREE_RECTANGLE_TREE_R_PLUS_PLUS_TREE_DESCENT_HEURISTIC_HPP
+#endif // MLPACK_CORE_TREE_RECTANGLE_TREE_RPP_TREE_DESCENT_HEURISTIC_HPP

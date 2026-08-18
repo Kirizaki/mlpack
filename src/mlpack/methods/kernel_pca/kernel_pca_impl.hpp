@@ -1,5 +1,5 @@
 /**
- * @file kernel_pca_impl.hpp
+ * @file methods/kernel_pca/kernel_pca_impl.hpp
  * @author Ajinkya Kale
  * @author Marcus Edel
  *
@@ -18,7 +18,6 @@
 #include "kernel_pca.hpp"
 
 namespace mlpack {
-namespace kpca {
 
 template <typename KernelType, typename KernelRule>
 KernelPCA<KernelType, KernelRule>::KernelPCA(const KernelType kernel,
@@ -43,7 +42,7 @@ void KernelPCA<KernelType, KernelRule>::Apply(const arma::mat& data,
   {
     arma::colvec transformedDataMean = arma::mean(transformedData, 1);
     transformedData = transformedData - (transformedDataMean *
-        arma::ones<arma::rowvec>(transformedData.n_cols));
+        ones<arma::rowvec>(transformedData.n_cols));
   }
 }
 
@@ -82,6 +81,5 @@ void KernelPCA<KernelType, KernelRule>::Apply(arma::mat& data,
 }
 
 } // namespace mlpack
-} // namespace kpca
 
 #endif

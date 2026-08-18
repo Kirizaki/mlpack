@@ -1,5 +1,5 @@
 /**
- * @file dual_tree_traverser_impl.hpp
+ * @file core/tree/octree/dual_tree_traverser_impl.hpp
  * @author Ryan Curtin
  *
  * Implementation of the dual-tree traverser for the octree.
@@ -16,11 +16,10 @@
 #include "dual_tree_traverser.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType, typename StatisticType, typename MatType>
+template<typename DistanceType, typename StatisticType, typename MatType>
 template<typename RuleType>
-Octree<MetricType, StatisticType, MatType>::DualTreeTraverser<RuleType>::
+Octree<DistanceType, StatisticType, MatType>::DualTreeTraverser<RuleType>::
     DualTreeTraverser(RuleType& rule) :
     rule(rule),
     numPrunes(0),
@@ -31,9 +30,9 @@ Octree<MetricType, StatisticType, MatType>::DualTreeTraverser<RuleType>::
   // Nothing to do.
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
+template<typename DistanceType, typename StatisticType, typename MatType>
 template<typename RuleType>
-void Octree<MetricType, StatisticType, MatType>::DualTreeTraverser<RuleType>::
+void Octree<DistanceType, StatisticType, MatType>::DualTreeTraverser<RuleType>::
     Traverse(Octree& queryNode, Octree& referenceNode)
 {
   // Increment the visit counter.
@@ -41,6 +40,18 @@ void Octree<MetricType, StatisticType, MatType>::DualTreeTraverser<RuleType>::
 
   // Store the current traversal info.
   traversalInfo = rule.TraversalInfo();
+
+  // If both nodes are root nodes, just score them.
+  if (queryNode.Parent() == NULL && referenceNode.Parent() == NULL)
+  {
+    const double rootScore = rule.Score(queryNode, referenceNode);
+    // If root score is DBL_MAX, don't recurse.
+    if (rootScore == DBL_MAX)
+    {
+      ++numPrunes;
+      return;
+    }
+  }
 
   if (queryNode.IsLeaf() && referenceNode.IsLeaf())
   {
@@ -135,7 +146,8 @@ void Octree<MetricType, StatisticType, MatType>::DualTreeTraverser<RuleType>::
       {
         if (scores[scoreOrder[i]] == DBL_MAX)
         {
-          // We don't need to check any more---all children past here are pruned.
+          // We don't need to check any more
+          // All children past here are pruned.
           numPrunes += scoreOrder.n_elem - i;
           break;
         }
@@ -147,7 +159,6 @@ void Octree<MetricType, StatisticType, MatType>::DualTreeTraverser<RuleType>::
   }
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

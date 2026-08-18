@@ -1,5 +1,5 @@
 /**
- * @file svd_wrapper.hpp
+ * @file methods/cf/svd_wrapper.hpp
  * @author Sumedh Ghaisas
  *
  * Wrapper class for SVD factorizers used for Collaborative Filtering.
@@ -14,10 +14,7 @@
 
 #include <mlpack/prereqs.hpp>
 
-namespace mlpack
-{
-namespace cf
-{
+namespace mlpack {
 
 /**
  * This class acts as a dummy class for passing as template parameter. Passing
@@ -41,8 +38,11 @@ class SVDWrapper
 {
  public:
   // empty constructor
-  SVDWrapper(const Factorizer& factorizer = Factorizer())
-    : factorizer(factorizer) {};
+  SVDWrapper(const Factorizer& factorizer = Factorizer()) :
+      factorizer(factorizer)
+  {
+    // Nothing to do here.
+  }
 
   /**
    * Factorizer function which takes SVD of the given matrix and returns the
@@ -53,7 +53,7 @@ class SVDWrapper
    * @param sigma eigenvalue matrix
    * @param H second unitary matrix
    *
-   * @note V = W * sigma * arma::trans(H)
+   * @note V = W * sigma * trans(H)
    */
   double Apply(const arma::mat& V,
                arma::mat& W,
@@ -64,6 +64,7 @@ class SVDWrapper
    * CF module.
    *
    * @param V input matrix
+   * @param r rank
    * @param W first unitary matrix
    * @param H second unitary matrix
    *
@@ -80,12 +81,11 @@ class SVDWrapper
 }; // class SVDWrapper
 
 //! add simple typedefs
-typedef SVDWrapper<DummyClass> ArmaSVDFactorizer;
+using ArmaSVDFactorizer = SVDWrapper<DummyClass>;
+
+} // namespace mlpack
 
 //! include the implementation
 #include "svd_wrapper_impl.hpp"
-
-} // namespace cf
-} // namespace mlpack
 
 #endif

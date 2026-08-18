@@ -1,5 +1,5 @@
 /**
- * @file sparse_autoencoder_impl.hpp
+ * @file methods/sparse_autoencoder/sparse_autoencoder_impl.hpp
  * @author Siddharth Agrawal
  *
  * Implementation of sparse autoencoders.
@@ -16,15 +16,15 @@
 #include "sparse_autoencoder.hpp"
 
 namespace mlpack {
-namespace nn {
 
-template<template<typename> class OptimizerType>
-SparseAutoencoder<OptimizerType>::SparseAutoencoder(const arma::mat& data,
-                                                    const size_t visibleSize,
-                                                    const size_t hiddenSize,
-                                                    double lambda,
-                                                    double beta,
-                                                    double rho) :
+template<typename OptimizerType>
+SparseAutoencoder::SparseAutoencoder(const arma::mat& data,
+                                     const size_t visibleSize,
+                                     const size_t hiddenSize,
+                                     double lambda,
+                                     double beta,
+                                     double rho,
+                                     OptimizerType optimizer) :
     visibleSize(visibleSize),
     hiddenSize(hiddenSize),
     lambda(lambda),
@@ -33,50 +33,55 @@ SparseAutoencoder<OptimizerType>::SparseAutoencoder(const arma::mat& data,
 {
   SparseAutoencoderFunction encoderFunction(data, visibleSize, hiddenSize,
                                             lambda, beta, rho);
-  OptimizerType<SparseAutoencoderFunction> optimizer(encoderFunction);
 
   parameters = encoderFunction.GetInitialPoint();
 
   // Train the model.
-  Timer::Start("sparse_autoencoder_optimization");
-  const double out = optimizer.Optimize(parameters);
-  Timer::Stop("sparse_autoencoder_optimization");
+  const double out = optimizer.Optimize(encoderFunction, parameters);
 
   Log::Info << "SparseAutoencoder::SparseAutoencoder(): final objective of "
       << "trained model is " << out << "." << std::endl;
 }
 
-template<template<typename> class OptimizerType>
-SparseAutoencoder<OptimizerType>::SparseAutoencoder(
-    OptimizerType<SparseAutoencoderFunction> &optimizer) :
-    parameters(optimizer.Function().GetInitialPoint()),
-    visibleSize(optimizer.Function().VisibleSize()),
-    hiddenSize(optimizer.Function().HiddenSize()),
-    lambda(optimizer.Function().Lambda()),
-    beta(optimizer.Function().Beta()),
-    rho(optimizer.Function().Rho())
+template<typename OptimizerType, typename... CallbackTypes>
+SparseAutoencoder::SparseAutoencoder(const arma::mat& data,
+                                     const size_t visibleSize,
+                                     const size_t hiddenSize,
+                                     double lambda,
+                                     double beta,
+                                     double rho,
+                                     OptimizerType optimizer,
+                                     CallbackTypes&&... callbacks) :
+    visibleSize(visibleSize),
+    hiddenSize(hiddenSize),
+    lambda(lambda),
+    beta(beta),
+    rho(rho)
 {
-  Timer::Start("sparse_autoencoder_optimization");
-  const double out = optimizer.Optimize(parameters);
-  Timer::Stop("sparse_autoencoder_optimization");
+  SparseAutoencoderFunction encoderFunction(data, visibleSize, hiddenSize,
+                                            lambda, beta, rho);
+
+  parameters = encoderFunction.GetInitialPoint();
+
+  // Train the model.
+  const double out = optimizer.Optimize(encoderFunction, parameters,
+      callbacks...);
 
   Log::Info << "SparseAutoencoder::SparseAutoencoder(): final objective of "
       << "trained model is " << out << "." << std::endl;
 }
 
-template<template<typename> class OptimizerType>
-void SparseAutoencoder<OptimizerType>::GetNewFeatures(arma::mat& data,
-                                                      arma::mat& features)
+inline void SparseAutoencoder::GetNewFeatures(arma::mat& data,
+                                              arma::mat& features)
 {
   const size_t l1 = hiddenSize;
   const size_t l2 = visibleSize;
 
   Sigmoid(parameters.submat(0, 0, l1 - 1, l2 - 1) * data +
-      arma::repmat(parameters.submat(0, l2, l1 - 1, l2), 1, data.n_cols),
+      repmat(parameters.submat(0, l2, l1 - 1, l2), 1, data.n_cols),
       features);
 }
 
-} // namespace nn
 } // namespace mlpack
 
 #endif

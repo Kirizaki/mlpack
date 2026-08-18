@@ -1,5 +1,5 @@
 /**
- * @file dtnn_rules.hpp
+ * @file methods/kmeans/dual_tree_kmeans_rules.hpp
  * @author Ryan Curtin
  *
  * A set of rules for the dual-tree k-means algorithm which uses dual-tree
@@ -17,9 +17,8 @@
 #include <mlpack/core/tree/traversal_info.hpp>
 
 namespace mlpack {
-namespace kmeans {
 
-template<typename MetricType, typename TreeType>
+template<typename DistanceType, typename TreeType>
 class DualTreeKMeansRules
 {
  public:
@@ -28,7 +27,7 @@ class DualTreeKMeansRules
                       arma::Row<size_t>& assignments,
                       arma::vec& upperBounds,
                       arma::vec& lowerBounds,
-                      MetricType& metric,
+                      DistanceType& distance,
                       const std::vector<bool>& prunedPoints,
                       const std::vector<size_t>& oldFromNewCentroids,
                       std::vector<bool>& visited);
@@ -44,7 +43,7 @@ class DualTreeKMeansRules
                  TreeType& referenceNode,
                  const double oldScore);
 
-  typedef typename tree::TraversalInfo<TreeType> TraversalInfoType;
+  using TraversalInfoType = mlpack::TraversalInfo<TreeType>;
 
   TraversalInfoType& TraversalInfo() { return traversalInfo; }
   const TraversalInfoType& TraversalInfo() const { return traversalInfo; }
@@ -55,13 +54,17 @@ class DualTreeKMeansRules
   size_t Scores() const { return scores; }
   size_t& Scores() { return scores; }
 
+  //! Get the minimum number of base cases needed for correct results for each
+  //! query point.  This only matters in defeatist search mode.
+  size_t MinimumBaseCases() const { return 0; }
+
  private:
   const arma::mat& centroids;
   const arma::mat& dataset;
   arma::Row<size_t>& assignments;
   arma::vec& upperBounds;
   arma::vec& lowerBounds;
-  MetricType& metric;
+  DistanceType& distance;
 
   const std::vector<bool>& prunedPoints;
 
@@ -79,7 +82,6 @@ class DualTreeKMeansRules
   size_t lastBaseCase;
 };
 
-} // namespace kmeans
 } // namespace mlpack
 
 #include "dual_tree_kmeans_rules_impl.hpp"

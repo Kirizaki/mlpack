@@ -1,5 +1,5 @@
 /**
- * @file kathirvalavakumar_subavathi_init.hpp
+ * @file methods/ann/init_rules/kathirvalavakumar_subavathi_init.hpp
  * @author Marcus Edel
  *
  * Definition and implementation of the initialization method by T.
@@ -28,12 +28,15 @@
 #define MLPACK_METHODS_ANN_INIT_RULES_KATHIRVALAVAKUMAR_SUBAVATHI_INIT_HPP
 
 #include <mlpack/prereqs.hpp>
+
+#include "init_rules_traits.hpp"
+#include "random_init.hpp"
+
 #include <mlpack/methods/ann/activation_functions/logistic_function.hpp>
-#include <mlpack/methods/ann/init_rules/random_init.hpp>
+
 #include <iostream>
 
 namespace mlpack {
-namespace ann /** Artificial Neural Network. */ {
 
 /**
  * This class is used to initialize the weight matrix with the method proposed
@@ -62,11 +65,11 @@ class KathirvalavakumarSubavathiInitialization
    * @param data The input patterns.
    * @param s Parameter that defines the active region.
    */
-  template<typename eT>
-  KathirvalavakumarSubavathiInitialization(const arma::Mat<eT>& data,
+  template<typename MatType>
+  KathirvalavakumarSubavathiInitialization(const MatType& data,
                                            const double s) : s(s)
   {
-    dataSum = arma::sum(data % data);
+    dataSum = conv_to<arma::rowvec>::from(sum(data % data));
   }
 
   /**
@@ -77,13 +80,31 @@ class KathirvalavakumarSubavathiInitialization
    * @param rows Number of rows.
    * @param cols Number of columns.
    */
-  template<typename eT>
-  void Initialize(arma::Mat<eT>& W, const size_t rows, const size_t cols)
+  template<typename MatType>
+  void Initialize(MatType& W, const size_t rows, const size_t cols)
   {
-    arma::Row<eT> b = s * arma::sqrt(3 / (rows * dataSum));
+    using RowType = typename GetRowType<MatType>::type;
+    RowType b = conv_to<RowType>::from(s * sqrt(3 / (rows * dataSum)));
     const double theta = b.min();
     RandomInitialization randomInit(-theta, theta);
     randomInit.Initialize(W, rows, cols);
+  }
+
+  /**
+   * Initialize the elements of the specified weight matrix with the
+   * Kathirvalavakumar-Subavathi method.
+   *
+   * @param W Weight matrix to initialize.
+   */
+  template<typename MatType>
+  void Initialize(MatType& W,
+      const typename std::enable_if_t<IsMatrix<MatType>::value>* = 0)
+  {
+    using RowType = typename GetRowType<MatType>::type;
+    RowType b = conv_to<RowType>::from(s * sqrt(3 / (W.n_rows * dataSum)));
+    const double theta = b.min();
+    RandomInitialization randomInit(-theta, theta);
+    randomInit.Initialize(W);
   }
 
   /**
@@ -93,17 +114,46 @@ class KathirvalavakumarSubavathiInitialization
    * @param W Weight matrix to initialize.
    * @param rows Number of rows.
    * @param cols Number of columns.
+   * @param slices Number of slices
    */
-  template<typename eT>
-  void Initialize(arma::Cube<eT>& W,
+  template<typename CubeType>
+  void Initialize(CubeType& W,
                   const size_t rows,
                   const size_t cols,
                   const size_t slices)
   {
-    W = arma::Cube<eT>(rows, cols, slices);
+    if (W.is_empty())
+      W.set_size(rows, cols, slices);
 
-    for (size_t i = 0; i < slices; i++)
+    for (size_t i = 0; i < slices; ++i)
       Initialize(W.slice(i), rows, cols);
+  }
+
+  /**
+   * Initialize the elements of the specified weight 3rd order tensor with the
+   * Kathirvalavakumar-Subavathi method.
+   *
+   * @param W Weight matrix to initialize.
+   */
+  template<typename CubeType>
+  void Initialize(CubeType& W,
+      const typename std::enable_if_t<IsCube<CubeType>::value>* = 0)
+  {
+    if (W.is_empty())
+      Log::Fatal << "Cannot initialize an empty cube." << std::endl;
+
+    for (size_t i = 0; i < W.n_slices; ++i)
+      Initialize(W.slice(i));
+  }
+
+  /**
+   * Serialize the initialization.
+   */
+  template<typename Archive>
+  void serialize(Archive& ar, const uint32_t /* version */)
+  {
+    ar(CEREAL_NVP(dataSum));
+    ar(CEREAL_NVP(s));
   }
 
  private:
@@ -111,11 +161,20 @@ class KathirvalavakumarSubavathiInitialization
   arma::rowvec dataSum;
 
   //! Parameter that defines the active region.
-  const double s;
+  double s;
 }; // class KathirvalavakumarSubavathiInitialization
 
+//! Initialization traits of the kathirvalavakumar subavath initialization rule.
+template<>
+class InitTraits<KathirvalavakumarSubavathiInitialization>
+{
+ public:
+  //! The kathirvalavakumar subavath initialization rule is applied over the
+  //! entire network.
+  static const bool UseLayer = false;
+};
 
-} // namespace ann
+
 } // namespace mlpack
 
 #endif

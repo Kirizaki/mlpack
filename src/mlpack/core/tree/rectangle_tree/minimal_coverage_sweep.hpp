@@ -1,5 +1,5 @@
 /**
- * @file minimal_coverage_sweep.hpp
+ * @file core/tree/rectangle_tree/minimal_coverage_sweep.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of the MinimalCoverageSweep class, a class that finds a partition
@@ -14,7 +14,6 @@
 #define MLPACK_CORE_TREE_RECTANGLE_TREE_MINIMAL_COVERAGE_SWEEP_HPP
 
 namespace mlpack {
-namespace tree {
 
 /**
  * The MinimalCoverageSweep class finds a partition along which we
@@ -34,7 +33,7 @@ class MinimalCoverageSweep
   template<typename TreeType>
   struct SweepCost
   {
-    typedef typename TreeType::ElemType type;
+    using type = typename TreeType::ElemType;
   };
 
   /**
@@ -92,7 +91,6 @@ class MinimalCoverageSweep
                              const ElemType cut);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation

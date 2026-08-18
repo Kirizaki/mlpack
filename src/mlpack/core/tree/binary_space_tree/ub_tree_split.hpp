@@ -1,5 +1,5 @@
 /**
- * @file ub_tree_split.hpp
+ * @file core/tree/binary_space_tree/ub_tree_split.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of UBTreeSplit, a class that splits the space according
@@ -17,7 +17,6 @@
 #include "../address.hpp"
 
 namespace mlpack {
-namespace tree /** Trees and tree-building procedures. */ {
 
 /**
  * Split a node into two parts according to the median address of points
@@ -30,9 +29,9 @@ class UBTreeSplit
 {
  public:
   //! The type of an address element.
-  typedef typename std::conditional<sizeof(typename MatType::elem_type) * CHAR_BIT <= 32,
-                                    uint32_t,
-                                    uint64_t>::type AddressElemType;
+  using AddressElemType = std::conditional_t<
+      sizeof(typename MatType::elem_type) * CHAR_BIT <= 32,
+      uint32_t, uint64_t>;
 
   //! An information about the partition.
   struct SplitInfo
@@ -106,11 +105,10 @@ class UBTreeSplit
       const std::pair<arma::Col<AddressElemType>, size_t>& p1,
       const std::pair<arma::Col<AddressElemType>, size_t>& p2)
   {
-    return bound::addr::CompareAddresses(p1.first, p2.first) < 0;
+    return CompareAddresses(p1.first, p2.first) < 0;
   }
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

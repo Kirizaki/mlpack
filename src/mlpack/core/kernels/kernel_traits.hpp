@@ -1,5 +1,5 @@
 /**
- * @file kernel_traits.hpp
+ * @file core/kernels/kernel_traits.hpp
  * @author Ryan Curtin
  *
  * This provides the KernelTraits class, a template class to get information
@@ -14,7 +14,6 @@
 #define MLPACK_CORE_KERNELS_KERNEL_TRAITS_HPP
 
 namespace mlpack {
-namespace kernel {
 
 /**
  * This is a template class that can provide information about various kernels.
@@ -38,7 +37,6 @@ class KernelTraits
   static const bool UsesSquaredDistance = false;
 };
 
-} // namespace kernel
 } // namespace mlpack
 
 #endif

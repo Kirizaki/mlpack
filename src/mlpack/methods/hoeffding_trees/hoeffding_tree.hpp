@@ -1,5 +1,5 @@
 /**
- * @file hoeffding_split.hpp
+ * @file methods/hoeffding_trees/hoeffding_tree.hpp
  * @author Ryan Curtin
  *
  * An implementation of the standard Hoeffding tree by Pedro Domingos and Geoff
@@ -13,14 +13,20 @@
 #ifndef MLPACK_METHODS_HOEFFDING_TREES_HOEFFDING_TREE_HPP
 #define MLPACK_METHODS_HOEFFDING_TREES_HOEFFDING_TREE_HPP
 
-#include <mlpack/prereqs.hpp>
-#include <mlpack/core/data/dataset_mapper.hpp>
+#include <mlpack/core.hpp>
+
+#include "categorical_split_info.hpp"
+#include "numeric_split_info.hpp"
+
 #include "gini_impurity.hpp"
+#include "information_gain.hpp"
+
 #include "hoeffding_numeric_split.hpp"
+#include "binary_numeric_split.hpp"
+
 #include "hoeffding_categorical_split.hpp"
 
 namespace mlpack {
-namespace tree {
 
 /**
  * The HoeffdingTree object represents all of the necessary information for a
@@ -43,10 +49,10 @@ namespace tree {
  * The class is modular, and takes three template parameters.  The first,
  * FitnessFunction, is the fitness function that should be used to determine
  * whether a split is beneficial; examples might be GiniImpurity or
- * InformationGain.  The NumericSplitType determines how numeric attributes are
- * handled, and the CategoricalSplitType determines how categorical attributes
- * are handled.  As far as the actual splitting goes, the meat of the splitting
- * procedure will be contained in those two classes.
+ * HoeffdingInformationGain.  The NumericSplitType determines how numeric
+ * attributes are handled, and the CategoricalSplitType determines how
+ * categorical attributes are handled.  As far as the actual splitting goes,
+ * the meat of the splitting procedure will be contained in those two classes.
  *
  * @tparam FitnessFunction Fitness function to use.
  * @tparam NumericSplitType Technique for splitting numeric features.
@@ -62,9 +68,122 @@ class HoeffdingTree
 {
  public:
   //! Allow access to the numeric split type.
-  typedef NumericSplitType<FitnessFunction> NumericSplit;
+  using NumericSplit = NumericSplitType<FitnessFunction>;
   //! Allow access to the categorical split type.
-  typedef CategoricalSplitType<FitnessFunction> CategoricalSplit;
+  using CategoricalSplit = CategoricalSplitType<FitnessFunction>;
+
+  /**
+   * Construct a Hoeffding tree with no data and no information.  Be sure to
+   * call Train() before trying to use the tree.
+   */
+  HoeffdingTree();
+
+  /**
+   * Construct the Hoeffding tree with the given parameters for training on
+   * numerical data, but training on no data.  The dimensionMappings parameter
+   * is only used if it is desired that this node does not create its own
+   * dimensionMappings object (for instance, if this is a child of another node
+   * in the tree).
+   *
+   * @param numClasses Number of classes in the dataset.
+   * @param successProbability Probability of success required in Hoeffding
+   *      bound before a split can happen.
+   * @param maxSamples Maximum number of samples before a split is forced.
+   * @param checkInterval Number of samples required before each split check.
+   * @param minSamples If the node has seen this many points or fewer, no split
+   *      will be allowed.
+   * @param categoricalSplitIn Optional instantiated categorical split object.
+   * @param numericSplitIn Optional instantiated numeric split object.
+   * @param dimensionMappings Mappings from dimension indices to positions in
+   *      numeric and categorical split vectors.  If left NULL, a new one will
+   *      be created.
+   */
+  HoeffdingTree(const size_t dimensionality,
+                const size_t numClasses,
+                const double successProbability = 0.95,
+                const size_t maxSamples = 0,
+                const size_t checkInterval = 100,
+                const size_t minSamples = 100,
+                const CategoricalSplitType<FitnessFunction>& categoricalSplitIn
+                    = CategoricalSplitType<FitnessFunction>(0, 0),
+                const NumericSplitType<FitnessFunction>& numericSplitIn =
+                    NumericSplitType<FitnessFunction>(0),
+                std::unordered_map<size_t, std::pair<size_t, size_t>>*
+                    dimensionMappings = NULL);
+
+  /**
+   * Construct the Hoeffding tree with the given parameters, but training on no
+   * data.  The dimensionMappings parameter is only used if it is desired that
+   * this node does not create its own dimensionMappings object (for instance,
+   * if this is a child of another node in the tree).
+   *
+   * @param datasetInfo Information on the dataset (types of each feature).
+   * @param numClasses Number of classes in the dataset.
+   * @param successProbability Probability of success required in Hoeffding
+   *      bound before a split can happen.
+   * @param maxSamples Maximum number of samples before a split is forced.
+   * @param checkInterval Number of samples required before each split check.
+   * @param minSamples If the node has seen this many points or fewer, no split
+   *      will be allowed.
+   * @param categoricalSplitIn Optional instantiated categorical split object.
+   * @param numericSplitIn Optional instantiated numeric split object.
+   * @param dimensionMappings Mappings from dimension indices to positions in
+   *      numeric and categorical split vectors.  If left NULL, a new one will
+   *      be created.
+   * @param copyDatasetInfo If true, then a copy of the datasetInfo will be
+   *      made.
+   */
+  HoeffdingTree(const DatasetInfo& datasetInfo,
+                const size_t numClasses,
+                const double successProbability = 0.95,
+                const size_t maxSamples = 0,
+                const size_t checkInterval = 100,
+                const size_t minSamples = 100,
+                const CategoricalSplitType<FitnessFunction>& categoricalSplitIn
+                    = CategoricalSplitType<FitnessFunction>(0, 0),
+                const NumericSplitType<FitnessFunction>& numericSplitIn =
+                    NumericSplitType<FitnessFunction>(0),
+                std::unordered_map<size_t, std::pair<size_t, size_t>>*
+                    dimensionMappings = NULL,
+                const bool copyDatasetInfo = true);
+
+  /**
+   * Construct the Hoeffding tree with the given parameters and given training
+   * data, where the training data contains only numerical features.  The tree
+   * may be trained either in batch mode (which looks at all points before
+   * splitting, and propagates these points to the created children for further
+   * training), or in streaming mode, where each point is only considered once.
+   * (In general, batch mode will give better-performing trees, but will have
+   * higher memory and runtime costs for the same dataset.)
+   *
+   * @param data Dataset to train on.
+   * @param labels Labels of each point in the dataset.
+   * @param numClasses Number of classes in the dataset.
+   * @param batchTraining Whether or not to train in batch.
+   * @param successProbability Probability of success required in Hoeffding
+   *      bounds before a split can happen.
+   * @param maxSamples Maximum number of samples before a split is forced (0
+   *      never forces a split); ignored in batch training mode.
+   * @param checkInterval Number of samples required before each split; ignored
+   *      in batch training mode.
+   * @param minSamples If the node has seen this many points or fewer, no split
+   *      will be allowed.
+   * @param categoricalSplitIn Optional instantiated categorical split object.
+   * @param numericSplitIn Optional instantiated numeric split object.
+   */
+  template<typename MatType>
+  HoeffdingTree(const MatType& data,
+                const arma::Row<size_t>& labels,
+                const size_t numClasses,
+                const bool batchTraining = true,
+                const double successProbability = 0.95,
+                const size_t maxSamples = 0,
+                const size_t checkInterval = 100,
+                const size_t minSamples = 100,
+                const CategoricalSplitType<FitnessFunction>& categoricalSplitIn
+                    = CategoricalSplitType<FitnessFunction>(0, 0),
+                const NumericSplitType<FitnessFunction>& numericSplitIn =
+                    NumericSplitType<FitnessFunction>(0));
 
   /**
    * Construct the Hoeffding tree with the given parameters and given training
@@ -87,10 +206,12 @@ class HoeffdingTree
    *      in batch training mode.
    * @param minSamples If the node has seen this many points or fewer, no split
    *      will be allowed.
+   * @param categoricalSplitIn Optional instantiated categorical split object.
+   * @param numericSplitIn Optional instantiated numeric split object.
    */
   template<typename MatType>
   HoeffdingTree(const MatType& data,
-                const data::DatasetInfo& datasetInfo,
+                const DatasetInfo& datasetInfo,
                 const arma::Row<size_t>& labels,
                 const size_t numClasses,
                 const bool batchTraining = true,
@@ -104,38 +225,6 @@ class HoeffdingTree
                     NumericSplitType<FitnessFunction>(0));
 
   /**
-   * Construct the Hoeffding tree with the given parameters, but training on no
-   * data.  The dimensionMappings parameter is only used if it is desired that
-   * this node does not create its own dimensionMappings object (for instance,
-   * if this is a child of another node in the tree).
-   *
-   * @param dimensionality Dimensionality of the dataset.
-   * @param numClasses Number of classes in the dataset.
-   * @param datasetInfo Information on the dataset (types of each feature).
-   * @param successProbability Probability of success required in Hoeffding
-   *      bound before a split can happen.
-   * @param maxSamples Maximum number of samples before a split is forced.
-   * @param checkInterval Number of samples required before each split check.
-   * @param minSamples If the node has seen this many points or fewer, no split
-   *      will be allowed.
-   * @param dimensionMappings Mappings from dimension indices to positions in
-   *      numeric and categorical split vectors.  If left NULL, a new one will
-   *      be created.
-   */
-  HoeffdingTree(const data::DatasetInfo& datasetInfo,
-                const size_t numClasses,
-                const double successProbability = 0.95,
-                const size_t maxSamples = 0,
-                const size_t checkInterval = 100,
-                const size_t minSamples = 100,
-                const CategoricalSplitType<FitnessFunction>& categoricalSplitIn
-                    = CategoricalSplitType<FitnessFunction>(0, 0),
-                const NumericSplitType<FitnessFunction>& numericSplitIn =
-                    NumericSplitType<FitnessFunction>(0),
-                std::unordered_map<size_t, std::pair<size_t, size_t>>*
-                    dimensionMappings = NULL);
-
-  /**
    * Copy another tree (warning: this will duplicate the tree entirely, and may
    * use a lot of memory.  Make sure it's what you want before you do it).
    *
@@ -144,25 +233,125 @@ class HoeffdingTree
   HoeffdingTree(const HoeffdingTree& other);
 
   /**
+   * Move another tree.
+   *
+   * @param other Tree to move.
+   */
+  HoeffdingTree(HoeffdingTree&& other);
+
+  /**
+   * Copy assignment operator.
+   *
+   * @param other Tree to copy.
+   */
+  HoeffdingTree& operator=(const HoeffdingTree& other);
+
+  /**
+   * Move assignment operator.
+   *
+   * @param other Tree to move.
+   */
+  HoeffdingTree& operator=(HoeffdingTree&& other);
+
+  /**
    * Clean up memory.
    */
   ~HoeffdingTree();
 
   /**
    * Train on a set of points, either in streaming mode or in batch mode, with
-   * the given labels.
+   * the given labels.  If `resetTree` is set to `true`, then reset the state of
+   * the tree to an empty tree before training.
+   *
+   * Note that the tree will be automatically reset if the dimensionality of
+   * `data` does not match the dimensionality that the tree was currently
+   * trained with.  The tree will also be reset if `numClasses` is passed and
+   * differs from the existing setting.
    *
    * @param data Data points to train on.
-   * @param label Labels of data points.
+   * @param labels Labels of data points.
+   * @param numClasses The number of classes in `labels`.  Passing this will
+   *      reset the tree.  If not given and `resetTree` is `true`, then the
+   *      number of classes will be computed from `labels`.
    * @param batchTraining If true, perform training in batch.
+   * @param successProbability Probability of success required in Hoeffding
+   *      bounds before a split can happen.
+   * @param maxSamples Maximum number of samples before a split is forced (0
+   *      never forces a split); ignored in batch training mode.
+   * @param checkInterval Number of samples required before each split; ignored
+   *      in batch training mode.
+   * @param minSamples If the node has seen this many points or fewer, no split
+   *      will be allowed.
    */
   template<typename MatType>
   void Train(const MatType& data,
              const arma::Row<size_t>& labels,
-             const bool batchTraining = true);
+             const size_t numClasses = 0,
+             const bool batchTraining = true,
+             const std::optional<double> successProbability = std::nullopt,
+             const std::optional<size_t> maxSamples = std::nullopt,
+             const std::optional<size_t> checkInterval = std::nullopt);
+
+  template<typename MatType>
+  void Train(const MatType& data,
+             const arma::Row<size_t>& labels,
+             const size_t numClasses,
+             const bool batchTraining,
+             const double successProbability,
+             const size_t maxSamples,
+             const size_t checkInterval,
+             const size_t minSamples);
 
   /**
-   * Train on a single point in streaming mode, with the given label.
+   * Train on a set of points, either in streaming mode or in batch mode, with
+   * the given labels.  If `resetTree` is set to `true`, then reset the state of
+   * the tree to an empty tree before training.
+   *
+   * Note that the tree will be automatically reset if the dimensionality of
+   * `data` does not match the dimensionality that the tree was currently
+   * trained with.  The tree will also be reset if `numClasses` is passed and
+   * differs from the existing setting.
+   *
+   * @param data Data points to train on.
+   * @param datasetInfo Information on the dataset (types of each feature).
+   * @param labels Labels of data points.
+   * @param numClasses The number of classes in `labels`.  Passing this will
+   *      reset the tree.  If not given and `resetTree` is `true`, then the
+   *      number of classes will be computed from `labels`.
+   * @param batchTraining If true, perform training in batch.
+   * @param successProbability Probability of success required in Hoeffding
+   *      bounds before a split can happen.
+   * @param maxSamples Maximum number of samples before a split is forced (0
+   *      never forces a split); ignored in batch training mode.
+   * @param checkInterval Number of samples required before each split; ignored
+   *      in batch training mode.
+   * @param minSamples If the node has seen this many points or fewer, no split
+   *      will be allowed.
+   */
+  template<typename MatType>
+  void Train(const MatType& data,
+             const DatasetInfo& info,
+             const arma::Row<size_t>& labels,
+             const size_t numClasses = 0,
+             const bool batchTraining = true,
+             const std::optional<double> successProbability = std::nullopt,
+             const std::optional<size_t> maxSamples = std::nullopt,
+             const std::optional<size_t> checkInterval = std::nullopt);
+
+  template<typename MatType>
+  void Train(const MatType& data,
+             const DatasetInfo& info,
+             const arma::Row<size_t>& labels,
+             const size_t numClasses,
+             const bool batchTraining,
+             const double successProbability,
+             const size_t maxSamples,
+             const size_t checkInterval,
+             const size_t minSamples);
+
+  /**
+   * Train on a single point in streaming mode, with the given label.  The tree
+   * will not be reset before training.
    *
    * @param point Point to train on.
    * @param label Label of point to train on.
@@ -218,6 +407,12 @@ class HoeffdingTree
   //! Modify the number of samples before a split check is performed.
   void CheckInterval(const size_t checkInterval);
 
+  //! Get the number of points seen so far.
+  size_t NumSamples() const { return numSamples; }
+
+  //! Get the number of classes the tree is trained on.
+  size_t NumClasses() const { return numClasses; }
+
   /**
    * Given a point and that this node is not a leaf, calculate the index of the
    * child node this point would go towards.  This method is primarily used by
@@ -227,6 +422,9 @@ class HoeffdingTree
    */
   template<typename VecType>
   size_t CalculateDirection(const VecType& point) const;
+
+  //! Get the size of the Hoeffding Tree.
+  size_t NumDescendants() const;
 
   /**
    * Classify the given point, using this node and the entire (sub)tree beneath
@@ -284,9 +482,26 @@ class HoeffdingTree
    */
   void CreateChildren();
 
+  /**
+   * Reset the tree, keeping the number of classes and dimension information
+   * intact.
+   */
+  void Reset();
+
+  /**
+   * Reset the tree, setting a new number of classes and dimensionality.  This
+   * assumes all dimensions are numeric.
+   */
+  void Reset(const size_t dimensionality, const size_t numClasses);
+
+  /**
+   * Reset the tree, setting a new number of classes and a new datasetInfo.
+   */
+  void Reset(const DatasetInfo& datasetInfo, const size_t numClasses);
+
   //! Serialize the split.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */);
+  void serialize(Archive& ar, const uint32_t /* version */);
 
  private:
   // We need to keep some information for before we have split.
@@ -312,7 +527,7 @@ class HoeffdingTree
   //! The minimum number of samples for splitting.
   size_t minSamples;
   //! The dataset information.
-  const data::DatasetInfo* datasetInfo;
+  const DatasetInfo* datasetInfo;
   //! Whether or not we own the dataset information.
   bool ownsInfo;
   //! The required probability of success for a split to be performed.
@@ -333,9 +548,26 @@ class HoeffdingTree
   typename NumericSplitType<FitnessFunction>::SplitInfo numericSplit;
   //! If the split has occurred, these are the children.
   std::vector<HoeffdingTree*> children;
+
+  /**
+   * Perform training (typically after a reset, but not necessarily).  This
+   * assumes datasetInfo and dimensionMappings are set correctly.
+   */
+  template<typename MatType>
+  void TrainInternal(const MatType& data,
+                     const arma::Row<size_t>& labels,
+                     const bool batchTraining);
+
+  /**
+   * Reset the tree.  This assumes datasetInfo is set correctly.
+   */
+  void ResetTree(
+      const CategoricalSplitType<FitnessFunction>& categoricalSplitIn =
+          CategoricalSplitType<FitnessFunction>(0, 0),
+      const NumericSplitType<FitnessFunction>& numericSplitIn =
+          NumericSplitType<FitnessFunction>(0));
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #include "hoeffding_tree_impl.hpp"

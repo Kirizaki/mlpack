@@ -1,97 +1,60 @@
-include_directories(..) # <mlpack/[whatever]>
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/..) # mlpack/mlpack_export.hpp
+# Recurse into the bindings to do any necessary configuration there.
+add_subdirectory(bindings)
+# Recurse into methods/ to get the definitions of any bindings.
+add_subdirectory(methods)
 
-# Add core.hpp to list of sources.
-set(MLPACK_SRCS ${MLPACK_SRCS} "${CMAKE_CURRENT_SOURCE_DIR}/core.hpp")
-
-## Recurse into both core/ and methods/.
-set(DIRS
-  bindings
-  core
-  methods
-)
-
-foreach(dir ${DIRS})
-    add_subdirectory(${dir})
-endforeach()
-
+# If necessary, configure the tests.
 if (BUILD_TESTS)
   add_subdirectory(tests)
+else ()
+  # Add convenience target to tell the user they need BUILD_TESTS if they try to
+  # build mlpack_test.
+  add_custom_target(mlpack_test
+      ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/CMake/TestError.cmake)
 endif ()
 
-# MLPACK_SRCS is set in the subdirectories.  The dependencies (MLPACK_LIBRARIES)
-# are set in the root CMakeLists.txt.
-add_library(mlpack ${MLPACK_SRCS})
+# At install time, we simply install the src/ directory to include/ (though we
+# omit bindings/ and tests/).
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/../mlpack.hpp"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/base.hpp"
+    # Note: config.hpp does not get installed from the source directory!
+    # The configured version gets installed.
+    "${CMAKE_CURRENT_SOURCE_DIR}/core.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/namespace_compat.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/prereqs.hpp"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/mlpack/")
+install(FILES "${CMAKE_BINARY_DIR}/include/mlpack/config-local.hpp"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/mlpack"
+    RENAME "config.hpp")
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/core" DESTINATION
+    "${CMAKE_INSTALL_INCLUDEDIR}/mlpack")
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/methods" DESTINATION
+    "${CMAKE_INSTALL_INCLUDEDIR}/mlpack")
 
-# If we are not forcing C++11 support, check that the compiler supports C++11
-# and enable it.
-if ((NOT FORCE_CXX11) AND
-    (NOT (${CMAKE_MAJOR_VERSION} LESS 3 OR
-         (${CMAKE_MAJOR_VERSION} EQUAL 3 AND ${CMAKE_MINOR_VERSION} LESS 1))))
-  # Use the newer C++11 checks.
-  include(../../CMake/NewCXX11.cmake)
-endif ()
+# Extract the version number.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/core/util/version.hpp"
+  VERSION_HPP_CONTENTS)
+string(REGEX REPLACE ".*#define MLPACK_VERSION_MAJOR ([0-9]+).*" "\\1"
+  MLPACK_VERSION_MAJOR "${VERSION_HPP_CONTENTS}")
+string(REGEX REPLACE ".*#define MLPACK_VERSION_MINOR ([0-9]+).*" "\\1"
+  MLPACK_VERSION_MINOR "${VERSION_HPP_CONTENTS}")
+string(REGEX REPLACE ".*#define MLPACK_VERSION_PATCH [\"]?([0-9x]+)[\"]?.*"
+  "\\1" MLPACK_VERSION_PATCH "${VERSION_HPP_CONTENTS}")
 
-# Generate export symbols for Windows, instead of adding __declspec(dllimport)
-# and __declspec(dllexport) everywhere.  However, those modifiers are still
-# necessary for global variables (of which there are a few in mlpack).
-set_target_properties(mlpack PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-include(GenerateExportHeader)
-generate_export_header(mlpack EXPORT_FILE_NAME mlpack_export.hpp)
-if (NOT BUILD_SHARED_LIBS)
-  add_definitions(-DMLPACK_STATIC_DEFINE)
-endif ()
+set(PACKAGE_VERSION
+  "${MLPACK_VERSION_MAJOR}.${MLPACK_VERSION_MINOR}.${MLPACK_VERSION_PATCH}")
 
-target_link_libraries(mlpack
-  ${MLPACK_LIBRARIES})
+post_python_bindings()
+post_julia_setup()
+post_go_setup()
 
-set_target_properties(mlpack
-  PROPERTIES
-  VERSION 2.0
-  SOVERSION 2
-)
+# If we are building R-bindings, we have to run some setup after we
+# recurse into methods/.  If not, this macro is empty.
+post_r_setup()
 
-# Backtrace for Linux need those libs.
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  if(LIBBFD_FOUND AND LIBDL_FOUND AND DEBUG)
-    target_link_libraries(mlpack ${LIBBFD_LIBRARIES})
-    target_link_libraries(mlpack ${LIBDL_LIBRARIES})
-  endif()
-endif()
-
-# Collect all header files in the library.
-file(GLOB_RECURSE INCLUDE_H_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.h)
-file(GLOB_RECURSE INCLUDE_HPP_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.hpp)
-set(INCLUDE_FILES ${INCLUDE_H_FILES} ${INCLUDE_HPP_FILES})
-
-# Move all of these header files to <builddir>/include/mlpack/ after the library
-# is built.  First we have to create that directory though.
-add_custom_target(mlpack_headers)
-add_custom_command(TARGET mlpack_headers POST_BUILD
-  COMMENT "Moving header files to include/mlpack/"
-  COMMAND ${CMAKE_COMMAND} ARGS -E
-    make_directory ${CMAKE_BINARY_DIR}/include/mlpack/
-  COMMAND ${CMAKE_COMMAND} ARGS -E
-    copy ${CMAKE_CURRENT_BINARY_DIR}/mlpack_export.hpp
-         ${CMAKE_BINARY_DIR}/include/mlpack)
-
-# Then copy each of the header files over to that directory.
-foreach(incl_file ${INCLUDE_FILES})
-  add_custom_command(TARGET mlpack_headers POST_BUILD
-    COMMAND ${CMAKE_COMMAND} ARGS -E
-      copy ${CMAKE_CURRENT_SOURCE_DIR}/${incl_file}
-           ${CMAKE_BINARY_DIR}/include/mlpack/${incl_file})
-endforeach()
-
-# At install time, we simply install that directory of header files we
-# collected to include/.
-install(DIRECTORY ${CMAKE_BINARY_DIR}/include/mlpack DESTINATION include)
-
-# Set generated executables to be installed.  Unfortunately they must manually
-# be entered...
-install(TARGETS mlpack
-  RUNTIME DESTINATION bin
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib)
-
-add_dependencies(mlpack mlpack_headers)
+# If we are building Markdown documentation, we have to run some setup after we
+# recurse into methods/.  If not, this function is empty.
+post_markdown_setup()

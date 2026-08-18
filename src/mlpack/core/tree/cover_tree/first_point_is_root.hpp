@@ -1,5 +1,5 @@
 /**
- * @file first_point_is_root.hpp
+ * @file core/tree/cover_tree/first_point_is_root.hpp
  * @author Ryan Curtin
  *
  * A very simple policy for the cover tree; the first point in the dataset is
@@ -16,7 +16,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace tree {
 
 /**
  * This class is meant to be used as a choice for the policy class
@@ -37,7 +36,6 @@ class FirstPointIsRoot
   static size_t ChooseRoot(const MatType& /* dataset */) { return 0; }
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #endif // MLPACK_CORE_TREE_FIRST_POINT_IS_ROOT_HPP

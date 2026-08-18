@@ -1,5 +1,5 @@
 /**
- * @file single_tree_traverser.hpp
+ * @file core/tree/binary_space_tree/single_tree_traverser.hpp
  * @author Ryan Curtin
  *
  * A nested class of BinarySpaceTree which traverses the entire tree with a
@@ -19,16 +19,17 @@
 #include "binary_space_tree.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename BoundMetricType, typename...> class BoundType,
-         template<typename SplitBoundType, typename SplitMatType>
-             class SplitType>
+         template<typename BoundDistanceType,
+                  typename BoundElemType,
+                  typename...> class BoundType,
+         template<typename SplitBoundType,
+                  typename SplitMatType> class SplitType>
 template<typename RuleType>
-class BinarySpaceTree<MetricType, StatisticType, MatType, BoundType,
+class BinarySpaceTree<DistanceType, StatisticType, MatType, BoundType,
                       SplitType>::SingleTreeTraverser
 {
  public:
@@ -59,7 +60,6 @@ class BinarySpaceTree<MetricType, StatisticType, MatType, BoundType,
   size_t numPrunes;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

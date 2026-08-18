@@ -1,5 +1,5 @@
 /**
- * @file range_search_rules.hpp
+ * @file methods/range_search/range_search_rules.hpp
  * @author Ryan Curtin
  *
  * Rules for range search, so that it can be done with arbitrary tree types.
@@ -15,19 +15,23 @@
 #include <mlpack/core/tree/traversal_info.hpp>
 
 namespace mlpack {
-namespace range {
 
 /**
  * The RangeSearchRules class is a template helper class used by RangeSearch
  * class when performing range searches.
  *
- * @tparam MetricType The metric to use for computation.
+ * @tparam DistanceType The distance metric to use for computation.
  * @tparam TreeType The tree type to use; must adhere to the TreeType API.
  */
-template<typename MetricType, typename TreeType>
+template<typename DistanceType, typename TreeType>
 class RangeSearchRules
 {
  public:
+  //! Easy access to MatType.
+  using MatType = typename TreeType::Mat;
+  //! The type of element held in MatType.
+  using ElemType = typename MatType::elem_type;
+
   /**
    * Construct the RangeSearchRules object.  This is usually done from within
    * the RangeSearch class at search time.
@@ -37,16 +41,16 @@ class RangeSearchRules
    * @param range Range to search for.
    * @param neighbors Vector to store resulting neighbors in.
    * @param distances Vector to store resulting distances in.
-   * @param metric Instantiated metric.
+   * @param distance Instantiated distance metric.
    * @param sameSet If true, the query and reference set are taken to be the
    *      same, and a query point will not return itself in the results.
    */
-  RangeSearchRules(const arma::mat& referenceSet,
-                   const arma::mat& querySet,
-                   const math::Range& range,
+  RangeSearchRules(const MatType& referenceSet,
+                   const MatType& querySet,
+                   const RangeType<ElemType>& range,
                    std::vector<std::vector<size_t> >& neighbors,
-                   std::vector<std::vector<double> >& distances,
-                   MetricType& metric,
+                   std::vector<std::vector<ElemType> >& distances,
+                   DistanceType& distance,
                    const bool sameSet = false);
 
   /**
@@ -55,7 +59,7 @@ class RangeSearchRules
    * @param queryIndex Index of query point.
    * @param referenceIndex Index of reference point.
    */
-  double BaseCase(const size_t queryIndex, const size_t referenceIndex);
+  ElemType BaseCase(const size_t queryIndex, const size_t referenceIndex);
 
   /**
    * Get the score for recursion order.  A low score indicates priority for
@@ -65,7 +69,7 @@ class RangeSearchRules
    * @param queryIndex Index of query point.
    * @param referenceNode Candidate node to be recursed into.
    */
-  double Score(const size_t queryIndex, TreeType& referenceNode);
+  ElemType Score(const size_t queryIndex, TreeType& referenceNode);
 
   /**
    * Re-evaluate the score for recursion order.  A low score indicates priority
@@ -78,9 +82,9 @@ class RangeSearchRules
    * @param referenceNode Candidate node to be recursed into.
    * @param oldScore Old score produced by Score() (or Rescore()).
    */
-  double Rescore(const size_t queryIndex,
-                 TreeType& referenceNode,
-                 const double oldScore) const;
+  ElemType Rescore(const size_t queryIndex,
+                   TreeType& referenceNode,
+                   const ElemType oldScore) const;
 
   /**
    * Get the score for recursion order.  A low score indicates priority for
@@ -90,7 +94,7 @@ class RangeSearchRules
    * @param queryNode Candidate query node to recurse into.
    * @param referenceNode Candidate reference node to recurse into.
    */
-  double Score(TreeType& queryNode, TreeType& referenceNode);
+  ElemType Score(TreeType& queryNode, TreeType& referenceNode);
 
   /**
    * Re-evaluate the score for recursion order.  A low score indicates priority
@@ -103,11 +107,11 @@ class RangeSearchRules
    * @param referenceNode Candidate reference node to recurse into.
    * @param oldScore Old score produced by Score() (or Rescore()).
    */
-  double Rescore(TreeType& queryNode,
-                 TreeType& referenceNode,
-                 const double oldScore) const;
+  ElemType Rescore(TreeType& queryNode,
+                   TreeType& referenceNode,
+                   const ElemType oldScore) const;
 
-  typedef typename tree::TraversalInfo<TreeType> TraversalInfoType;
+  using TraversalInfoType = mlpack::TraversalInfo<TreeType>;
 
   const TraversalInfoType& TraversalInfo() const { return traversalInfo; }
   TraversalInfoType& TraversalInfo() { return traversalInfo; }
@@ -117,24 +121,28 @@ class RangeSearchRules
   //! Get the number of scores (that is, calls to RangeDistance()).
   size_t Scores() const { return scores; }
 
+  //! Get the minimum number of base cases we need to perform to have acceptable
+  //! results.
+  size_t MinimumBaseCases() const { return 0; }
+
  private:
   //! The reference set.
-  const arma::mat& referenceSet;
+  const MatType& referenceSet;
 
   //! The query set.
-  const arma::mat& querySet;
+  const MatType& querySet;
 
   //! The range of distances for which we are searching.
-  const math::Range& range;
+  const RangeType<ElemType>& range;
 
   //! The vector the resultant neighbor indices should be stored in.
   std::vector<std::vector<size_t> >& neighbors;
 
   //! The vector the resultant neighbor distances should be stored in.
-  std::vector<std::vector<double> >& distances;
+  std::vector<std::vector<ElemType> >& distances;
 
-  //! The instantiated metric.
-  MetricType& metric;
+  //! The instantiated distance metric.
+  DistanceType& distance;
 
   //! If true, the query and reference set are taken to be the same.
   bool sameSet;
@@ -158,7 +166,6 @@ class RangeSearchRules
   size_t scores;
 };
 
-} // namespace range
 } // namespace mlpack
 
 // Include implementation.

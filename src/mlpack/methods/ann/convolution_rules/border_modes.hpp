@@ -1,5 +1,5 @@
 /**
- * @file border_modes.hpp
+ * @file methods/ann/convolution_rules/border_modes.hpp
  * @author Marcus Edel
  *
  * This file provides the border modes that can be used to compute different
@@ -14,7 +14,6 @@
 #define MLPACK_METHODS_ANN_CONVOLUTION_RULES_BORDER_MODES_HPP
 
 namespace mlpack {
-namespace ann {
 
 /*
  * The FullConvolution class represents the full two-dimensional convolution.
@@ -27,7 +26,6 @@ class FullConvolution { /* Nothing to do here */ };
  */
 class ValidConvolution { /* Nothing to do here */ };
 
-} // namespace ann
 } // namespace mlpack
 
 #endif

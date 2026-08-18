@@ -1,5 +1,5 @@
 /**
- * @file breadth_first_dual_tree_traverser.hpp
+ * @file core/tree/binary_space_tree/breadth_first_dual_tree_traverser.hpp
  * @author Ryan Curtin
  *
  * Defines the BreadthFirstDualTreeTraverser for the BinarySpaceTree tree type.
@@ -12,8 +12,8 @@
  * 3-clause BSD license along with mlpack.  If not, see
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
-#ifndef MLPACK_CORE_TREE_BINARY_SPACE_TREE_BREADTH_FIRST_DUAL_TREE_TRAVERSER_HPP
-#define MLPACK_CORE_TREE_BINARY_SPACE_TREE_BREADTH_FIRST_DUAL_TREE_TRAVERSER_HPP
+#ifndef MLPACK_CORE_TREE_BINARY_SPACE_TREE_BF_DUAL_TREE_TRAVERSER_HPP
+#define MLPACK_CORE_TREE_BINARY_SPACE_TREE_BF_DUAL_TREE_TRAVERSER_HPP
 
 #include <mlpack/prereqs.hpp>
 #include <queue>
@@ -21,7 +21,6 @@
 #include "../binary_space_tree.hpp"
 
 namespace mlpack {
-namespace tree {
 
 template<typename TreeType, typename TraversalInfoType>
 struct QueueFrame
@@ -33,14 +32,16 @@ struct QueueFrame
   TraversalInfoType traversalInfo;
 };
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename BoundMetricType, typename...> class BoundType,
-         template<typename SplitBoundType, typename SplitMatType>
-             class SplitType>
+         template<typename BoundDistanceType,
+                  typename BoundElemType,
+                  typename...> class BoundType,
+         template<typename SplitBoundType,
+                  typename SplitMatType> class SplitType>
 template<typename RuleType>
-class BinarySpaceTree<MetricType, StatisticType, MatType, BoundType,
+class BinarySpaceTree<DistanceType, StatisticType, MatType, BoundType,
                       SplitType>::BreadthFirstDualTreeTraverser
 {
  public:
@@ -49,15 +50,14 @@ class BinarySpaceTree<MetricType, StatisticType, MatType, BoundType,
    */
   BreadthFirstDualTreeTraverser(RuleType& rule);
 
-  typedef QueueFrame<BinarySpaceTree, typename RuleType::TraversalInfoType>
-      QueueFrameType;
+  using QueueFrameType =
+      QueueFrame<BinarySpaceTree, typename RuleType::TraversalInfoType>;
 
   /**
    * Traverse the two trees.  This does not reset the number of prunes.
    *
    * @param queryNode The query node to be traversed.
    * @param referenceNode The reference node to be traversed.
-   * @param score The score of the current node combination.
    */
   void Traverse(BinarySpaceTree& queryNode,
                 BinarySpaceTree& referenceNode);
@@ -105,11 +105,9 @@ class BinarySpaceTree<MetricType, StatisticType, MatType, BoundType,
   typename RuleType::TraversalInfoType traversalInfo;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.
 #include "breadth_first_dual_tree_traverser_impl.hpp"
 
-#endif // MLPACK_CORE_TREE_BINARY_SPACE_TREE_BREADTH_FIRST_DUAL_TREE_TRAVERSER_HPP
-
+#endif // MLPACK_CORE_TREE_BINARY_SPACE_TREE_BF_DUAL_TREE_TRAVERSER_HPP

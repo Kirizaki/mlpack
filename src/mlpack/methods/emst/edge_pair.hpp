@@ -1,5 +1,5 @@
 /**
- * @file edge_pair.hpp
+ * @file methods/emst/edge_pair.hpp
  *
  * @author Bill March (march@gatech.edu)
  *
@@ -14,12 +14,12 @@
 #ifndef MLPACK_METHODS_EMST_EDGE_PAIR_HPP
 #define MLPACK_METHODS_EMST_EDGE_PAIR_HPP
 
+#include <mlpack/core/util/log.hpp>
 #include <mlpack/prereqs.hpp>
 
 #include "union_find.hpp"
 
 namespace mlpack {
-namespace emst {
 
 /**
  * An edge pair is simply two indices and a distance.  It is used as the
@@ -63,10 +63,8 @@ class EdgePair
   double Distance() const { return distance; }
   //! Modify the distance.
   double& Distance() { return distance; }
-
 }; // class EdgePair
 
-} // namespace emst
 } // namespace mlpack
 
 #endif // MLPACK_METHODS_EMST_EDGE_PAIR_HPP

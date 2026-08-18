@@ -1,5 +1,5 @@
 /**
- * @file neighbor_search_rules.hpp
+ * @file methods/neighbor_search/neighbor_search_rules.hpp
  * @author Ryan Curtin
  *
  * Defines the pruning rules and base case rules necessary to perform a
@@ -15,8 +15,9 @@
 
 #include <mlpack/core/tree/traversal_info.hpp>
 
+#include <queue>
+
 namespace mlpack {
-namespace neighbor {
 
 /**
  * The NeighborSearchRules class is a template helper class used by
@@ -26,13 +27,16 @@ namespace neighbor {
  * policy.
  *
  * @tparam SortPolicy The sort policy for distances.
- * @tparam MetricType The metric to use for computation.
+ * @tparam DistanceType The distance metric to use for computation.
  * @tparam TreeType The tree type to use; must adhere to the TreeType API.
  */
-template<typename SortPolicy, typename MetricType, typename TreeType>
+template<typename SortPolicy, typename DistanceType, typename TreeType>
 class NeighborSearchRules
 {
  public:
+  //! The type of element held in MatType.
+  using ElemType = typename TreeType::Mat::elem_type;
+
   /**
    * Construct the NeighborSearchRules object.  This is usually done from within
    * the NeighborSearch class at search time.
@@ -40,7 +44,7 @@ class NeighborSearchRules
    * @param referenceSet Set of reference data.
    * @param querySet Set of query data.
    * @param k Number of neighbors to search for.
-   * @param metric Instantiated metric.
+   * @param distance Instantiated distance metric.
    * @param epsilon Relative approximate error.
    * @param sameSet If true, the query and reference set are taken to be the
    *      same, and a query point will not return itself in the results.
@@ -48,7 +52,7 @@ class NeighborSearchRules
   NeighborSearchRules(const typename TreeType::Mat& referenceSet,
                       const typename TreeType::Mat& querySet,
                       const size_t k,
-                      MetricType& metric,
+                      DistanceType& distance,
                       const double epsilon = 0,
                       const bool sameSet = false);
 
@@ -59,7 +63,10 @@ class NeighborSearchRules
    * @param distances Matrix storing distances of neighbors for each query
    *     point.
    */
-  void GetResults(arma::Mat<size_t>& neighbors, arma::mat& distances);
+  // TODO: templatize fully to remove requirement of Armadillo matrix
+  template<typename IndexType = size_t>
+  void GetResults(arma::Mat<IndexType>& neighbors,
+                  arma::Mat<ElemType>& distances);
 
   /**
    * Get the distance from the query point to the reference point.
@@ -148,12 +155,16 @@ class NeighborSearchRules
   size_t& Scores() { return scores; }
 
   //! Convenience typedef.
-  typedef typename tree::TraversalInfo<TreeType> TraversalInfoType;
+  using TraversalInfoType = mlpack::TraversalInfo<TreeType>;
 
   //! Get the traversal info.
   const TraversalInfoType& TraversalInfo() const { return traversalInfo; }
   //! Modify the traversal info.
   TraversalInfoType& TraversalInfo() { return traversalInfo; }
+
+  //! Get the minimum number of base cases we need to perform to have acceptable
+  //! results.  This is only needed in defeatist search mode.
+  size_t MinimumBaseCases() const { return k; }
 
  protected:
   //! The reference set.
@@ -163,7 +174,7 @@ class NeighborSearchRules
   const typename TreeType::Mat& querySet;
 
   //! Candidate represents a possible candidate neighbor (distance, index).
-  typedef std::pair<double, size_t> Candidate;
+  using Candidate = std::pair<double, size_t>;
 
   //! Compare two candidates based on the distance.
   struct CandidateCmp {
@@ -174,8 +185,8 @@ class NeighborSearchRules
   };
 
   //! Use a priority queue to represent the list of candidate neighbors.
-  typedef std::priority_queue<Candidate, std::vector<Candidate>, CandidateCmp>
-      CandidateList;
+  using CandidateList = std::priority_queue<Candidate, std::vector<Candidate>,
+      CandidateCmp>;
 
   //! Set of candidate neighbors for each point.
   std::vector<CandidateList> candidates;
@@ -183,8 +194,8 @@ class NeighborSearchRules
   //! Number of neighbors to search for.
   const size_t k;
 
-  //! The instantiated metric.
-  MetricType& metric;
+  //! The instantiated distance metric.
+  DistanceType& distance;
 
   //! Denotes whether or not the reference and query sets are the same.
   bool sameSet;
@@ -225,7 +236,6 @@ class NeighborSearchRules
                       const double distance);
 };
 
-} // namespace neighbor
 } // namespace mlpack
 
 // Include implementation.

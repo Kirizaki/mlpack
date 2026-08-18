@@ -1,5 +1,5 @@
 /**
- * @file orthogonal_init.hpp
+ * @file methods/ann/init_rules/orthogonal_init.hpp
  * @author Marcus Edel
  *
  * Definition and implementation of the orthogonal matrix initialization method.
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace ann /** Artificial Neural Network. */ {
 
 /**
  * This class is used to initialize the weight matrix with the orthogonal
@@ -39,14 +38,33 @@ class OrthogonalInitialization
    * @param rows Number of rows.
    * @param cols Number of columns.
    */
-  template<typename eT>
-  void Initialize(arma::Mat<eT>& W, const size_t rows, const size_t cols)
+  template<typename MatType>
+  void Initialize(MatType& W, const size_t rows, const size_t cols)
   {
-    arma::Mat<eT> V;
-    arma::Col<eT> s;
+    MatType V;
+    using ColType = typename GetColType<MatType>::type;
+    ColType s;
 
-    arma::svd_econ(W, s, V, arma::randu<arma::Mat<eT> >(rows, cols));
-    W *= gain;
+    svd_econ(W, s, V, randu<MatType>(rows, cols));
+    W *= typename MatType::elem_type(gain);
+  }
+
+  /**
+   * Initialize the elements of the specified weight matrix with the orthogonal
+   * matrix initialization method.
+   *
+   * @param W Weight matrix to initialize.
+   */
+  template<typename MatType>
+  void Initialize(MatType& W,
+      const typename std::enable_if_t<IsMatrix<MatType>::value>* = 0)
+  {
+    MatType V;
+    using ColType = typename GetColType<MatType>::type;
+    ColType s;
+
+    svd_econ(W, s, V, randu<MatType>(W.n_rows, W.n_cols));
+    W *= typename MatType::elem_type(gain);
   }
 
   /**
@@ -58,25 +76,51 @@ class OrthogonalInitialization
    * @param cols Number of columns.
    * @param slices Number of slices.
    */
-  template<typename eT>
-  void Initialize(arma::Cube<eT>& W,
+  template<typename CubeType>
+  void Initialize(CubeType& W,
                   const size_t rows,
                   const size_t cols,
                   const size_t slices)
   {
-    W = arma::Cube<eT>(rows, cols, slices);
+    if (W.is_empty())
+      W.set_size(rows, cols, slices);
 
-    for (size_t i = 0; i < slices; i++)
+    for (size_t i = 0; i < slices; ++i)
       Initialize(W.slice(i), rows, cols);
+  }
+
+  /**
+   * Initialize the elements of the specified weight 3rd order tensor with the
+   * orthogonal matrix initialization method.
+   *
+   * @param W Weight matrix to initialize.
+   */
+  template<typename CubeType>
+  void Initialize(CubeType& W,
+      const typename std::enable_if_t<IsCube<CubeType>::value>* = 0)
+  {
+    if (W.is_empty())
+      Log::Fatal << "Cannot initialize an empty cube." << std::endl;
+
+    for (size_t i = 0; i < W.n_slices; ++i)
+      Initialize(W.slice(i));
+  }
+
+  /**
+   * Serialize the initialization.
+   */
+  template<typename Archive>
+  void serialize(Archive& ar, const uint32_t /* version */)
+  {
+    ar(CEREAL_NVP(gain));
   }
 
  private:
   //! The number used as gain.
-  const double gain;
+  double gain;
 }; // class OrthogonalInitialization
 
 
-} // namespace ann
 } // namespace mlpack
 
 #endif

@@ -1,192 +1,179 @@
 /**
- * @file recurrent_layer.hpp
- * @author Marcus Edel
+ * @file methods/ann/layer/recurrent_layer.hpp
+ * @author Ryan Curtin
  *
- * Definition of the RecurrentLayer class.
+ * Base layer for recurrent neural network layers.
  *
  * mlpack is free software; you may redistribute it and/or modify it under the
  * terms of the 3-clause BSD license.  You should have received a copy of the
- * 3-clause BSD license along with mlpack.  If not, see
+ * 3-clause BSD license along with the mlpack.  If not, see
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #ifndef MLPACK_METHODS_ANN_LAYER_RECURRENT_LAYER_HPP
 #define MLPACK_METHODS_ANN_LAYER_RECURRENT_LAYER_HPP
 
 #include <mlpack/prereqs.hpp>
-#include <mlpack/methods/ann/layer/layer_traits.hpp>
+#include "layer.hpp"
 
 namespace mlpack {
-namespace ann /** Artificial Neural Network. */ {
 
 /**
- * Implementation of the RecurrentLayer class. Recurrent layers can be used
- * similarly to feed-forward layers except that the input isn't stored in the
- * inputParameter, instead it's in stored in the recurrentParameter.
+ * The `RecurrentLayer` provides a base layer for all layers that have recurrent
+ * functionality and store state between steps in a recurrent network.  Any
+ * RecurrentLayer should only be used with a network type such as `RNN` that
+ * supports recurrent layers.
  *
- * @tparam InputDataType Type of the input data (arma::colvec, arma::mat,
- *         arma::sp_mat or arma::cube).
- * @tparam OutputDataType Type of the output data (arma::colvec, arma::mat,
- *         arma::sp_mat or arma::cube).
+ * Any recurrent layer that inherits from `RecurrentLayer` must implement the
+ * `RecurrentSize()` function, which represents the number of elements that must
+ * be held to represent the recurrent state for one data point and one time
+ * step.  Recurrent state can be recovered with the `GetRecurrentState()`
+ * function.  During BPTT, the gradients for recurrent connections are stored
+ * and recovered with `RecurrentGradient()`.  More information on both of those
+ * functions can be found in those functions' documentation.
+ *
+ * In addition, there are additional expectations for the Forward(), Backward()
+ * and Gradient() methods:
+ *
+ * - `Forward()` should set the recurrent state for the current time step if
+ *   `AtFinalStep()` is `false`; this can be done via a call to
+ *   `GetRecurrentState(CurrentStep())`.
+ *   - It is okay to set the recurrent state even if `AtFinalStep()` is `true`.
+ *
+ * - `Backward()` should use `GetRecurrentState(PreviousStep())` to refer to the
+ *   recurrent input.  If `AtFinalStep()` is false,
+ *   `GetRecurrentGradient(CurrentStep())`---which is the gradient of the
+ *   network passed through the recurrent connection---must be considered
+ *   (otherwise it can be assumed to be zero).  If `HasPreviousStep()` is
+ *   true, then `Backward()` must also compute and store
+ *   `GetRecurrentGradient(PreviousStep())`.
+ *
+ * - The same conditions that apply to `Backward()` also apply to `Gradient()`,
+ *   but there is no need to compute and store
+ *   `GetRecurrentGradient(PreviousStep())`.
+ *
+ * @tparam MatType Matrix representation to accept as input and use for
+ *    computation.
  */
-template <
-    typename InputDataType = arma::mat,
-    typename OutputDataType = arma::mat
->
-class RecurrentLayer
+template<typename MatType = arma::mat>
+class RecurrentLayer : public Layer<MatType>
 {
  public:
-  /**
-   * Create the RecurrentLayer object using the specified number of units.
-   *
-   * @param inSize The number of input units.
-   * @param outSize The number of output units.
-   */
-  RecurrentLayer(const size_t inSize, const size_t outSize) :
-      inSize(outSize),
-      outSize(outSize),
-      recurrentParameter(arma::zeros<InputDataType>(inSize, 1))
-  {
-    weights.set_size(outSize, inSize);
-  }
+  // Convenience typedefs.
+  using ElemType = typename MatType::elem_type;
+  using CubeType = typename GetCubeType<MatType>::type;
 
   /**
-   * Create the RecurrentLayer object using the specified number of units.
-   *
-   * @param outSize The number of output units.
+   * Create the RecurrentLayer.
    */
-  RecurrentLayer(const size_t outSize) :
-      inSize(outSize),
-      outSize(outSize),
-      recurrentParameter(arma::zeros<InputDataType>(outSize, 1))
-  {
-    weights.set_size(outSize, inSize);
-  }
+  RecurrentLayer();
+
+  // Virtual destructor is required for classes using inheritance.
+  virtual ~RecurrentLayer() { }
+
+  // Copy the given RecurrentLayer.
+  RecurrentLayer(const RecurrentLayer& other);
+  // Take ownership of the given RecurrentLayer.
+  RecurrentLayer(RecurrentLayer&& other);
+  // Copy the given RecurrentLayer.
+  RecurrentLayer& operator=(const RecurrentLayer& other);
+  // Take ownership of the given RecurrentLayer.
+  RecurrentLayer& operator=(RecurrentLayer&& other);
 
   /**
-   * Ordinary feed forward pass of a neural network, evaluating the function
-   * f(x) by propagating the activity forward through f.
+   * ClearRecurrentState() is called before any forward pass of a recurrent
+   * network.  This function is responsible for allocating any memory necessary
+   * to store `bpttSteps` steps of previous forward and backward passes, with a
+   * batch size of `batchSize`.  If `bpttSteps` is 0, then no space will be
+   * initialized for the backward pass derivative state, and space for only the
+   * previous timestep of the forward pass will be allocated.
    *
-   * @param input Input data used for evaluating the specified function.
-   * @param output Resulting output activation.
+   * Any internal state of the recurrent layer will be set to 0.
    */
-  template<typename eT>
-  void Forward(const arma::Mat<eT>& input, arma::Mat<eT>& output)
-  {
-    output = input + weights * recurrentParameter;
-  }
+  void ClearRecurrentState(const size_t bpttSteps, const size_t batchSize);
 
   /**
-   * Ordinary feed backward pass of a neural network, calculating the function
-   * f(x) by propagating x backwards trough f. Using the results from the feed
-   * forward pass.
-   *
-   * @param input The propagated input activation.
-   * @param gy The backpropagated error.
-   * @param g The calculated gradient.
+   * Get the number of recurrent elements that need to be stored for a time
+   * step.  A child recurrent class should override this.
    */
-  template<typename InputType, typename eT>
-  void Backward(const InputType& /* unused */,
-                const arma::Mat<eT>& gy,
-                arma::mat& g)
-  {
-    g = (weights).t() * gy;
-  }
-
-  /*
-   * Calculate the gradient using the output delta and the input activation.
-   *
-   * @param input The propagated input activation.
-   * @param d The calculated error.
-   * @param g The calculated gradient.
-   */
-  template<typename InputType, typename eT, typename GradientDataType>
-  void Gradient(const InputType& /* input */,
-                const arma::Mat<eT>& d,
-                GradientDataType& g)
-  {
-    g = d * recurrentParameter.t();
-  }
-
-  //! Get the weights.
-  OutputDataType const& Weights() const { return weights; }
-  //! Modify the weights.
-  OutputDataType& Weights() { return weights; }
-
-  //! Get the input parameter.
-  InputDataType const& InputParameter() const { return inputParameter; }
-  //! Modify the input parameter.
-  InputDataType& InputParameter() { return inputParameter; }
-
-  //! Get the input parameter.
-  InputDataType const& RecurrentParameter() const { return recurrentParameter; }
-  //! Modify the input parameter.
-  InputDataType& RecurrentParameter() { return recurrentParameter; }
-
-  //! Get the output parameter.
-  OutputDataType const& OutputParameter() const { return outputParameter; }
-  //! Modify the output parameter.
-  OutputDataType& OutputParameter() { return outputParameter; }
-
-  //! Get the delta.
-  OutputDataType const& Delta() const { return delta; }
-  //! Modify the delta.
-  OutputDataType& Delta() { return delta; }
-
-  //! Get the gradient.
-  OutputDataType const& Gradient() const { return gradient; }
-  //! Modify the gradient.
-  OutputDataType& Gradient() { return gradient; }
+  virtual size_t RecurrentSize() const { return 0; }
 
   /**
-   * Serialize the layer.
+   * Get the stored recurrent state at the given time step `t`.  If `t` is
+   * greater than `CurrentStep()`, or if `t` is more than `bpttSteps` behind
+   * `currentStep`, invalid results will be returned!
+   *
+   * - To get (or set) the current time step's recurrent state, use
+   *   `RecurrentState(CurrentStep())`.
+   * - To get the previous time step's recurrent state, use
+   *   `RecurrentState(PreviousStep())`.
    */
+  const MatType& RecurrentState(const size_t t) const;
+  // Modify the stored recurrent state at time step `t`.  Be careful!
+  MatType& RecurrentState(const size_t t);
+
+  /**
+   * Get the stored recurrent gradient at the given time step `t`.  `t` must be
+   * `CurrentStep()` or `PreviousStep()`.  The recurrent gradient represents the
+   * gradient of the output of the network with respect to the hidden state.
+   */
+  const MatType& RecurrentGradient(const size_t t) const;
+  // Modify the stored recurrent gradient at time step `t`.  Be careful!
+  MatType& RecurrentGradient(const size_t t);
+
+  // Get the current step index to use in a forward or backward pass.
+  size_t CurrentStep() const { return currentStep; }
+  // Modify the current step index to use in a forward or backward pass.
+  // (Don't do this inside of your recurrent layer's implementation!  This is
+  // meant to be done by the enclosing network.)
+  void CurrentStep(const size_t& step, const bool end = false);
+
+  /**
+   * Update the internal state of the layer when the step changes. This is
+   * meant to be called by the enclosing network. A child recurrent class
+   * should override this.
+   */
+  virtual void OnStepChanged(const size_t /* step */,
+                             const size_t /* batchSize */,
+                             const size_t /* activeBatchSize */,
+                             const bool /* backwards */) { }
+
+  // Get the previous step.  This is a very simple function but can lead to
+  // slightly more readable code in Forward(), Backward(), and Gradient()
+  // implementations.
+  size_t PreviousStep() const { return currentStep - 1; }
+
+  // Get whether or not recurrent state has been computed for previous time
+  // steps.  If not, no previous recurrent state should be used in the
+  // computation.
+  bool HasPreviousStep() const { return currentStep != size_t(0); }
+
+  // Get whether or not the current time step is the final time step.  If so,
+  // then Backward() and Gradient() should not use RecurrentGradient().
+  bool AtFinalStep() const { return atFinalStep; }
+
+  //! Serialize the recurrent layer.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
-  {
-    ar & data::CreateNVP(recurrentParameter, "recurrentParameter");
-    ar & data::CreateNVP(weights, "weights");
-  }
+  void serialize(Archive& ar, const uint32_t /* version */);
 
  private:
-  //! Locally-stored number of input units.
-  size_t inSize;
+  // The current time step index.  This is set by the enclosing network during
+  // forward and backward passes.
+  size_t currentStep;
 
-  //! Locally-stored number of output units.
-  size_t outSize;
+  // If true, then there are no further time steps.
+  bool atFinalStep;
 
-  //! Locally-stored weight object.
-  OutputDataType weights;
-
-  //! Locally-stored delta object.
-  OutputDataType delta;
-
-  //! Locally-stored gradient object.
-  OutputDataType gradient;
-
-  //! Locally-stored input parameter object.
-  InputDataType inputParameter;
-
-  //! Locally-stored output parameter object.
-  OutputDataType outputParameter;
-
-  //! Locally-stored recurrent parameter object.
-  InputDataType recurrentParameter;
-}; // class RecurrentLayer
-
-//! Layer traits for the recurrent layer.
-template<typename InputDataType, typename OutputDataType
->
-class LayerTraits<RecurrentLayer<InputDataType, OutputDataType> >
-{
- public:
-  static const bool IsBinary = false;
-  static const bool IsOutputLayer = false;
-  static const bool IsBiasLayer = false;
-  static const bool IsLSTMLayer = false;
-  static const bool IsConnection = true;
+  // This holds the recurrent state at each time step for BPTT.  If BPTT is not
+  // being used (e.g. if we are only running the network in forward mode and not
+  // training), then only one previous time step is held.
+  CubeType recurrentState;
+  // This holds the recurrent gradient for BPTT.  If BPTT is not being used,
+  // this is empty.
+  CubeType recurrentGradient;
 };
 
-} // namespace ann
 } // namespace mlpack
+
+#include "recurrent_layer_impl.hpp"
 
 #endif

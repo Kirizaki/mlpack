@@ -1,5 +1,5 @@
 /**
- * @file ordered_selection.hpp
+ * @file methods/nystroem_method/ordered_selection.hpp
  * @author Ryan Curtin
  *
  * Select the first points of the dataset for use in the Nystroem method of
@@ -17,7 +17,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace kernel {
 
 class OrderedSelection
 {
@@ -25,11 +24,11 @@ class OrderedSelection
   /**
    * Select the specified number of points in the dataset.
    *
-   * @param data Dataset to sample from.
+   * @param * (data) Dataset to sample from.
    * @param m Number of points to select.
    * @return Indices of selected points from the dataset.
    */
-  const static arma::Col<size_t> Select(const arma::mat& /* unused */,
+  static const arma::Col<size_t> Select(const arma::mat& /* data */,
                                         const size_t m)
   {
     // This generates [0 1 2 3 ... (m - 1)].
@@ -37,7 +36,6 @@ class OrderedSelection
   }
 };
 
-} // namespace kernel
 } // namespace mlpack
 
 #endif

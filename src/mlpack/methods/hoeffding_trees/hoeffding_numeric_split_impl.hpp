@@ -1,5 +1,5 @@
 /**
- * @file hoeffding_numeric_split_impl.hpp
+ * @file methods/hoeffding_trees/hoeffding_numeric_split_impl.hpp
  * @author Ryan Curtin
  *
  * An implementation of the simple HoeffdingNumericSplit class.
@@ -15,7 +15,6 @@
 #include "hoeffding_numeric_split.hpp"
 
 namespace mlpack {
-namespace tree {
 
 template<typename FitnessFunction, typename ObservationType>
 HoeffdingNumericSplit<FitnessFunction, ObservationType>::HoeffdingNumericSplit(
@@ -27,7 +26,7 @@ HoeffdingNumericSplit<FitnessFunction, ObservationType>::HoeffdingNumericSplit(
     bins(bins),
     observationsBeforeBinning(observationsBeforeBinning),
     samplesSeen(0),
-    sufficientStatistics(arma::zeros<arma::Mat<size_t>>(numClasses, bins))
+    sufficientStatistics(zeros<arma::Mat<size_t>>(numClasses, bins))
 {
   observations.zeros();
   labels.zeros();
@@ -42,7 +41,7 @@ HoeffdingNumericSplit<FitnessFunction, ObservationType>::HoeffdingNumericSplit(
     bins(other.bins),
     observationsBeforeBinning(other.observationsBeforeBinning),
     samplesSeen(0),
-    sufficientStatistics(arma::zeros<arma::Mat<size_t>>(numClasses, bins))
+    sufficientStatistics(zeros<arma::Mat<size_t>>(numClasses, bins))
 {
   observations.zeros();
   labels.zeros();
@@ -123,8 +122,7 @@ void HoeffdingNumericSplit<FitnessFunction, ObservationType>::Split(
   childMajorities.set_size(sufficientStatistics.n_cols);
   for (size_t i = 0; i < sufficientStatistics.n_cols; ++i)
   {
-    arma::uword maxIndex = 0;
-    sufficientStatistics.unsafe_col(i).max(maxIndex);
+    arma::uword maxIndex = sufficientStatistics.unsafe_col(i).index_max();
     childMajorities[i] = size_t(maxIndex);
   }
 
@@ -145,18 +143,16 @@ size_t HoeffdingNumericSplit<FitnessFunction, ObservationType>::
     for (size_t i = 0; i < samplesSeen; ++i)
       classes[labels[i]]++;
 
-    arma::uword majorityClass;
-    classes.max(majorityClass);
+    arma::uword majorityClass = classes.index_max();
     return size_t(majorityClass);
   }
   else
   {
     // We've calculated the bins, so we can just sum over the sufficient
     // statistics.
-    arma::Col<size_t> classCounts = arma::sum(sufficientStatistics, 1);
+    arma::Col<size_t> classCounts = sum(sufficientStatistics, 1);
 
-    arma::uword maxIndex = 0;
-    classCounts.max(maxIndex);
+    arma::uword maxIndex = classCounts.index_max();
     return size_t(maxIndex);
   }
 }
@@ -174,38 +170,35 @@ double HoeffdingNumericSplit<FitnessFunction, ObservationType>::
     for (size_t i = 0; i < samplesSeen; ++i)
       classes[labels[i]]++;
 
-    return double(classes.max()) / double(arma::accu(classes));
+    return double(classes.max()) / double(accu(classes));
   }
   else
   {
     // We've calculated the bins, so we can just sum over the sufficient
     // statistics.
-    arma::Col<size_t> classCounts = arma::sum(sufficientStatistics, 1);
+    arma::Col<size_t> classCounts = sum(sufficientStatistics, 1);
 
-    return double(classCounts.max()) / double(arma::sum(classCounts));
+    return double(classCounts.max()) / double(sum(classCounts));
   }
-
 }
 
 template<typename FitnessFunction, typename ObservationType>
 template<typename Archive>
-void HoeffdingNumericSplit<FitnessFunction, ObservationType>::Serialize(
+void HoeffdingNumericSplit<FitnessFunction, ObservationType>::serialize(
     Archive& ar,
-    const unsigned int /* version */)
+    const uint32_t /* version */)
 {
-  using data::CreateNVP;
-
-  ar & CreateNVP(samplesSeen, "samplesSeen");
-  ar & CreateNVP(observationsBeforeBinning, "observationsBeforeBinning");
-  ar & CreateNVP(bins, "bins");
+  ar(CEREAL_NVP(samplesSeen));
+  ar(CEREAL_NVP(observationsBeforeBinning));
+  ar(CEREAL_NVP(bins));
 
   if (samplesSeen >= observationsBeforeBinning)
   {
     // The binning has happened, so we only need to save the resulting bins.
-    ar & CreateNVP(splitPoints, "splitPoints");
-    ar & CreateNVP(sufficientStatistics, "sufficientStatistics");
+    ar(CEREAL_NVP(splitPoints));
+    ar(CEREAL_NVP(sufficientStatistics));
 
-    if (Archive::is_loading::value)
+    if (cereal::is_loading<Archive>())
     {
       // Clean other objects.
       observations.clear();
@@ -216,7 +209,7 @@ void HoeffdingNumericSplit<FitnessFunction, ObservationType>::Serialize(
   {
     // The binning has not happened yet, so we only need to save the information
     // required before binning.
-    if (Archive::is_loading::value)
+    if (cereal::is_loading<Archive>())
     {
       observations.zeros(observationsBeforeBinning);
       labels.zeros(observationsBeforeBinning);
@@ -224,22 +217,13 @@ void HoeffdingNumericSplit<FitnessFunction, ObservationType>::Serialize(
 
     // Save the number of classes.
     size_t numClasses;
-    if (Archive::is_saving::value)
+    if (cereal::is_saving<Archive>())
       numClasses = sufficientStatistics.n_rows;
-    ar & data::CreateNVP(numClasses, "numClasses");
+    ar(CEREAL_NVP(numClasses));
+    ar(CEREAL_NVP(observations));
+    ar(CEREAL_NVP(labels));
 
-    for (size_t i = 0; i < samplesSeen; ++i)
-    {
-      std::ostringstream oss;
-      oss << "obs" << i;
-      ar & CreateNVP(observations[i], oss.str());
-
-      std::ostringstream oss2;
-      oss2 << "label" << i;
-      ar & CreateNVP(labels[i], oss2.str());
-    }
-
-    if (Archive::is_loading::value)
+    if (cereal::is_loading<Archive>())
     {
       // Clean other objects.
       splitPoints.clear();
@@ -248,7 +232,6 @@ void HoeffdingNumericSplit<FitnessFunction, ObservationType>::Serialize(
   }
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

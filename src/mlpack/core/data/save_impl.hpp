@@ -1,6 +1,7 @@
 /**
- * @file save_impl.hpp
+ * @file core/data/save_impl.hpp
  * @author Ryan Curtin
+ * @author Omar Shrit
  *
  * Implementation of save functionality.
  *
@@ -14,263 +15,137 @@
 
 // In case it hasn't already been included.
 #include "save.hpp"
-#include "extension.hpp"
-
-#include <boost/serialization/serialization.hpp>
-#include <boost/archive/xml_oarchive.hpp>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/binary_oarchive.hpp>
-
-#include "serialization_shim.hpp"
 
 namespace mlpack {
-namespace data {
 
-template<typename eT>
+template<typename MatType, typename DataOptionsType>
 bool Save(const std::string& filename,
-          const arma::Mat<eT>& matrix,
-          const bool fatal,
-          bool transpose)
+          const MatType& matrix,
+          const DataOptionsType& opts,
+          const typename std::enable_if_t<
+              IsDataOptions<DataOptionsType>::value>*)
+{
+  //! just use default copy ctor with = operator and make a copy.
+  DataOptionsType copyOpts(opts);
+  return Save(filename, matrix, copyOpts);
+}
+
+template<typename ObjectType, typename DataOptionsType>
+bool Save(const std::string& filename,
+          const ObjectType& matrix,
+          DataOptionsType& opts,
+          const typename std::enable_if_t<
+              IsDataOptions<DataOptionsType>::value>*)
 {
   Timer::Start("saving_data");
+  static_assert(!IsArma<ObjectType>::value || !IsSparseMat<ObjectType>::value
+      || !HasSerialize<ObjectType>::value, "mlpack can save Armadillo"
+      " matrices or a serialized mlpack model only; please use a known type.");
+  const bool isMatrixType = IsArma<ObjectType>::value ||
+      IsSparseMat<ObjectType>::value;
+  const bool isSerializable = HasSerialize<ObjectType>::value;
+  const bool isSparseMatrixType = IsSparseMat<ObjectType>::value;
 
-  // First we will try to discriminate by file extension.
-  std::string extension = Extension(filename);
-  if (extension == "")
+  bool success = DetectFileType<ObjectType>(filename, opts, false);
+  if (!success)
   {
     Timer::Stop("saving_data");
-    if (fatal)
-      Log::Fatal << "No extension given with filename '" << filename << "'; "
-          << "type unknown.  Save failed." << std::endl;
-    else
-      Log::Warn << "No extension given with filename '" << filename << "'; "
-          << "type unknown.  Save failed." << std::endl;
-
     return false;
   }
 
-  // Catch errors opening the file.
+  const bool isAudioFormat = opts.Format() == FileType::WAV ||
+      opts.Format() == FileType::MP3;
+
+  const bool isImageFormat = (opts.Format() == FileType::PNG ||
+      opts.Format() == FileType::JPG || opts.Format() == FileType::PNM ||
+      opts.Format() == FileType::BMP || opts.Format() == FileType::GIF ||
+      opts.Format() == FileType::PSD || opts.Format() == FileType::TGA ||
+      opts.Format() == FileType::PIC || opts.Format() == FileType::ImageType);
+
   std::fstream stream;
-#ifdef  _WIN32 // Always open in binary mode on Windows.
-  stream.open(filename.c_str(), std::fstream::out | std::fstream::binary);
-#else
-  stream.open(filename.c_str(), std::fstream::out);
-#endif
-  if (!stream.is_open())
+  if (!isImageFormat && !isAudioFormat)
   {
-    Timer::Stop("saving_data");
-    if (fatal)
-      Log::Fatal << "Cannot open file '" << filename << "' for writing. "
-          << "Save failed." << std::endl;
-    else
-      Log::Warn << "Cannot open file '" << filename << "' for writing; save "
-          << "failed." << std::endl;
-
-    return false;
-  }
-
-  bool unknownType = false;
-  arma::file_type saveType;
-  std::string stringType;
-
-  if (extension == "csv")
-  {
-    saveType = arma::csv_ascii;
-    stringType = "CSV data";
-  }
-  else if (extension == "txt")
-  {
-    saveType = arma::raw_ascii;
-    stringType = "raw ASCII formatted data";
-  }
-  else if (extension == "bin")
-  {
-    saveType = arma::arma_binary;
-    stringType = "Armadillo binary formatted data";
-  }
-  else if (extension == "pgm")
-  {
-    saveType = arma::pgm_binary;
-    stringType = "PGM data";
-  }
-  else if (extension == "h5" || extension == "hdf5" || extension == "hdf" ||
-           extension == "he5")
-  {
-#ifdef ARMA_USE_HDF5
-    saveType = arma::hdf5_binary;
-    stringType = "HDF5 data";
-#else
-    Timer::Stop("saving_data");
-    if (fatal)
-      Log::Fatal << "Attempted to save HDF5 data to '" << filename << "', but "
-          << "Armadillo was compiled without HDF5 support.  Save failed."
-          << std::endl;
-    else
-      Log::Warn << "Attempted to save HDF5 data to '" << filename << "', but "
-          << "Armadillo was compiled without HDF5 support.  Save failed."
-          << std::endl;
-
-    return false;
-#endif
-  }
-  else
-  {
-    unknownType = true;
-    saveType = arma::raw_binary; // Won't be used; prevent a warning.
-    stringType = "";
-  }
-
-  // Provide error if we don't know the type.
-  if (unknownType)
-  {
-    Timer::Stop("saving_data");
-    if (fatal)
-      Log::Fatal << "Unable to determine format to save to from filename '"
-          << filename << "'.  Save failed." << std::endl;
-    else
-      Log::Warn << "Unable to determine format to save to from filename '"
-          << filename << "'.  Save failed." << std::endl;
-
-    return false;
+    success = OpenFile(filename, opts, false, stream);
+    if (!success)
+    {
+      Timer::Stop("saving_data");
+      return false;
+    }
   }
 
   // Try to save the file.
-  Log::Info << "Saving " << stringType << " to '" << filename << "'."
-      << std::endl;
-
-  // Transpose the matrix.  If we are saving HDF5, Armadillo already transposes
-  // this on save, so we don't need to.
-  if ((transpose && saveType != arma::hdf5_binary) ||
-      (!transpose && saveType == arma::hdf5_binary))
+  Log::Info << "Saving " << opts.FileTypeToString() << " to '" << filename
+      << "'." << std::endl;
+  if constexpr (isMatrixType)
   {
-    arma::Mat<eT> tmp = trans(matrix);
-
-    // We can't save with streams for HDF5.
-    const bool success = (saveType == arma::hdf5_binary) ?
-        tmp.quiet_save(filename, saveType) :
-        tmp.quiet_save(stream, saveType);
-    if (!success)
+    if (isImageFormat)
     {
-      Timer::Stop("saving_data");
-      if (fatal)
-        Log::Fatal << "Save to '" << filename << "' failed." << std::endl;
+      if constexpr (isSparseMatrixType)
+      {
+        arma::Mat<typename ObjectType::elem_type> tmp =
+            arma::conv_to<arma::Mat<
+            typename ObjectType::elem_type>>::from(matrix);
+        ImageOptions imgOpts(std::move(opts));
+        std::vector<std::string> files;
+        files.push_back(filename);
+        success = SaveImage(files, tmp, imgOpts);
+        opts = std::move(imgOpts);
+      }
       else
-        Log::Warn << "Save to '" << filename << "' failed." << std::endl;
-
-      return false;
+      {
+        ImageOptions imgOpts(std::move(opts));
+        std::vector<std::string> files;
+        files.push_back(filename);
+        success = SaveImage(files, matrix, imgOpts);
+        opts = std::move(imgOpts);
+      }
     }
+    else if (isAudioFormat)
+    {
+      if constexpr (isSparseMatrixType)
+      {
+        arma::Mat<typename ObjectType::elem_type> tmp =
+            arma::conv_to<arma::Mat<
+            typename ObjectType::elem_type>>::from(matrix);
+        AudioOptions audOpts(std::move(opts));
+        success = SaveAudio(filename, tmp, audOpts);
+        opts = std::move(audOpts);
+      }
+      else
+      {
+        AudioOptions audOpts(std::move(opts));
+        success = SaveAudio(filename, matrix, audOpts);
+        opts = std::move(audOpts);
+      }
+    }
+    else
+    {
+      success = SaveNumeric(filename, matrix, stream, opts);
+    }
+  }
+  else if constexpr (isSerializable)
+  {
+    success = SaveModel(matrix, opts, stream);
   }
   else
   {
-    // We can't save with streams for HDF5.
-    const bool success = (saveType == arma::hdf5_binary) ?
-        matrix.quiet_save(filename, saveType) :
-        matrix.quiet_save(stream, saveType);
-    if (!success)
-    {
-      Timer::Stop("saving_data");
-      if (fatal)
-        Log::Fatal << "Save to '" << filename << "' failed." << std::endl;
-      else
-        Log::Warn << "Save to '" << filename << "' failed." << std::endl;
+    return HandleError("DataOptionsType is unknown!  Please use a known type "
+        "or provide specific overloads.", opts);
+  }
 
-      return false;
-    }
+  if (!success)
+  {
+    Timer::Stop("saving_data");
+    std::stringstream oss;
+    oss << "Save to '" << filename << "' failed.";
+    return HandleError(oss, opts);
   }
 
   Timer::Stop("saving_data");
 
-  // Finally return success.
-  return true;
+  return success;
 }
 
-//! Save a model to file.
-template<typename T>
-bool Save(const std::string& filename,
-          const std::string& name,
-          T& t,
-          const bool fatal,
-          format f)
-{
-  if (f == format::autodetect)
-  {
-    std::string extension = Extension(filename);
-
-    if (extension == "xml")
-      f = format::xml;
-    else if (extension == "bin")
-      f = format::binary;
-    else if (extension == "txt")
-      f = format::text;
-    else
-    {
-      if (fatal)
-        Log::Fatal << "Unable to detect type of '" << filename << "'; incorrect"
-            << " extension? (allowed: xml/bin/txt)" << std::endl;
-      else
-        Log::Warn << "Unable to detect type of '" << filename << "'; save "
-            << "failed.  Incorrect extension? (allowed: xml/bin/txt)"
-            << std::endl;
-
-      return false;
-    }
-  }
-
-  // Open the file to save to.
-  std::ofstream ofs;
-#ifdef _WIN32
-  if (f == format::binary) // Open non-text types in binary mode on Windows.
-    ofs.open(filename, std::ofstream::out | std::ofstream::binary);
-  else
-    ofs.open(filename, std::ofstream::out);
-#else
-  ofs.open(filename, std::ofstream::out);
-#endif
-
-  if (!ofs.is_open())
-  {
-    if (fatal)
-      Log::Fatal << "Unable to open file '" << filename << "' to save object '"
-          << name << "'." << std::endl;
-    else
-      Log::Warn << "Unable to open file '" << filename << "' to save object '"
-          << name << "'." << std::endl;
-
-    return false;
-  }
-
-  try
-  {
-    if (f == format::xml)
-    {
-      boost::archive::xml_oarchive ar(ofs);
-      ar << CreateNVP(t, name);
-    }
-    else if (f == format::text)
-    {
-      boost::archive::text_oarchive ar(ofs);
-      ar << CreateNVP(t, name);
-    }
-    else if (f == format::binary)
-    {
-      boost::archive::binary_oarchive ar(ofs);
-      ar << CreateNVP(t, name);
-    }
-
-    return true;
-  }
-  catch (boost::archive::archive_exception& e)
-  {
-    if (fatal)
-      Log::Fatal << e.what() << std::endl;
-    else
-      Log::Warn << e.what() << std::endl;
-
-    return false;
-  }
-}
-
-} // namespace data
 } // namespace mlpack
 
 #endif

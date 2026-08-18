@@ -1,5 +1,5 @@
 /**
- * @file discrete_hilbert_value.hpp
+ * @file core/tree/rectangle_tree/discrete_hilbert_value.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of the DiscreteHilbertValue class, a class that calculates
@@ -16,7 +16,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace tree /** Trees and tree-building procedures. */ {
 
 /**
  * The DiscreteHilbertValue class stores Hilbert values for all of the points in
@@ -31,9 +30,8 @@ class DiscreteHilbertValue
  public:
   //! Depending on the precision of the tree element type, we may need to use
   //! uint32_t or uint64_t.
-  typedef typename std::conditional<sizeof(TreeElemType) * CHAR_BIT <= 32,
-                                    uint32_t,
-                                    uint64_t>::type HilbertElemType;
+  using HilbertElemType = std::conditional_t<
+      (sizeof(TreeElemType) * CHAR_BIT <= 32), uint32_t, uint64_t>;
 
   //! Default constructor.
   DiscreteHilbertValue();
@@ -177,10 +175,18 @@ class DiscreteHilbertValue
   /**
    * Copy the local Hilbert value's pointer.
    *
-   * @param val The DiscreteHilbertValue object from which the dataset
+   * @param other The DiscreteHilbertValue object from which the dataset
    *    will be copied.
    */
-  DiscreteHilbertValue& operator=(const DiscreteHilbertValue& val);
+  DiscreteHilbertValue& operator=(const DiscreteHilbertValue& other);
+
+  /**
+   * Move the local Hilbert object.
+   *
+   * @param other The DiscreteHilbertValue object from which the dataset
+   *    will be copied.
+   */
+  DiscreteHilbertValue& operator=(DiscreteHilbertValue&& other);
 
   /**
    * Nullify the localHilbertValues pointer in order to prevent an invalid free.
@@ -280,10 +286,9 @@ class DiscreteHilbertValue
 
  public:
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */);
+  void serialize(Archive& ar, const uint32_t /* version */);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

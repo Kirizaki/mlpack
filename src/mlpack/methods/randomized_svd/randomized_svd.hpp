@@ -1,5 +1,5 @@
 /**
- * @file randomized_svd.hpp
+ * @file methods/randomized_svd/randomized_svd.hpp
  * @author Marcus Edel
  *
  * An implementation of the randomized SVD method.
@@ -13,10 +13,9 @@
 #ifndef MLPACK_METHODS_RANDOMIZED_SVD_RANDOMIZED_SVD_HPP
 #define MLPACK_METHODS_RANDOMIZED_SVD_RANDOMIZED_SVD_HPP
 
-#include <mlpack/prereqs.hpp>
+#include <mlpack/core.hpp>
 
 namespace mlpack {
-namespace svd {
 
 /**
  * Randomized SVD is a matrix factorization that is based on randomized matrix
@@ -72,7 +71,7 @@ class RandomizedSVD
    * @param data Data matrix.
    * @param u First unitary matrix.
    * @param v Second unitary matrix.
-   * @param sigma Diagonal matrix of singular values.
+   * @param s Diagonal "Sigma" matrix of singular values.
    * @param iteratedPower Size of the normalized power iterations
    *        (Default: rank + 2).
    * @param maxIterations Number of iterations for the power method
@@ -81,10 +80,11 @@ class RandomizedSVD
    * @param eps The eps coefficient to avoid division by zero (numerical
    *        stability).
    */
-  RandomizedSVD(const arma::mat& data,
-                arma::mat& u,
-                arma::vec& s,
-                arma::mat& v,
+  template<typename InMatType, typename MatType, typename VecType>
+  RandomizedSVD(const InMatType& data,
+                MatType& u,
+                VecType& s,
+                MatType& v,
                 const size_t iteratedPower = 0,
                 const size_t maxIterations = 2,
                 const size_t rank = 0,
@@ -104,21 +104,61 @@ class RandomizedSVD
                 const size_t maxIterations = 2,
                 const double eps = 1e-7);
 
-  /**
-   * Apply Principal Component Analysis to the provided data set using the
-   * randomized SVD.
+/**
+   * Center the data to apply Principal Component Analysis on given sparse
+   * matrix dataset using randomized SVD.
+   *
+   * @param data Sparse data matrix.
+   * @param u First unitary matrix.
+   * @param v Second unitary matrix.
+   * @param s Diagonal "Sigma" matrix of singular values.
+   * @param rank Rank of the approximation.
+   */
+  template<typename eT, typename MatType, typename VecType>
+  void Apply(const arma::SpMat<eT>& data,
+             MatType& u,
+             VecType& s,
+             MatType& v,
+             const size_t rank);
+
+/**
+   * Center the data to apply Principal Component Analysis on given matrix
+   * dataset using randomized SVD.
    *
    * @param data Data matrix.
    * @param u First unitary matrix.
    * @param v Second unitary matrix.
-   * @param sigma Diagonal matrix of singular values.
+   * @param s Diagonal "Sigma" matrix of singular values.
    * @param rank Rank of the approximation.
    */
-  void Apply(const arma::mat& data,
-             arma::mat& u,
-             arma::vec& s,
-             arma::mat& v,
+  template<typename InMatType, typename MatType, typename VecType>
+  void Apply(const InMatType& data,
+             MatType& u,
+             VecType& s,
+             MatType& v,
              const size_t rank);
+
+  /**
+   * Apply Principal Component Analysis to the provided matrix data set
+   * using the randomized SVD.
+   *
+   * @param data Data matrix.
+   * @param u First unitary matrix.
+   * @param v Second unitary matrix.
+   * @param s Diagonal "Sigma" matrix of singular values.
+   * @param rank Rank of the approximation.
+   * @param rowMean Centered mean value matrix.
+   */
+  template<typename InMatType,
+           typename MatType,
+           typename VecType,
+           typename MeanType>
+  void Apply(const InMatType& data,
+             MatType& u,
+             VecType& s,
+             MatType& v,
+             const size_t rank,
+             const MeanType& rowMean);
 
   //! Get the size of the normalized power iterations.
   size_t IteratedPower() const { return iteratedPower; }
@@ -146,7 +186,9 @@ class RandomizedSVD
   double eps;
 };
 
-} // namespace svd
 } // namespace mlpack
+
+// Include implementation.
+#include "randomized_svd_impl.hpp"
 
 #endif

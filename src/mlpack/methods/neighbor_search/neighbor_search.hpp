@@ -1,5 +1,5 @@
 /**
- * @file neighbor_search.hpp
+ * @file methods/neighbor_search/neighbor_search.hpp
  * @author Ryan Curtin
  *
  * Defines the NeighborSearch class, which performs an abstract
@@ -13,28 +13,34 @@
 #ifndef MLPACK_METHODS_NEIGHBOR_SEARCH_NEIGHBOR_SEARCH_HPP
 #define MLPACK_METHODS_NEIGHBOR_SEARCH_NEIGHBOR_SEARCH_HPP
 
-#include <mlpack/prereqs.hpp>
-#include <vector>
-#include <string>
-
-#include <mlpack/core/tree/binary_space_tree.hpp>
-#include <mlpack/core/tree/rectangle_tree.hpp>
-#include <mlpack/core/tree/binary_space_tree/binary_space_tree.hpp>
+#include <mlpack/core.hpp>
 
 #include "neighbor_search_stat.hpp"
-#include "sort_policies/nearest_neighbor_sort.hpp"
 #include "neighbor_search_rules.hpp"
+#include "unmap.hpp"
 
 namespace mlpack {
-namespace neighbor /** Neighbor-search routines.  These include
-                    * all-nearest-neighbors and all-furthest-neighbors
-                    * searches. */ {
 
 // Forward declaration.
-template<typename SortPolicy>
-class TrainVisitor;
+template<typename SortPolicy,
+         template<typename TreeDistanceType,
+                  typename TreeStatType,
+                  typename TreeMatType> class TreeType,
+         template<typename RuleType> class DualTreeTraversalType,
+         template<typename RuleType> class SingleTreeTraversalType>
+class LeafSizeNSWrapper;
 
-//! NeighborSearchMode represents the different neighbor search modes available.
+// NeighborSearchStrategy represents the different neighbor search strategies
+// available.
+enum NeighborSearchStrategy
+{
+  NAIVE,
+  SINGLE_TREE,
+  DUAL_TREE,
+  GREEDY_SINGLE_TREE
+};
+
+// This is for reverse compatibility and will be removed in mlpack 5.0.0.
 enum NeighborSearchMode
 {
   NAIVE_MODE,
@@ -42,6 +48,36 @@ enum NeighborSearchMode
   DUAL_TREE_MODE,
   GREEDY_SINGLE_TREE_MODE
 };
+
+// This is for reverse compatibility and will be removed in mlpack 5.0.0.
+inline NeighborSearchStrategy ModeToStrategy(const NeighborSearchMode& mode)
+{
+  switch (mode)
+  {
+    case NAIVE_MODE:              return NAIVE;
+    case SINGLE_TREE_MODE:        return SINGLE_TREE;
+    case DUAL_TREE_MODE:          return DUAL_TREE;
+    case GREEDY_SINGLE_TREE_MODE: return GREEDY_SINGLE_TREE;
+  }
+
+  // Fix warning.
+  return DUAL_TREE;
+}
+
+// This is for reverse compatibility and will be removed in mlpack 5.0.0.
+inline NeighborSearchMode StrategyToMode(const NeighborSearchStrategy& strategy)
+{
+  switch (strategy)
+  {
+    case NAIVE:              return NAIVE_MODE;
+    case SINGLE_TREE:        return SINGLE_TREE_MODE;
+    case DUAL_TREE:          return DUAL_TREE_MODE;
+    case GREEDY_SINGLE_TREE: return GREEDY_SINGLE_TREE_MODE;
+  }
+
+  // Fix warning.
+  return DUAL_TREE_MODE;
+}
 
 /**
  * The NeighborSearch class is a template class for performing distance-based
@@ -53,12 +89,11 @@ enum NeighborSearchMode
  * dataset is also used as the query dataset.
  *
  * The template parameters SortPolicy and Metric define the sort function used
- * and the metric (distance function) used.  More information on those classes
- * can be found in the NearestNeighborSort class and the kernel::ExampleKernel
- * class.
+ * and the distance metric used.  More information on those classes can be found
+ * in the NearestNeighborSort class and the ExampleKernel class.
  *
  * @tparam SortPolicy The sort policy for distances; see NearestNeighborSort.
- * @tparam MetricType The metric to use for computation.
+ * @tparam DistanceType The distance metric to use for computation.
  * @tparam MatType The type of data matrix.
  * @tparam TreeType The tree type to use; must adhere to the TreeType API.
  * @tparam DualTreeTraversalType The type of dual tree traversal to use
@@ -67,127 +102,99 @@ enum NeighborSearchMode
  *     (defaults to the tree's default traverser).
  */
 template<typename SortPolicy = NearestNeighborSort,
-         typename MetricType = mlpack::metric::EuclideanDistance,
+         typename DistanceType = EuclideanDistance,
          typename MatType = arma::mat,
-         template<typename TreeMetricType,
+         template<typename TreeDistanceType,
                   typename TreeStatType,
-                  typename TreeMatType> class TreeType = tree::KDTree,
+                  typename TreeMatType> class TreeType = KDTree,
          template<typename RuleType> class DualTreeTraversalType =
-             TreeType<MetricType,
+             TreeType<DistanceType,
                       NeighborSearchStat<SortPolicy>,
                       MatType>::template DualTreeTraverser,
          template<typename RuleType> class SingleTreeTraversalType =
-             TreeType<MetricType,
+             TreeType<DistanceType,
                       NeighborSearchStat<SortPolicy>,
                       MatType>::template SingleTreeTraverser>
 class NeighborSearch
 {
  public:
   //! Convenience typedef.
-  typedef TreeType<MetricType, NeighborSearchStat<SortPolicy>, MatType> Tree;
+  using Tree = TreeType<DistanceType, NeighborSearchStat<SortPolicy>, MatType>;
+  //! The type of element held in MatType.
+  using ElemType = typename MatType::elem_type;
 
   /**
    * Initialize the NeighborSearch object, passing a reference dataset (this is
    * the dataset which is searched).  Optionally, perform the computation in
    * a different mode.  An initialized distance metric can be given, for cases
-   * where the metric has internal data (i.e. the distance::MahalanobisDistance
+   * where the distance metric has internal data (i.e. the MahalanobisDistance
    * class).
    *
-   * This method will copy the matrices to internal copies, which are rearranged
-   * during tree-building.  You can avoid this extra copy by pre-constructing
-   * the trees and passing them using a different constructor, or by using the
-   * construct that takes an rvalue reference to the dataset.
+   * This method will move the matrices to internal copies, which are rearranged
+   * during tree-building.  You can avoid creating an extra copy by
+   * pre-constructing the trees, passing std::move(yourReferenceSet).
    *
    * @param referenceSet Set of reference points.
-   * @param mode Neighbor search mode.
+   * @param strategy Neighbor search strategy.
    * @param epsilon Relative approximate error (non-negative).
-   * @param metric An optional instance of the MetricType class.
+   * @param distance An optional instance of the DistanceType class.
    */
-  NeighborSearch(const MatType& referenceSet,
-                 const NeighborSearchMode mode = DUAL_TREE_MODE,
+  NeighborSearch(MatType referenceSet,
+                 const NeighborSearchStrategy strategy = DUAL_TREE,
                  const double epsilon = 0,
-                 const MetricType metric = MetricType());
+                 const DistanceType distance = DistanceType());
 
-  /**
-   * Initialize the NeighborSearch object, taking ownership of the reference
-   * dataset (this is the dataset which is searched).  Optionally, perform the
-   * computation in a different mode.  An initialized distance metric can be
-   * given, for cases where the metric has internal data (i.e. the
-   * distance::MahalanobisDistance class).
-   *
-   * This method will not copy the data matrix, but will take ownership of it,
-   * and depending on the type of tree used, may rearrange the points.  If you
-   * would rather a copy be made, consider using the constructor that takes a
-   * const reference to the data instead.
-   *
-   * @param referenceSet Set of reference points.
-   * @param mode Neighbor search mode.
-   * @param epsilon Relative approximate error (non-negative).
-   * @param metric An optional instance of the MetricType class.
-   */
-  NeighborSearch(MatType&& referenceSet,
-                 const NeighborSearchMode mode = DUAL_TREE_MODE,
+  [[deprecated("Will be removed in mlpack 5.0.0.  Instead of a "
+               "NeighborSearchMode, pass a NeighborSearchStrategy.")]]
+  NeighborSearch(MatType referenceSet,
+                 const NeighborSearchMode mode,
                  const double epsilon = 0,
-                 const MetricType metric = MetricType());
+                 const DistanceType distance = DistanceType()) :
+      NeighborSearch(std::move(referenceSet), ModeToStrategy(mode), epsilon,
+                     distance) { }
 
   /**
    * Initialize the NeighborSearch object with a copy of the given
    * pre-constructed reference tree (this is the tree built on the points that
-   * will be searched).  Optionally, choose to use single-tree mode.  Naive mode
-   * is not available as an option for this constructor.  Additionally, an
-   * instantiated distance metric can be given, for cases where the distance
-   * metric holds data.
+   * will be searched).  Optionally, choose to use a different search strategy.
+   * Additionally, an instantiated distance metric can be given, for cases where
+   * the distance metric holds data.
    *
-   * This method will copy the given tree.  You can avoid this copy by using the
-   * construct that takes a rvalue reference to the tree.
+   * This method will copy the given tree. When copies must absolutely be
+   * avoided, you can avoid this copy, while taking ownership of the given tree,
+   * by passing std::move(yourReferenceTree).
    *
    * @note
    * Mapping the points of the matrix back to their original indices is not done
    * when this constructor is used, so if the tree type you are using maps
    * points (like BinarySpaceTree), then you will have to perform the re-mapping
    * manually.
-   * @endnote
    *
    * @param referenceTree Pre-built tree for reference points.
    * @param mode Neighbor search mode.
    * @param epsilon Relative approximate error (non-negative).
-   * @param metric Instantiated distance metric.
    */
-  NeighborSearch(
-      const Tree& referenceTree,
-      const NeighborSearchMode mode = DUAL_TREE_MODE,
-      const double epsilon = 0,
-      const MetricType metric = MetricType());
+  NeighborSearch(Tree referenceTree,
+                 const NeighborSearchStrategy strategy = DUAL_TREE,
+                 const double epsilon = 0);
 
-  /**
-   * Initialize the NeighborSearch object with the given pre-constructed
-   * reference tree (this is the tree built on the points that will be
-   * searched).  Optionally, choose to use single-tree mode.  Naive mode is not
-   * available as an option for this constructor.  Additionally, an instantiated
-   * distance metric can be given, for cases where the distance metric holds
-   * data.
-   *
-   * This method will take ownership of the given tree. There is no copying of
-   * the data matrices (because tree-building is not necessary), so this is the
-   * constructor to use when copies absolutely must be avoided.
-   *
-   * @note
-   * Mapping the points of the matrix back to their original indices is not done
-   * when this constructor is used, so if the tree type you are using maps
-   * points (like BinarySpaceTree), then you will have to perform the re-mapping
-   * manually.
-   * @endnote
-   *
-   * @param referenceTree Pre-built tree for reference points.
-   * @param mode Neighbor search mode.
-   * @param epsilon Relative approximate error (non-negative).
-   * @param metric Instantiated distance metric.
-   */
-  NeighborSearch(
-      Tree&& referenceTree,
-      const NeighborSearchMode mode = DUAL_TREE_MODE,
-      const double epsilon = 0,
-      const MetricType metric = MetricType());
+  [[deprecated("Will be removed in mlpack 5.0.0.  Instead of a "
+               "NeighborSearchMode, pass a NeighborSearchStrategy.")]]
+  NeighborSearch(Tree referenceTree,
+                 const NeighborSearchMode mode,
+                 const double epsilon = 0) :
+      NeighborSearch(std::move(referenceTree), ModeToStrategy(mode), epsilon) {}
+
+  // This version is kept around for reverse compatibility; but, if you are
+  // passing a distance, you should use the overload above, which will just use
+  // the distance directly from the given tree.
+  [[deprecated("Will be removed in mlpack 5.0.0.  Use the version without "
+               "`distance` instead (`referenceTree.Distance()` will be used as "
+               "the distance metric).")]]
+  NeighborSearch(Tree referenceTree,
+                 const NeighborSearchMode mode,
+                 const double epsilon,
+                 const DistanceType distance);
 
   /**
    * Create a NeighborSearch object without any reference data.  If Search() is
@@ -196,11 +203,48 @@ class NeighborSearch
    *
    * @param mode Neighbor search mode.
    * @param epsilon Relative approximate error (non-negative).
-   * @param metric Instantiated metric.
+   * @param distance Instantiated distance metric.
    */
-  NeighborSearch(const NeighborSearchMode mode = DUAL_TREE_MODE,
+  NeighborSearch(const NeighborSearchStrategy strategy = DUAL_TREE,
                  const double epsilon = 0,
-                 const MetricType metric = MetricType());
+                 const DistanceType distance = DistanceType());
+
+  [[deprecated("Will be removed in mlpack 5.0.0.  Instead of a "
+               "NeighborSearchMode, pass a NeighborSearchStrategy.")]]
+  NeighborSearch(const NeighborSearchMode mode,
+                 const double epsilon = 0,
+                 const DistanceType distance = DistanceType()) :
+      NeighborSearch(ModeToStrategy(mode), epsilon, distance) { }
+
+  /**
+   * Construct the NeighborSearch object by copying the given NeighborSearch
+   * object.
+   *
+   * @param other NeighborSearch object to copy.
+   */
+  NeighborSearch(const NeighborSearch& other);
+
+  /**
+   * Construct the NeighborSearch object by taking ownership of the given
+   * NeighborSearch object.
+   *
+   * @param other NeighborSearch object to take ownership of.
+   */
+  NeighborSearch(NeighborSearch&& other);
+
+  /**
+   * Copy the given NeighborSearch object.
+   *
+   * @param other NeighborSearch object to copy.
+   */
+  NeighborSearch& operator=(const NeighborSearch& other);
+
+  /**
+   * Take ownership of the given NeighborSearch object.
+   *
+   * @param other NeighborSearch object to take ownership of.
+   */
+  NeighborSearch& operator=(NeighborSearch&& other);
 
   /**
    * Delete the NeighborSearch object. The tree is the only member we are
@@ -210,42 +254,25 @@ class NeighborSearch
 
   /**
    * Set the reference set to a new reference set, and build a tree if
-   * necessary.  This method is called 'Train()' in order to match the rest of
-   * the mlpack abstractions, even though calling this "training" is maybe a bit
-   * of a stretch.
+   * necessary. The dataset is copied by default, but the copy can be avoided by
+   * transferring the ownership of the dataset using std::move().  This method
+   * is called 'Train()' in order to match the rest of the mlpack abstractions,
+   * even though calling this "training" is maybe a bit of a stretch.
    *
    * @param referenceSet New set of reference data.
    */
-  void Train(const MatType& referenceSet);
+  void Train(MatType referenceSet);
 
   /**
-   * Set the reference set to a new reference set, taking ownership of the set,
-   * and build a tree if necessary.  This method is called 'Train()' in order to
-   * match the rest of the mlpack abstractions, even though calling this
-   * "training" is maybe a bit of a stretch.
-   *
-   * @param referenceSet New set of reference data.
-   */
-  void Train(MatType&& referenceSet);
-
-  /**
-   * Set the reference tree as a copy of the given reference tree.
-   *
-   * This method will copy the given tree.  You can avoid this copy by using the
-   * Train() method that takes a rvalue reference to the tree.
+   * Set the reference tree to a new reference tree.  The tree is copied by
+   * default, but the copy can be avoided by using std::move() to transfer the
+   * ownership of the tree.  This method is called 'Train()' in order to match
+   * the rest of the mlpack abstractions, even though calling this "training" is
+   * maybe a bit of a stretch.
    *
    * @param referenceTree Pre-built tree for reference points.
    */
-  void Train(const Tree& referenceTree);
-
-  /**
-   * Set the reference tree to a new reference tree.
-   *
-   * This method will take ownership of the given tree.
-   *
-   * @param referenceTree Pre-built tree for reference points.
-   */
-  void Train(Tree&& referenceTree);
+  void Train(Tree referenceTree);
 
   /**
    * For each point in the query set, compute the nearest neighbors and store
@@ -255,8 +282,8 @@ class NeighborSearch
    *
    * If querySet contains only a few query points, the extra cost of building a
    * tree on the points for dual-tree search may not be warranted, and it may be
-   * worthwhile to set singleMode = false (either in the constructor or with
-   * SingleMode()).
+   * worthwhile to set mode to SINGLE_TREE_MODE (either in the constructor or
+   * with SearchMode()).
    *
    * @param querySet Set of query points (can be just one point).
    * @param k Number of neighbors to search for.
@@ -264,10 +291,12 @@ class NeighborSearch
    * @param distances Matrix storing distances of neighbors for each query
    *     point.
    */
+  // TODO: templatize further to remove Armadillo type requirement
+  template<typename IndexType = size_t>
   void Search(const MatType& querySet,
               const size_t k,
-              arma::Mat<size_t>& neighbors,
-              arma::mat& distances);
+              arma::Mat<IndexType>& neighbors,
+              arma::Mat<ElemType>& distances);
 
   /**
    * Given a pre-built query tree, search for the nearest neighbors of each
@@ -279,7 +308,7 @@ class NeighborSearch
    * Note that if you are calling Search() multiple times with a single query
    * tree, you need to reset the bounds in the statistic of each query node,
    * otherwise the result may be wrong!  You can do this by calling
-   * TreeType::Stat()::Reset() on each node in the query tree.
+   * \c TreeType::Stat().Reset() on each node in the query tree.
    *
    * @param queryTree Tree built on query points.
    * @param k Number of neighbors to search for.
@@ -289,10 +318,12 @@ class NeighborSearch
    * @param sameSet Denotes whether or not the reference and query sets are the
    *      same.
    */
+  // TODO: templatize further to remove Armadillo type requirement
+  template<typename IndexType = size_t>
   void Search(Tree& queryTree,
               const size_t k,
-              arma::Mat<size_t>& neighbors,
-              arma::mat& distances,
+              arma::Mat<IndexType>& neighbors,
+              arma::Mat<ElemType>& distances,
               bool sameSet = false);
 
   /**
@@ -309,9 +340,11 @@ class NeighborSearch
    * @param distances Matrix storing distances of neighbors for each query
    *      point.
    */
+  // TODO: templatize further to remove Armadillo type requirement
+  template<typename IndexType = size_t>
   void Search(const size_t k,
-              arma::Mat<size_t>& neighbors,
-              arma::mat& distances);
+              arma::Mat<IndexType>& neighbors,
+              arma::Mat<ElemType>& distances);
 
   /**
    * Calculate the average relative error (effective error) between the
@@ -328,8 +361,8 @@ class NeighborSearch
    *     query point.
    * @return Average relative error.
    */
-  static double EffectiveError(arma::mat& foundDistances,
-                               arma::mat& realDistances);
+  static double EffectiveError(arma::Mat<ElemType>& foundDistances,
+                               arma::Mat<ElemType>& realDistances);
 
   /**
    * Calculate the recall (% of neighbors found) given the list of found
@@ -342,20 +375,36 @@ class NeighborSearch
    *     query point.
    * @return Recall.
    */
-  static double Recall(arma::Mat<size_t>& foundNeighbors,
-                       arma::Mat<size_t>& realNeighbors);
+  // TODO: templatize further to remove Armadillo type requirement
+  template<typename IndexType = size_t>
+  static double Recall(arma::Mat<IndexType>& foundNeighbors,
+                       arma::Mat<IndexType>& realNeighbors);
 
-  //! Return the total number of base case evaluations performed during the last
-  //! search.
+  // Reset all bounding quantities in a prebuilt external tree.
+  // When calling Search() multiple times with a prebuilt query tree, this must
+  // be called between each Search() invocation!
+  static void ResetTree(Tree& tree);
+
+  // Return the total number of base case evaluations performed during the last
+  // search.
   size_t BaseCases() const { return baseCases; }
 
-  //! Return the number of node combination scores during the last search.
+  // Return the number of node combination scores during the last search.
   size_t Scores() const { return scores; }
 
-  //! Access the search mode.
+  // Access the search mode.
+  [[deprecated("Will be removed in mlpack 5.0.0.  Use SearchStrategy() "
+               "instead.")]]
   NeighborSearchMode SearchMode() const { return searchMode; }
-  //! Modify the search mode.
-  NeighborSearchMode& SearchMode() { return searchMode; }
+  // Modify the search mode.
+  [[deprecated("Will be removed in mlpack 5.0.0.  Use SearchStrategy() "
+               "instead.")]]
+  NeighborSearchMode& SearchMode() { searchModeMod = true; return searchMode; }
+
+  // Access the search strategy.
+  NeighborSearchStrategy SearchStrategy() const { return searchStrategy; }
+  // Modify the search strategy.
+  NeighborSearchStrategy& SearchStrategy() { return searchStrategy; }
 
   //! Access the relative error to be considered in approximate search.
   double Epsilon() const { return epsilon; }
@@ -372,45 +421,76 @@ class NeighborSearch
 
   //! Serialize the NeighborSearch model.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */);
+  void serialize(Archive& ar, const uint32_t version);
 
  private:
-  //! Permutations of reference points during tree building.
+  // Permutations of reference points during tree building.
   std::vector<size_t> oldFromNewReferences;
-  //! Pointer to the root of the reference tree.
+  // Pointer to the root of the reference tree.
   Tree* referenceTree;
-  //! Reference dataset.  In some situations we may be the owner of this.
+  // Reference dataset.  In some situations we may be the owner of this.
   const MatType* referenceSet;
 
-  //! If true, this object created the trees and is responsible for them.
-  bool treeOwner;
-  //! If true, we own the reference set.
-  bool setOwner;
-
-  //! Indicates the neighbor search mode.
+  // This is only kept for reverse compatibility and will be removed in mlpack
+  // 5.0.0.
   NeighborSearchMode searchMode;
-  //! Indicates the relative error to be considered in approximate search.
+  bool searchModeMod; // also for reverse compatibility
+  // Indicates the neighbor search strategy.
+  NeighborSearchStrategy searchStrategy;
+  // Indicates the relative error to be considered in approximate search.
   double epsilon;
 
-  //! Instantiation of metric.
-  MetricType metric;
+  // Instantiation of distance metric.
+  DistanceType distance;
 
-  //! The total number of base cases.
+  // The total number of base cases.
   size_t baseCases;
-  //! The total number of scores (applicable for non-naive search).
+  // The total number of scores (applicable for non-naive search).
   size_t scores;
 
-  //! If this is true, the reference tree bounds need to be reset on a call to
-  //! Search() without a query set.
+  // If this is true, the reference tree bounds need to be reset on a call to
+  // Search() without a query set.
   bool treeNeedsReset;
 
-  //! The NSModel class should have access to internal members.
-  template<typename SortPol>
-  friend class TrainVisitor;
+  // The NSModel class should have access to internal members.
+  friend class LeafSizeNSWrapper<SortPolicy, TreeType, DualTreeTraversalType,
+      SingleTreeTraversalType>;
 }; // class NeighborSearch
 
-} // namespace neighbor
 } // namespace mlpack
+
+// The CEREAL_TEMPLATE_CLASS_VERSION() macro does not work with template
+// template parameters so we write it manually.
+namespace cereal {
+namespace detail {
+
+template<typename SortPolicy,
+         typename DistanceType,
+         typename MatType,
+         template<typename TreeDistanceType,
+                  typename TreeStatType,
+                  typename TreeMatType> class TreeType,
+         template<typename RuleType> class DualTreeTraversalType,
+         template<typename RuleType> class SingleTreeTraversalType>
+struct Version<mlpack::NeighborSearch<SortPolicy, DistanceType, MatType,
+    TreeType, DualTreeTraversalType, SingleTreeTraversalType>>
+{
+  static std::uint32_t registerVersion()
+  {
+    ::cereal::detail::StaticObject<Versions>::getInstance().mapping.emplace(
+        std::type_index(typeid(mlpack::NeighborSearch<SortPolicy, DistanceType,
+        MatType, TreeType, DualTreeTraversalType,
+        SingleTreeTraversalType>)).hash_code(), 1);
+    return 1;
+  }
+
+  static inline const std::uint32_t version = registerVersion();
+
+  static void unused() { (void) version; }
+}; /* end Version */
+
+} // namespace detail
+} // namespace cereal
 
 // Include implementation.
 #include "neighbor_search_impl.hpp"

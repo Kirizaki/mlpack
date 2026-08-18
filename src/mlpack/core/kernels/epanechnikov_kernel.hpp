@@ -1,5 +1,5 @@
 /**
- * @file epanechnikov_kernel.hpp
+ * @file core/kernels/epanechnikov_kernel.hpp
  * @author Neil Slagle
  *
  * Definition of the Epanechnikov kernel.
@@ -16,7 +16,6 @@
 #include <mlpack/core/kernels/kernel_traits.hpp>
 
 namespace mlpack {
-namespace kernel {
 
 /**
  * The Epanechnikov kernel, defined as
@@ -55,52 +54,42 @@ class EpanechnikovKernel
    * Evaluate the Epanechnikov kernel given that the distance between the two
    * input points is known.
    */
-  double Evaluate(const double distance) const;
+  inline double Evaluate(const double distance) const;
 
   /**
    * Evaluate the Gradient of Epanechnikov kernel
    * given that the distance between the two
    * input points is known.
    */
-  double Gradient(const double distance) const;
-
-  /**
-   * Evaluate the Gradient of Epanechnikov kernel
-   * given that the squared distance between the two
-   * input points is known.
-   */
-  double GradientForSquaredDistance(const double distanceSquared) const;
-  /**
-   * Obtains the convolution integral [integral of K(||x-a||) K(||b-x||) dx]
-   * for the two vectors.
-   *
-   * @tparam VecType Type of vector (arma::vec, arma::spvec should be expected).
-   * @param a First vector.
-   * @param b Second vector.
-   * @return the convolution integral value.
-   */
-  template<typename VecTypeA, typename VecTypeB>
-  double ConvolutionIntegral(const VecTypeA& a, const VecTypeB& b);
+  inline double Gradient(const double distance) const;
 
   /**
    * Compute the normalizer of this Epanechnikov kernel for the given dimension.
    *
    * @param dimension Dimension to calculate the normalizer for.
    */
-  double Normalizer(const size_t dimension);
+  inline double Normalizer(const size_t dimension);
+
+  // Get the bandwidth of the kernel.
+  double Bandwidth() const { return bandwidth; }
+  // Modify the bandwidth of the kernel.
+  void Bandwidth(const double bandwidth)
+  {
+    this->bandwidth = bandwidth;
+    this->inverseBandwidthSquared = 1.0 / (bandwidth * bandwidth);
+  }
 
   /**
    * Serialize the kernel.
    */
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int version);
+  void serialize(Archive& ar, const uint32_t version);
 
  private:
   //! Bandwidth of the kernel.
   double bandwidth;
   //! Cached value of the inverse bandwidth squared (to speed up computation).
   double inverseBandwidthSquared;
-
 };
 
 //! Kernel traits for the Epanechnikov kernel.
@@ -114,7 +103,6 @@ class KernelTraits<EpanechnikovKernel>
   static const bool UsesSquaredDistance = true;
 };
 
-} // namespace kernel
 } // namespace mlpack
 
 // Include implementation.

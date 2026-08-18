@@ -1,5 +1,5 @@
 /**
- * @file range_search_test.cpp
+ * @file tests/range_search_test.cpp
  * @author Ryan Curtin
  *
  * Test file for RangeSearch<> class.
@@ -10,21 +10,14 @@
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #include <mlpack/core.hpp>
-#include <mlpack/methods/range_search/range_search.hpp>
-#include <mlpack/core/tree/cover_tree.hpp>
+#include <mlpack/methods/range_search.hpp>
 #include <mlpack/methods/range_search/rs_model.hpp>
-#include <boost/test/unit_test.hpp>
-#include "test_tools.hpp"
+
+#include "catch.hpp"
+#include "test_catch_tools.hpp"
 
 using namespace mlpack;
-using namespace mlpack::range;
-using namespace mlpack::math;
-using namespace mlpack::tree;
-using namespace mlpack::bound;
-using namespace mlpack::metric;
 using namespace std;
-
-BOOST_AUTO_TEST_SUITE(RangeSearchTest);
 
 // Get our results into a sorted format, so we can actually then test for
 // correctness.
@@ -33,10 +26,10 @@ void SortResults(const vector<vector<size_t>>& neighbors,
                  vector<vector<pair<double, size_t>>>& output)
 {
   output.resize(neighbors.size());
-  for (size_t i = 0; i < neighbors.size(); i++)
+  for (size_t i = 0; i < neighbors.size(); ++i)
   {
     output[i].resize(neighbors[i].size());
-    for (size_t j = 0; j < neighbors[i].size(); j++)
+    for (size_t j = 0; j < neighbors[i].size(); ++j)
       output[i][j] = make_pair(distances[i][j], neighbors[i][j]);
 
     // Now that it's constructed, sort it.
@@ -62,7 +55,7 @@ void CleanTree(TreeType& node)
  * dataset is in one dimension for simplicity -- the correct functionality of
  * distance functions is not tested here.
  */
-BOOST_AUTO_TEST_CASE(ExhaustiveSyntheticTest)
+TEST_CASE("ExhaustiveSyntheticTest", "[RangeSearchTest]")
 {
   // Set up our data.
   arma::mat data(1, 11);
@@ -78,14 +71,14 @@ BOOST_AUTO_TEST_CASE(ExhaustiveSyntheticTest)
   data[9] = 0.90;
   data[10] = 1.00;
 
-  typedef KDTree<EuclideanDistance, RangeSearchStat, arma::mat> TreeType;
+  using TreeType = KDTree<EuclideanDistance, RangeSearchStat, arma::mat>;
 
   // We will loop through three times, one for each method of performing the
   // calculation.
   std::vector<size_t> oldFromNew;
   std::vector<size_t> newFromOld;
   TreeType* tree = new TreeType(data, oldFromNew, newFromOld, 1);
-  for (int i = 0; i < 3; i++)
+  for (int i = 0; i < 3; ++i)
   {
     RangeSearch<>* rs;
 
@@ -111,109 +104,116 @@ BOOST_AUTO_TEST_CASE(ExhaustiveSyntheticTest)
     vector<vector<pair<double, size_t>>> sortedOutput;
     SortResults(neighbors, distances, sortedOutput);
 
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]].size() == 4);
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]][0].second == newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[0]][0].first, 0.10, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]][1].second == newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[0]][1].first, 0.27, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]][2].second == newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[0]][2].first, 0.30, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]][3].second == newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[0]][3].first, 0.40, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[0]].size() == 4);
+    REQUIRE(sortedOutput[newFromOld[0]][0].second == newFromOld[2]);
+    REQUIRE(sortedOutput[newFromOld[0]][0].first == Approx(0.10).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[0]][1].second == newFromOld[5]);
+    REQUIRE(sortedOutput[newFromOld[0]][1].first == Approx(0.27).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[0]][2].second == newFromOld[1]);
+    REQUIRE(sortedOutput[newFromOld[0]][2].first == Approx(0.30).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[0]][3].second == newFromOld[8]);
+    REQUIRE(sortedOutput[newFromOld[0]][3].first == Approx(0.40).epsilon(1e-7));
 
     // Neighbors of point 1.
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]].size() == 6);
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]][0].second == newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[1]][0].first, 0.10, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]][1].second == newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[1]][1].first, 0.20, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]][2].second == newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[1]][2].first, 0.30, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]][3].second == newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[1]][3].first, 0.55, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]][4].second == newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[1]][4].first, 0.57, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]][5].second == newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[1]][5].first, 0.65, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[1]].size() == 6);
+    REQUIRE(sortedOutput[newFromOld[1]][0].second == newFromOld[8]);
+    REQUIRE(sortedOutput[newFromOld[1]][0].first == Approx(0.10).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[1]][1].second == newFromOld[2]);
+    REQUIRE(sortedOutput[newFromOld[1]][1].first == Approx(0.20).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[1]][2].second == newFromOld[0]);
+    REQUIRE(sortedOutput[newFromOld[1]][2].first == Approx(0.30).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[1]][3].second == newFromOld[9]);
+    REQUIRE(sortedOutput[newFromOld[1]][3].first == Approx(0.55).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[1]][4].second == newFromOld[5]);
+    REQUIRE(sortedOutput[newFromOld[1]][4].first == Approx(0.57).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[1]][5].second == newFromOld[10]);
+    REQUIRE(sortedOutput[newFromOld[1]][5].first == Approx(0.65).epsilon(1e-7));
 
     // Neighbors of point 2.
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]].size() == 4);
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]][0].second == newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[2]][0].first, 0.10, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]][1].second == newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[2]][1].first, 0.20, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]][2].second == newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[2]][2].first, 0.30, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]][3].second == newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[2]][3].first, 0.37, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[2]].size() == 4);
+    REQUIRE(sortedOutput[newFromOld[2]][0].second == newFromOld[0]);
+    REQUIRE(sortedOutput[newFromOld[2]][0].first == Approx(0.10).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[2]][1].second == newFromOld[1]);
+    REQUIRE(sortedOutput[newFromOld[2]][1].first == Approx(0.20).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[2]][2].second == newFromOld[8]);
+    REQUIRE(sortedOutput[newFromOld[2]][2].first == Approx(0.30).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[2]][3].second == newFromOld[5]);
+    REQUIRE(sortedOutput[newFromOld[2]][3].first == Approx(0.37).epsilon(1e-7));
 
     // Neighbors of point 3.
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]].size() == 2);
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]][0].second == newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[3]][0].first, 0.25, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]][1].second == newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[3]][1].first, 0.35, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[3]].size() == 2);
+    REQUIRE(sortedOutput[newFromOld[3]][0].second == newFromOld[10]);
+    REQUIRE(sortedOutput[newFromOld[3]][0].first == Approx(0.25).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[3]][1].second == newFromOld[9]);
+    REQUIRE(sortedOutput[newFromOld[3]][1].first == Approx(0.35).epsilon(1e-7));
 
     // Neighbors of point 4.
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]].size() == 0);
+    REQUIRE(sortedOutput[newFromOld[4]].size() == 0);
 
     // Neighbors of point 5.
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]].size() == 4);
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]][0].second == newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[5]][0].first, 0.27, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]][1].second == newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[5]][1].first, 0.37, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]][2].second == newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[5]][2].first, 0.57, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]][3].second == newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[5]][3].first, 0.67, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[5]].size() == 4);
+    REQUIRE(sortedOutput[newFromOld[5]][0].second == newFromOld[0]);
+    REQUIRE(sortedOutput[newFromOld[5]][0].first == Approx(0.27).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[5]][1].second == newFromOld[2]);
+    REQUIRE(sortedOutput[newFromOld[5]][1].first == Approx(0.37).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[5]][2].second == newFromOld[1]);
+    REQUIRE(sortedOutput[newFromOld[5]][2].first == Approx(0.57).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[5]][3].second == newFromOld[8]);
+    REQUIRE(sortedOutput[newFromOld[5]][3].first == Approx(0.67).epsilon(1e-7));
 
     // Neighbors of point 6.
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]].size() == 1);
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]][0].second == newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[6]][0].first, 0.70, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[6]].size() == 1);
+    REQUIRE(sortedOutput[newFromOld[6]][0].second == newFromOld[7]);
+    REQUIRE(sortedOutput[newFromOld[6]][0].first == Approx(0.70).epsilon(1e-7));
 
     // Neighbors of point 7.
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]].size() == 1);
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]][0].second == newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[7]][0].first, 0.70, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[7]].size() == 1);
+    REQUIRE(sortedOutput[newFromOld[7]][0].second == newFromOld[6]);
+    REQUIRE(sortedOutput[newFromOld[7]][0].first == Approx(0.70).epsilon(1e-7));
 
     // Neighbors of point 8.
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]].size() == 6);
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]][0].second == newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[8]][0].first, 0.10, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]][1].second == newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[8]][1].first, 0.30, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]][2].second == newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[8]][2].first, 0.40, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]][3].second == newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[8]][3].first, 0.45, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]][4].second == newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[8]][4].first, 0.55, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]][5].second == newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[8]][5].first, 0.67, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[8]].size() == 6);
+    REQUIRE(sortedOutput[newFromOld[8]][0].second == newFromOld[1]);
+    REQUIRE(sortedOutput[newFromOld[8]][0].first == Approx(0.10).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[8]][1].second == newFromOld[2]);
+    REQUIRE(sortedOutput[newFromOld[8]][1].first == Approx(0.30).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[8]][2].second == newFromOld[0]);
+    REQUIRE(sortedOutput[newFromOld[8]][2].first == Approx(0.40).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[8]][3].second == newFromOld[9]);
+    REQUIRE(sortedOutput[newFromOld[8]][3].first == Approx(0.45).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[8]][4].second == newFromOld[10]);
+    REQUIRE(sortedOutput[newFromOld[8]][4].first == Approx(0.55).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[8]][5].second == newFromOld[5]);
+    REQUIRE(sortedOutput[newFromOld[8]][5].first == Approx(0.67).epsilon(1e-7));
 
     // Neighbors of point 9.
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]].size() == 4);
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]][0].second == newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[9]][0].first, 0.10, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]][1].second == newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[9]][1].first, 0.35, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]][2].second == newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[9]][2].first, 0.45, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]][3].second == newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[9]][3].first, 0.55, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[9]].size() == 4);
+    REQUIRE(sortedOutput[newFromOld[9]][0].second == newFromOld[10]);
+    REQUIRE(sortedOutput[newFromOld[9]][0].first == Approx(0.10).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[9]][1].second == newFromOld[3]);
+    REQUIRE(sortedOutput[newFromOld[9]][1].first == Approx(0.35).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[9]][2].second == newFromOld[8]);
+    REQUIRE(sortedOutput[newFromOld[9]][2].first == Approx(0.45).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[9]][3].second == newFromOld[1]);
+    REQUIRE(sortedOutput[newFromOld[9]][3].first == Approx(0.55).epsilon(1e-7));
 
     // Neighbors of point 10.
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]].size() == 4);
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]][0].second == newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[10]][0].first, 0.10, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]][1].second == newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[10]][1].first, 0.25, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]][2].second == newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[10]][2].first, 0.55, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]][3].second == newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[10]][3].first, 0.65, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[10]].size() == 4);
+    REQUIRE(sortedOutput[newFromOld[10]][0].second == newFromOld[9]);
+    REQUIRE(sortedOutput[newFromOld[10]][0].first ==
+        Approx(0.10).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[10]][1].second ==
+        newFromOld[3]);
+    REQUIRE(sortedOutput[newFromOld[10]][1].first ==
+        Approx(0.25).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[10]][2].second ==
+        newFromOld[8]);
+    REQUIRE(sortedOutput[newFromOld[10]][2].first ==
+        Approx(0.55).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[10]][3].second ==
+        newFromOld[1]);
+    REQUIRE(sortedOutput[newFromOld[10]][3].first ==
+        Approx(0.65).epsilon(1e-7));
 
     // Now do it again with a different range: [sqrt(0.5) 1.0].
     if (rs->ReferenceTree())
@@ -222,61 +222,63 @@ BOOST_AUTO_TEST_CASE(ExhaustiveSyntheticTest)
     SortResults(neighbors, distances, sortedOutput);
 
     // Neighbors of point 0.
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]].size() == 2);
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]][0].second == newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[0]][0].first, 0.85, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]][1].second == newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[0]][1].first, 0.95, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[0]].size() == 2);
+    REQUIRE(sortedOutput[newFromOld[0]][0].second == newFromOld[9]);
+    REQUIRE(sortedOutput[newFromOld[0]][0].first == Approx(0.85).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[0]][1].second == newFromOld[10]);
+    REQUIRE(sortedOutput[newFromOld[0]][1].first == Approx(0.95).epsilon(1e-7));
 
     // Neighbors of point 1.
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]].size() == 1);
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]][0].second == newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[1]][0].first, 0.90, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[1]].size() == 1);
+    REQUIRE(sortedOutput[newFromOld[1]][0].second == newFromOld[3]);
+    REQUIRE(sortedOutput[newFromOld[1]][0].first == Approx(0.90).epsilon(1e-7));
 
     // Neighbors of point 2.
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]].size() == 2);
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]][0].second == newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[2]][0].first, 0.75, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]][1].second == newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[2]][1].first, 0.85, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[2]].size() == 2);
+    REQUIRE(sortedOutput[newFromOld[2]][0].second == newFromOld[9]);
+    REQUIRE(sortedOutput[newFromOld[2]][0].first == Approx(0.75).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[2]][1].second == newFromOld[10]);
+    REQUIRE(sortedOutput[newFromOld[2]][1].first == Approx(0.85).epsilon(1e-7));
 
     // Neighbors of point 3.
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]].size() == 2);
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]][0].second == newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[3]][0].first, 0.80, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]][1].second == newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[3]][1].first, 0.90, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[3]].size() == 2);
+    REQUIRE(sortedOutput[newFromOld[3]][0].second == newFromOld[8]);
+    REQUIRE(sortedOutput[newFromOld[3]][0].first == Approx(0.80).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[3]][1].second == newFromOld[1]);
+    REQUIRE(sortedOutput[newFromOld[3]][1].first == Approx(0.90).epsilon(1e-7));
 
     // Neighbors of point 4.
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]].size() == 0);
+    REQUIRE(sortedOutput[newFromOld[4]].size() == 0);
 
     // Neighbors of point 5.
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]].size() == 0);
+    REQUIRE(sortedOutput[newFromOld[5]].size() == 0);
 
     // Neighbors of point 6.
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]].size() == 0);
+    REQUIRE(sortedOutput[newFromOld[6]].size() == 0);
 
     // Neighbors of point 7.
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]].size() == 0);
+    REQUIRE(sortedOutput[newFromOld[7]].size() == 0);
 
     // Neighbors of point 8.
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]].size() == 1);
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]][0].second == newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[8]][0].first, 0.80, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[8]].size() == 1);
+    REQUIRE(sortedOutput[newFromOld[8]][0].second == newFromOld[3]);
+    REQUIRE(sortedOutput[newFromOld[8]][0].first == Approx(0.80).epsilon(1e-7));
 
     // Neighbors of point 9.
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]].size() == 2);
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]][0].second == newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[9]][0].first, 0.75, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]][1].second == newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[9]][1].first, 0.85, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[9]].size() == 2);
+    REQUIRE(sortedOutput[newFromOld[9]][0].second == newFromOld[2]);
+    REQUIRE(sortedOutput[newFromOld[9]][0].first == Approx(0.75).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[9]][1].second == newFromOld[0]);
+    REQUIRE(sortedOutput[newFromOld[9]][1].first == Approx(0.85).epsilon(1e-7));
 
     // Neighbors of point 10.
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]].size() == 2);
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]][0].second == newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[10]][0].first, 0.85, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]][1].second == newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[10]][1].first, 0.95, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[10]].size() == 2);
+    REQUIRE(sortedOutput[newFromOld[10]][0].second == newFromOld[2]);
+    REQUIRE(sortedOutput[newFromOld[10]][0].first ==
+        Approx(0.85).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[10]][1].second == newFromOld[0]);
+    REQUIRE(sortedOutput[newFromOld[10]][1].first ==
+        Approx(0.95).epsilon(1e-7));
 
     // Now do it again with a different range: [1.0 inf].
     if (rs->ReferenceTree())
@@ -286,161 +288,168 @@ BOOST_AUTO_TEST_CASE(ExhaustiveSyntheticTest)
     SortResults(neighbors, distances, sortedOutput);
 
     // Neighbors of point 0.
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]].size() == 4);
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]][0].second == newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[0]][0].first, 1.20, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]][1].second == newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[0]][1].first, 1.35, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]][2].second == newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[0]][2].first, 2.05, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[0]][3].second == newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[0]][3].first, 5.00, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[0]].size() == 4);
+    REQUIRE(sortedOutput[newFromOld[0]][0].second == newFromOld[3]);
+    REQUIRE(sortedOutput[newFromOld[0]][0].first == Approx(1.20).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[0]][1].second == newFromOld[7]);
+    REQUIRE(sortedOutput[newFromOld[0]][1].first == Approx(1.35).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[0]][2].second == newFromOld[6]);
+    REQUIRE(sortedOutput[newFromOld[0]][2].first == Approx(2.05).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[0]][3].second == newFromOld[4]);
+    REQUIRE(sortedOutput[newFromOld[0]][3].first == Approx(5.00).epsilon(1e-7));
 
     // Neighbors of point 1.
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]].size() == 3);
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]][0].second == newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[1]][0].first, 1.65, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]][1].second == newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[1]][1].first, 2.35, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[1]][2].second == newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[1]][2].first, 4.70, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[1]].size() == 3);
+    REQUIRE(sortedOutput[newFromOld[1]][0].second == newFromOld[7]);
+    REQUIRE(sortedOutput[newFromOld[1]][0].first == Approx(1.65).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[1]][1].second == newFromOld[6]);
+    REQUIRE(sortedOutput[newFromOld[1]][1].first == Approx(2.35).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[1]][2].second == newFromOld[4]);
+    REQUIRE(sortedOutput[newFromOld[1]][2].first == Approx(4.70).epsilon(1e-7));
 
     // Neighbors of point 2.
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]].size() == 4);
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]][0].second == newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[2]][0].first, 1.10, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]][1].second == newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[2]][1].first, 1.45, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]][2].second == newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[2]][2].first, 2.15, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[2]][3].second == newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[2]][3].first, 4.90, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[2]].size() == 4);
+    REQUIRE(sortedOutput[newFromOld[2]][0].second == newFromOld[3]);
+    REQUIRE(sortedOutput[newFromOld[2]][0].first == Approx(1.10).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[2]][1].second == newFromOld[7]);
+    REQUIRE(sortedOutput[newFromOld[2]][1].first == Approx(1.45).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[2]][2].second == newFromOld[6]);
+    REQUIRE(sortedOutput[newFromOld[2]][2].first == Approx(2.15).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[2]][3].second == newFromOld[4]);
+    REQUIRE(sortedOutput[newFromOld[2]][3].first == Approx(4.90).epsilon(1e-7));
 
     // Neighbors of point 3.
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]].size() == 6);
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]][0].second == newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[3]][0].first, 1.10, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]][1].second == newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[3]][1].first, 1.20, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]][2].second == newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[3]][2].first, 1.47, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]][3].second == newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[3]][3].first, 2.55, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]][4].second == newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[3]][4].first, 3.25, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[3]][5].second == newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[3]][5].first, 3.80, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[3]].size() == 6);
+    REQUIRE(sortedOutput[newFromOld[3]][0].second == newFromOld[2]);
+    REQUIRE(sortedOutput[newFromOld[3]][0].first == Approx(1.10).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[3]][1].second == newFromOld[0]);
+    REQUIRE(sortedOutput[newFromOld[3]][1].first == Approx(1.20).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[3]][2].second == newFromOld[5]);
+    REQUIRE(sortedOutput[newFromOld[3]][2].first == Approx(1.47).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[3]][3].second == newFromOld[7]);
+    REQUIRE(sortedOutput[newFromOld[3]][3].first == Approx(2.55).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[3]][4].second == newFromOld[6]);
+    REQUIRE(sortedOutput[newFromOld[3]][4].first == Approx(3.25).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[3]][5].second == newFromOld[4]);
+    REQUIRE(sortedOutput[newFromOld[3]][5].first == Approx(3.80).epsilon(1e-7));
 
     // Neighbors of point 4.
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]].size() == 10);
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]][0].second == newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[4]][0].first, 3.80, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]][1].second == newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[4]][1].first, 4.05, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]][2].second == newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[4]][2].first, 4.15, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]][3].second == newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[4]][3].first, 4.60, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]][4].second == newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[4]][4].first, 4.70, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]][5].second == newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[4]][5].first, 4.90, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]][6].second == newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[4]][6].first, 5.00, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]][7].second == newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[4]][7].first, 5.27, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]][8].second == newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[4]][8].first, 6.35, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[4]][9].second == newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[4]][9].first, 7.05, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[4]].size() == 10);
+    REQUIRE(sortedOutput[newFromOld[4]][0].second == newFromOld[3]);
+    REQUIRE(sortedOutput[newFromOld[4]][0].first == Approx(3.80).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[4]][1].second == newFromOld[10]);
+    REQUIRE(sortedOutput[newFromOld[4]][1].first == Approx(4.05).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[4]][2].second == newFromOld[9]);
+    REQUIRE(sortedOutput[newFromOld[4]][2].first == Approx(4.15).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[4]][3].second == newFromOld[8]);
+    REQUIRE(sortedOutput[newFromOld[4]][3].first == Approx(4.60).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[4]][4].second == newFromOld[1]);
+    REQUIRE(sortedOutput[newFromOld[4]][4].first == Approx(4.70).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[4]][5].second == newFromOld[2]);
+    REQUIRE(sortedOutput[newFromOld[4]][5].first == Approx(4.90).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[4]][6].second == newFromOld[0]);
+    REQUIRE(sortedOutput[newFromOld[4]][6].first == Approx(5.00).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[4]][7].second == newFromOld[5]);
+    REQUIRE(sortedOutput[newFromOld[4]][7].first == Approx(5.27).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[4]][8].second == newFromOld[7]);
+    REQUIRE(sortedOutput[newFromOld[4]][8].first == Approx(6.35).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[4]][9].second == newFromOld[6]);
+    REQUIRE(sortedOutput[newFromOld[4]][9].first == Approx(7.05).epsilon(1e-7));
 
     // Neighbors of point 5.
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]].size() == 6);
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]][0].second == newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[5]][0].first, 1.08, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]][1].second == newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[5]][1].first, 1.12, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]][2].second == newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[5]][2].first, 1.22, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]][3].second == newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[5]][3].first, 1.47, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]][4].second == newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[5]][4].first, 1.78, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[5]][5].second == newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[5]][5].first, 5.27, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[5]].size() == 6);
+    REQUIRE(sortedOutput[newFromOld[5]][0].second == newFromOld[7]);
+    REQUIRE(sortedOutput[newFromOld[5]][0].first == Approx(1.08).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[5]][1].second == newFromOld[9]);
+    REQUIRE(sortedOutput[newFromOld[5]][1].first == Approx(1.12).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[5]][2].second == newFromOld[10]);
+    REQUIRE(sortedOutput[newFromOld[5]][2].first == Approx(1.22).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[5]][3].second == newFromOld[3]);
+    REQUIRE(sortedOutput[newFromOld[5]][3].first == Approx(1.47).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[5]][4].second == newFromOld[6]);
+    REQUIRE(sortedOutput[newFromOld[5]][4].first == Approx(1.78).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[5]][5].second == newFromOld[4]);
+    REQUIRE(sortedOutput[newFromOld[5]][5].first == Approx(5.27).epsilon(1e-7));
 
     // Neighbors of point 6.
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]].size() == 9);
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]][0].second == newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[6]][0].first, 1.78, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]][1].second == newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[6]][1].first, 2.05, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]][2].second == newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[6]][2].first, 2.15, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]][3].second == newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[6]][3].first, 2.35, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]][4].second == newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[6]][4].first, 2.45, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]][5].second == newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[6]][5].first, 2.90, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]][6].second == newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[6]][6].first, 3.00, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]][7].second == newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[6]][7].first, 3.25, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[6]][8].second == newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[6]][8].first, 7.05, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[6]].size() == 9);
+    REQUIRE(sortedOutput[newFromOld[6]][0].second == newFromOld[5]);
+    REQUIRE(sortedOutput[newFromOld[6]][0].first == Approx(1.78).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[6]][1].second == newFromOld[0]);
+    REQUIRE(sortedOutput[newFromOld[6]][1].first == Approx(2.05).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[6]][2].second == newFromOld[2]);
+    REQUIRE(sortedOutput[newFromOld[6]][2].first == Approx(2.15).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[6]][3].second == newFromOld[1]);
+    REQUIRE(sortedOutput[newFromOld[6]][3].first == Approx(2.35).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[6]][4].second == newFromOld[8]);
+    REQUIRE(sortedOutput[newFromOld[6]][4].first == Approx(2.45).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[6]][5].second == newFromOld[9]);
+    REQUIRE(sortedOutput[newFromOld[6]][5].first == Approx(2.90).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[6]][6].second == newFromOld[10]);
+    REQUIRE(sortedOutput[newFromOld[6]][6].first == Approx(3.00).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[6]][7].second == newFromOld[3]);
+    REQUIRE(sortedOutput[newFromOld[6]][7].first == Approx(3.25).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[6]][8].second == newFromOld[4]);
+    REQUIRE(sortedOutput[newFromOld[6]][8].first == Approx(7.05).epsilon(1e-7));
 
     // Neighbors of point 7.
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]].size() == 9);
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]][0].second == newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[7]][0].first, 1.08, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]][1].second == newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[7]][1].first, 1.35, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]][2].second == newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[7]][2].first, 1.45, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]][3].second == newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[7]][3].first, 1.65, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]][4].second == newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[7]][4].first, 1.75, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]][5].second == newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[7]][5].first, 2.20, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]][6].second == newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[7]][6].first, 2.30, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]][7].second == newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[7]][7].first, 2.55, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[7]][8].second == newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[7]][8].first, 6.35, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[7]].size() == 9);
+    REQUIRE(sortedOutput[newFromOld[7]][0].second == newFromOld[5]);
+    REQUIRE(sortedOutput[newFromOld[7]][0].first == Approx(1.08).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[7]][1].second == newFromOld[0]);
+    REQUIRE(sortedOutput[newFromOld[7]][1].first == Approx(1.35).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[7]][2].second == newFromOld[2]);
+    REQUIRE(sortedOutput[newFromOld[7]][2].first == Approx(1.45).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[7]][3].second == newFromOld[1]);
+    REQUIRE(sortedOutput[newFromOld[7]][3].first == Approx(1.65).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[7]][4].second == newFromOld[8]);
+    REQUIRE(sortedOutput[newFromOld[7]][4].first == Approx(1.75).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[7]][5].second == newFromOld[9]);
+    REQUIRE(sortedOutput[newFromOld[7]][5].first == Approx(2.20).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[7]][6].second == newFromOld[10]);
+    REQUIRE(sortedOutput[newFromOld[7]][6].first == Approx(2.30).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[7]][7].second == newFromOld[3]);
+    REQUIRE(sortedOutput[newFromOld[7]][7].first == Approx(2.55).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[7]][8].second == newFromOld[4]);
+    REQUIRE(sortedOutput[newFromOld[7]][8].first == Approx(6.35).epsilon(1e-7));
 
     // Neighbors of point 8.
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]].size() == 3);
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]][0].second == newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[8]][0].first, 1.75, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]][1].second == newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[8]][1].first, 2.45, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[8]][2].second == newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[8]][2].first, 4.60, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[8]].size() == 3);
+    REQUIRE(sortedOutput[newFromOld[8]][0].second == newFromOld[7]);
+    REQUIRE(sortedOutput[newFromOld[8]][0].first == Approx(1.75).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[8]][1].second == newFromOld[6]);
+    REQUIRE(sortedOutput[newFromOld[8]][1].first == Approx(2.45).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[8]][2].second == newFromOld[4]);
+    REQUIRE(sortedOutput[newFromOld[8]][2].first == Approx(4.60).epsilon(1e-7));
 
     // Neighbors of point 9.
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]].size() == 4);
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]][0].second == newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[9]][0].first, 1.12, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]][1].second == newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[9]][1].first, 2.20, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]][2].second == newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[9]][2].first, 2.90, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[9]][3].second == newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[9]][3].first, 4.15, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[9]].size() == 4);
+    REQUIRE(sortedOutput[newFromOld[9]][0].second == newFromOld[5]);
+    REQUIRE(sortedOutput[newFromOld[9]][0].first == Approx(1.12).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[9]][1].second == newFromOld[7]);
+    REQUIRE(sortedOutput[newFromOld[9]][1].first == Approx(2.20).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[9]][2].second == newFromOld[6]);
+    REQUIRE(sortedOutput[newFromOld[9]][2].first == Approx(2.90).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[9]][3].second == newFromOld[4]);
+    REQUIRE(sortedOutput[newFromOld[9]][3].first == Approx(4.15).epsilon(1e-7));
 
     // Neighbors of point 10.
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]].size() == 4);
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]][0].second == newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[10]][0].first, 1.22, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]][1].second == newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[10]][1].first, 2.30, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]][2].second == newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[10]][2].first, 3.00, 1e-5);
-    BOOST_REQUIRE(sortedOutput[newFromOld[10]][3].second == newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(sortedOutput[newFromOld[10]][3].first, 4.05, 1e-5);
+    REQUIRE(sortedOutput[newFromOld[10]].size() == 4);
+    REQUIRE(sortedOutput[newFromOld[10]][0].second == newFromOld[5]);
+    REQUIRE(sortedOutput[newFromOld[10]][0].first ==
+        Approx(1.22).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[10]][1].second ==
+        newFromOld[7]);
+    REQUIRE(sortedOutput[newFromOld[10]][1].first ==
+        Approx(2.30).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[10]][2].second ==
+        newFromOld[6]);
+    REQUIRE(sortedOutput[newFromOld[10]][2].first ==
+        Approx(3.00).epsilon(1e-7));
+    REQUIRE(sortedOutput[newFromOld[10]][3].second ==
+        newFromOld[4]);
+    REQUIRE(sortedOutput[newFromOld[10]][3].first ==
+        Approx(4.05).epsilon(1e-7));
 
     // Clean the memory.
     delete rs;
@@ -455,13 +464,13 @@ BOOST_AUTO_TEST_CASE(ExhaustiveSyntheticTest)
  *
  * Errors are produced if the results are not identical.
  */
-BOOST_AUTO_TEST_CASE(DualTreeVsNaive1)
+TEST_CASE("DualTreeVsNaive1", "[RangeSearchTest][tiny]")
 {
   arma::mat dataForTree;
 
   // Hard-coded filename: bad!
-  if (!data::Load("test_data_3_1000.csv", dataForTree))
-    BOOST_FAIL("Cannot load test dataset test_data_3_1000.csv!");
+  if (!Load("test_data_3_1000.csv", dataForTree))
+    FAIL("Cannot load test dataset test_data_3_1000.csv!");
 
   // Set up matrices to work with.
   arma::mat dualQuery(dataForTree);
@@ -485,15 +494,15 @@ BOOST_AUTO_TEST_CASE(DualTreeVsNaive1)
   vector<vector<pair<double, size_t>>> sortedNaive;
   SortResults(neighborsNaive, distancesNaive, sortedNaive);
 
-  for (size_t i = 0; i < sortedTree.size(); i++)
+  for (size_t i = 0; i < sortedTree.size(); ++i)
   {
-    BOOST_REQUIRE(sortedTree[i].size() == sortedNaive[i].size());
+    REQUIRE(sortedTree[i].size() == sortedNaive[i].size());
 
-    for (size_t j = 0; j < sortedTree[i].size(); j++)
+    for (size_t j = 0; j < sortedTree[i].size(); ++j)
     {
-      BOOST_REQUIRE(sortedTree[i][j].second == sortedNaive[i][j].second);
-      BOOST_REQUIRE_CLOSE(sortedTree[i][j].first, sortedNaive[i][j].first,
-          1e-5);
+      REQUIRE(sortedTree[i][j].second == sortedNaive[i][j].second);
+      REQUIRE(sortedTree[i][j].first ==
+          Approx(sortedNaive[i][j].first).epsilon(1e-7));
     }
   }
 }
@@ -504,14 +513,14 @@ BOOST_AUTO_TEST_CASE(DualTreeVsNaive1)
  *
  * Errors are produced if the results are not identical.
  */
-BOOST_AUTO_TEST_CASE(DualTreeVsNaive2)
+TEST_CASE("DualTreeVsNaive2", "[RangeSearchTest]")
 {
   arma::mat dataForTree;
 
   // Hard-coded filename: bad!
   // Code duplication: also bad!
-  if (!data::Load("test_data_3_1000.csv", dataForTree))
-    BOOST_FAIL("Cannot load test dataset test_data_3_1000.csv!");
+  if (!Load("test_data_3_1000.csv", dataForTree))
+    FAIL("Cannot load test dataset test_data_3_1000.csv!");
 
   // Set up matrices to work with.
   arma::mat dualQuery(dataForTree);
@@ -534,15 +543,15 @@ BOOST_AUTO_TEST_CASE(DualTreeVsNaive2)
   vector<vector<pair<double, size_t>>> sortedNaive;
   SortResults(neighborsNaive, distancesNaive, sortedNaive);
 
-  for (size_t i = 0; i < sortedTree.size(); i++)
+  for (size_t i = 0; i < sortedTree.size(); ++i)
   {
-    BOOST_REQUIRE(sortedTree[i].size() == sortedNaive[i].size());
+    REQUIRE(sortedTree[i].size() == sortedNaive[i].size());
 
-    for (size_t j = 0; j < sortedTree[i].size(); j++)
+    for (size_t j = 0; j < sortedTree[i].size(); ++j)
     {
-      BOOST_REQUIRE(sortedTree[i][j].second == sortedNaive[i][j].second);
-      BOOST_REQUIRE_CLOSE(sortedTree[i][j].first, sortedNaive[i][j].first,
-          1e-5);
+      REQUIRE(sortedTree[i][j].second == sortedNaive[i][j].second);
+      REQUIRE(sortedTree[i][j].first ==
+          Approx(sortedNaive[i][j].first).epsilon(1e-7));
     }
   }
 }
@@ -553,14 +562,14 @@ BOOST_AUTO_TEST_CASE(DualTreeVsNaive2)
  *
  * Errors are produced if the results are not identical.
  */
-BOOST_AUTO_TEST_CASE(SingleTreeVsNaive)
+TEST_CASE("SingleTreeVsNaive", "[RangeSearchTest]")
 {
   arma::mat dataForTree;
 
   // Hard-coded filename: bad!
   // Code duplication: also bad!
-  if (!data::Load("test_data_3_1000.csv", dataForTree))
-    BOOST_FAIL("Cannot load test dataset test_data_3_1000.csv!");
+  if (!Load("test_data_3_1000.csv", dataForTree))
+    FAIL("Cannot load test dataset test_data_3_1000.csv!");
 
   // Set up matrices to work with (may not be necessary with no ALIAS_MATRIX?).
   arma::mat singleQuery(dataForTree);
@@ -583,15 +592,15 @@ BOOST_AUTO_TEST_CASE(SingleTreeVsNaive)
   vector<vector<pair<double, size_t>>> sortedNaive;
   SortResults(neighborsNaive, distancesNaive, sortedNaive);
 
-  for (size_t i = 0; i < sortedTree.size(); i++)
+  for (size_t i = 0; i < sortedTree.size(); ++i)
   {
-    BOOST_REQUIRE(sortedTree[i].size() == sortedNaive[i].size());
+    REQUIRE(sortedTree[i].size() == sortedNaive[i].size());
 
-    for (size_t j = 0; j < sortedTree[i].size(); j++)
+    for (size_t j = 0; j < sortedTree[i].size(); ++j)
     {
-      BOOST_REQUIRE(sortedTree[i][j].second == sortedNaive[i][j].second);
-      BOOST_REQUIRE_CLOSE(sortedTree[i][j].first, sortedNaive[i][j].first,
-          1e-5);
+      REQUIRE(sortedTree[i][j].second == sortedNaive[i][j].second);
+      REQUIRE(sortedTree[i][j].first ==
+          Approx(sortedNaive[i][j].first).epsilon(1e-7));
     }
   }
 }
@@ -600,7 +609,7 @@ BOOST_AUTO_TEST_CASE(SingleTreeVsNaive)
  * Ensure that dual tree range search with cover trees works by comparing
  * with the kd-tree implementation.
  */
-BOOST_AUTO_TEST_CASE(CoverTreeTest)
+TEST_CASE("RSCoverTreeTest", "[RangeSearchTest][long]")
 {
   arma::mat data;
   data.randu(8, 1000); // 1000 points in 8 dimensions.
@@ -662,11 +671,11 @@ BOOST_AUTO_TEST_CASE(CoverTreeTest)
     {
       for (size_t j = 0; j < kdSorted[i].size(); ++j)
       {
-        BOOST_REQUIRE_EQUAL(kdSorted[i][j].second, coverSorted[i][j].second);
-        BOOST_REQUIRE_CLOSE(kdSorted[i][j].first, coverSorted[i][j].first,
-            1e-5);
+        REQUIRE(kdSorted[i][j].second == coverSorted[i][j].second);
+        REQUIRE(kdSorted[i][j].first ==
+            Approx(coverSorted[i][j].first).epsilon(1e-7));
       }
-      BOOST_REQUIRE_EQUAL(kdSorted[i].size(), coverSorted[i].size());
+      REQUIRE(kdSorted[i].size() == coverSorted[i].size());
     }
   }
 }
@@ -675,7 +684,7 @@ BOOST_AUTO_TEST_CASE(CoverTreeTest)
  * Ensure that dual tree range search with cover trees works when using
  * two datasets.
  */
-BOOST_AUTO_TEST_CASE(CoverTreeTwoDatasetsTest)
+TEST_CASE("CoverTreeTwoDatasetsTest", "[RangeSearchTest]")
 {
   arma::mat data;
   data.randu(8, 1000); // 1000 points in 8 dimensions.
@@ -740,11 +749,11 @@ BOOST_AUTO_TEST_CASE(CoverTreeTwoDatasetsTest)
     {
       for (size_t j = 0; j < kdSorted[i].size(); ++j)
       {
-        BOOST_REQUIRE_EQUAL(kdSorted[i][j].second, coverSorted[i][j].second);
-        BOOST_REQUIRE_CLOSE(kdSorted[i][j].first, coverSorted[i][j].first,
-            1e-5);
+        REQUIRE(kdSorted[i][j].second == coverSorted[i][j].second);
+        REQUIRE(kdSorted[i][j].first ==
+            Approx(coverSorted[i][j].first).epsilon(1e-7));
       }
-      BOOST_REQUIRE_EQUAL(kdSorted[i].size(), coverSorted[i].size());
+      REQUIRE(kdSorted[i].size() == coverSorted[i].size());
     }
   }
 }
@@ -752,7 +761,7 @@ BOOST_AUTO_TEST_CASE(CoverTreeTwoDatasetsTest)
 /**
  * Ensure that single-tree cover tree range search works.
  */
-BOOST_AUTO_TEST_CASE(CoverTreeSingleTreeTest)
+TEST_CASE("CoverTreeSingleTreeTest", "[RangeSearchTest]")
 {
   arma::mat data;
   data.randu(8, 1000); // 1000 points in 8 dimensions.
@@ -814,11 +823,11 @@ BOOST_AUTO_TEST_CASE(CoverTreeSingleTreeTest)
     {
       for (size_t j = 0; j < kdSorted[i].size(); ++j)
       {
-        BOOST_REQUIRE_EQUAL(kdSorted[i][j].second, coverSorted[i][j].second);
-        BOOST_REQUIRE_CLOSE(kdSorted[i][j].first, coverSorted[i][j].first,
-            1e-5);
+        REQUIRE(kdSorted[i][j].second == coverSorted[i][j].second);
+        REQUIRE(kdSorted[i][j].first ==
+            Approx(coverSorted[i][j].first).epsilon(1e-7));
       }
-      BOOST_REQUIRE_EQUAL(kdSorted[i].size(), coverSorted[i].size());
+      REQUIRE(kdSorted[i].size() == coverSorted[i].size());
     }
   }
 }
@@ -826,7 +835,7 @@ BOOST_AUTO_TEST_CASE(CoverTreeSingleTreeTest)
 /**
  * Ensure that single-tree ball tree range search works.
  */
-BOOST_AUTO_TEST_CASE(SingleBallTreeTest)
+TEST_CASE("SingleBallTreeTest", "[RangeSearchTest]")
 {
   arma::mat data;
   data.randu(8, 1000); // 1000 points in 8 dimensions.
@@ -888,11 +897,11 @@ BOOST_AUTO_TEST_CASE(SingleBallTreeTest)
     {
       for (size_t j = 0; j < kdSorted[i].size(); ++j)
       {
-        BOOST_REQUIRE_EQUAL(kdSorted[i][j].second, ballSorted[i][j].second);
-        BOOST_REQUIRE_CLOSE(kdSorted[i][j].first, ballSorted[i][j].first,
-            1e-5);
+        REQUIRE(kdSorted[i][j].second == ballSorted[i][j].second);
+        REQUIRE(kdSorted[i][j].first ==
+            Approx(ballSorted[i][j].first).epsilon(1e-7));
       }
-      BOOST_REQUIRE_EQUAL(kdSorted[i].size(), ballSorted[i].size());
+      REQUIRE(kdSorted[i].size() == ballSorted[i].size());
     }
   }
 }
@@ -901,7 +910,7 @@ BOOST_AUTO_TEST_CASE(SingleBallTreeTest)
  * Ensure that dual tree range search with ball trees works by comparing
  * with the kd-tree implementation.
  */
-BOOST_AUTO_TEST_CASE(DualBallTreeTest)
+TEST_CASE("DualBallTreeTest", "[RangeSearchTest]")
 {
   arma::mat data;
   data.randu(8, 1000); // 1000 points in 8 dimensions.
@@ -962,11 +971,11 @@ BOOST_AUTO_TEST_CASE(DualBallTreeTest)
     {
       for (size_t j = 0; j < kdSorted[i].size(); ++j)
       {
-        BOOST_REQUIRE_EQUAL(kdSorted[i][j].second, ballSorted[i][j].second);
-        BOOST_REQUIRE_CLOSE(kdSorted[i][j].first, ballSorted[i][j].first,
-            1e-5);
+        REQUIRE(kdSorted[i][j].second == ballSorted[i][j].second);
+        REQUIRE(kdSorted[i][j].first ==
+            Approx(ballSorted[i][j].first).epsilon(1e-7));
       }
-      BOOST_REQUIRE_EQUAL(kdSorted[i].size(), ballSorted[i].size());
+      REQUIRE(kdSorted[i].size() == ballSorted[i].size());
     }
   }
 }
@@ -975,7 +984,7 @@ BOOST_AUTO_TEST_CASE(DualBallTreeTest)
  * Ensure that dual tree range search with ball trees works when using
  * two datasets.
  */
-BOOST_AUTO_TEST_CASE(DualBallTreeTest2)
+TEST_CASE("DualBallTreeTest2", "[RangeSearchTest]")
 {
   arma::mat data;
   data.randu(8, 1000); // 1000 points in 8 dimensions.
@@ -1038,12 +1047,12 @@ BOOST_AUTO_TEST_CASE(DualBallTreeTest2)
     // Now compare the results.
     for (size_t i = 0; i < kdSorted.size(); ++i)
     {
-      BOOST_REQUIRE_EQUAL(kdSorted[i].size(), ballSorted[i].size());
+      REQUIRE(kdSorted[i].size() == ballSorted[i].size());
       for (size_t j = 0; j < kdSorted[i].size(); ++j)
       {
-        BOOST_REQUIRE_EQUAL(kdSorted[i][j].second, ballSorted[i][j].second);
-        BOOST_REQUIRE_CLOSE(kdSorted[i][j].first, ballSorted[i][j].first,
-            1e-5);
+        REQUIRE(kdSorted[i][j].second == ballSorted[i][j].second);
+        REQUIRE(kdSorted[i][j].first ==
+            Approx(ballSorted[i][j].first).epsilon(1e-7));
       }
     }
   }
@@ -1053,29 +1062,29 @@ BOOST_AUTO_TEST_CASE(DualBallTreeTest2)
  * Make sure that no results are returned when we build a range search object
  * with no reference set.
  */
-BOOST_AUTO_TEST_CASE(EmptySearchTest)
+TEST_CASE("EmptySearchTest", "[RangeSearchTest]")
 {
   RangeSearch<EuclideanDistance, arma::mat, KDTree> rs;
 
   vector<vector<size_t>> neighbors;
   vector<vector<double>> distances;
 
-  rs.Search(math::Range(0.0, 10.0), neighbors, distances);
+  rs.Search(Range(0.0, 10.0), neighbors, distances);
 
-  BOOST_REQUIRE_EQUAL(neighbors.size(), 0);
-  BOOST_REQUIRE_EQUAL(distances.size(), 0);
+  REQUIRE(neighbors.size() == 0);
+  REQUIRE(distances.size() == 0);
 
   // Now check with a query set.
   arma::mat querySet = arma::randu<arma::mat>(3, 100);
 
-  BOOST_REQUIRE_THROW(rs.Search(querySet, math::Range(0.0, 10.0), neighbors,
+  REQUIRE_THROWS_AS(rs.Search(querySet, Range(0.0, 10.0), neighbors,
       distances), std::invalid_argument);
 }
 
 /**
  * Make sure things work right after Train() is called.
  */
-BOOST_AUTO_TEST_CASE(TrainTest)
+TEST_CASE("RangeSearchTrainTest", "[RangeSearchTest]")
 {
   RangeSearch<> empty;
 
@@ -1087,11 +1096,11 @@ BOOST_AUTO_TEST_CASE(TrainTest)
 
   empty.Train(dataset);
 
-  empty.Search(math::Range(0.5, 0.7), neighbors, distances);
-  baseline.Search(math::Range(0.5, 0.7), baselineNeighbors, baselineDistances);
+  empty.Search(Range(0.5, 0.7), neighbors, distances);
+  baseline.Search(Range(0.5, 0.7), baselineNeighbors, baselineDistances);
 
-  BOOST_REQUIRE_EQUAL(neighbors.size(), baselineNeighbors.size());
-  BOOST_REQUIRE_EQUAL(distances.size(), baselineDistances.size());
+  REQUIRE(neighbors.size() == baselineNeighbors.size());
+  REQUIRE(distances.size() == baselineDistances.size());
 
   // Sort the results before comparing.
   vector<vector<pair<double, size_t>>> sorted;
@@ -1101,11 +1110,12 @@ BOOST_AUTO_TEST_CASE(TrainTest)
 
   for (size_t i = 0; i < sorted.size(); ++i)
   {
-    BOOST_REQUIRE_EQUAL(sorted[i].size(), baselineSorted[i].size());
+    REQUIRE(sorted[i].size() == baselineSorted[i].size());
     for (size_t j = 0; j < sorted[i].size(); ++j)
     {
-      BOOST_REQUIRE_EQUAL(sorted[i][j].second, baselineSorted[i][j].second);
-      BOOST_REQUIRE_CLOSE(sorted[i][j].first, baselineSorted[i][j].first, 1e-5);
+      REQUIRE(sorted[i][j].second == baselineSorted[i][j].second);
+      REQUIRE(sorted[i][j].first ==
+          Approx(baselineSorted[i][j].first).epsilon(1e-7));
     }
   }
 }
@@ -1113,10 +1123,10 @@ BOOST_AUTO_TEST_CASE(TrainTest)
 /**
  * Test training when a tree is given.
  */
-BOOST_AUTO_TEST_CASE(TrainTreeTest)
+TEST_CASE("TrainTreeTest", "[RangeSearchTest]")
 {
   // Avoid mappings by using the cover tree.
-  typedef RangeSearch<EuclideanDistance, arma::mat, StandardCoverTree> RSType;
+  using RSType = RangeSearch<EuclideanDistance, arma::mat, StandardCoverTree>;
   RSType empty;
 
   arma::mat dataset = arma::randu<arma::mat>(5, 100);
@@ -1128,11 +1138,11 @@ BOOST_AUTO_TEST_CASE(TrainTreeTest)
   RSType::Tree tree(dataset);
   empty.Train(&tree);
 
-  empty.Search(math::Range(0.5, 0.7), neighbors, distances);
-  baseline.Search(math::Range(0.5, 0.7), baselineNeighbors, baselineDistances);
+  empty.Search(Range(0.5, 0.7), neighbors, distances);
+  baseline.Search(Range(0.5, 0.7), baselineNeighbors, baselineDistances);
 
-  BOOST_REQUIRE_EQUAL(neighbors.size(), baselineNeighbors.size());
-  BOOST_REQUIRE_EQUAL(distances.size(), baselineDistances.size());
+  REQUIRE(neighbors.size() == baselineNeighbors.size());
+  REQUIRE(distances.size() == baselineDistances.size());
 
   // Sort the results before comparing.
   vector<vector<pair<double, size_t>>> sorted;
@@ -1142,11 +1152,12 @@ BOOST_AUTO_TEST_CASE(TrainTreeTest)
 
   for (size_t i = 0; i < sorted.size(); ++i)
   {
-    BOOST_REQUIRE_EQUAL(sorted[i].size(), baselineSorted[i].size());
+    REQUIRE(sorted[i].size() == baselineSorted[i].size());
     for (size_t j = 0; j < sorted[i].size(); ++j)
     {
-      BOOST_REQUIRE_EQUAL(sorted[i][j].second, baselineSorted[i][j].second);
-      BOOST_REQUIRE_CLOSE(sorted[i][j].first, baselineSorted[i][j].first, 1e-5);
+      REQUIRE(sorted[i][j].second == baselineSorted[i][j].second);
+      REQUIRE(sorted[i][j].first ==
+          Approx(baselineSorted[i][j].first).epsilon(1e-7));
     }
   }
 }
@@ -1154,20 +1165,20 @@ BOOST_AUTO_TEST_CASE(TrainTreeTest)
 /**
  * Test that training with a tree throws an exception when in naive mode.
  */
-BOOST_AUTO_TEST_CASE(NaiveTrainTreeTest)
+TEST_CASE("NaiveTrainTreeTest", "[RangeSearchTest]")
 {
   RangeSearch<> empty(true);
 
   arma::mat dataset = arma::randu<arma::mat>(5, 100);
   RangeSearch<>::Tree tree(dataset);
 
-  BOOST_REQUIRE_THROW(empty.Train(&tree), std::invalid_argument);
+  REQUIRE_THROWS_AS(empty.Train(&tree), std::invalid_argument);
 }
 
 /**
  * Test that the move constructor works.
  */
-BOOST_AUTO_TEST_CASE(MoveConstructorTest)
+TEST_CASE("MoveConstructorMatrixTest", "[RangeSearchTest]")
 {
   arma::mat dataset = arma::randu<arma::mat>(3, 100);
   arma::mat copy(dataset);
@@ -1175,18 +1186,18 @@ BOOST_AUTO_TEST_CASE(MoveConstructorTest)
   RangeSearch<> movers(std::move(copy));
   RangeSearch<> rs(dataset);
 
-  BOOST_REQUIRE_EQUAL(copy.n_elem, 0);
-  BOOST_REQUIRE_EQUAL(movers.ReferenceSet().n_rows, 3);
-  BOOST_REQUIRE_EQUAL(movers.ReferenceSet().n_cols, 100);
+  REQUIRE(copy.n_elem == 0);
+  REQUIRE(movers.ReferenceSet().n_rows == 3);
+  REQUIRE(movers.ReferenceSet().n_cols == 100);
 
   vector<vector<size_t>> moveNeighbors, neighbors;
   vector<vector<double>> moveDistances, distances;
 
-  movers.Search(math::Range(0.5, 0.7), moveNeighbors, moveDistances);
-  rs.Search(math::Range(0.5, 0.7), neighbors, distances);
+  movers.Search(Range(0.5, 0.7), moveNeighbors, moveDistances);
+  rs.Search(Range(0.5, 0.7), neighbors, distances);
 
-  BOOST_REQUIRE_EQUAL(neighbors.size(), moveNeighbors.size());
-  BOOST_REQUIRE_EQUAL(distances.size(), moveDistances.size());
+  REQUIRE(neighbors.size() == moveNeighbors.size());
+  REQUIRE(distances.size() == moveDistances.size());
 
   // Sort the results before comparing.
   vector<vector<pair<double, size_t>>> sorted;
@@ -1196,11 +1207,12 @@ BOOST_AUTO_TEST_CASE(MoveConstructorTest)
 
   for (size_t i = 0; i < sorted.size(); ++i)
   {
-    BOOST_REQUIRE_EQUAL(sorted[i].size(), moveSorted[i].size());
+    REQUIRE(sorted[i].size() == moveSorted[i].size());
     for (size_t j = 0; j < sorted[i].size(); ++j)
     {
-      BOOST_REQUIRE_EQUAL(sorted[i][j].second, moveSorted[i][j].second);
-      BOOST_REQUIRE_CLOSE(sorted[i][j].first, moveSorted[i][j].first, 1e-5);
+      REQUIRE(sorted[i][j].second == moveSorted[i][j].second);
+      REQUIRE(sorted[i][j].first ==
+          Approx(moveSorted[i][j].first).epsilon(1e-7));
     }
   }
 }
@@ -1208,7 +1220,7 @@ BOOST_AUTO_TEST_CASE(MoveConstructorTest)
 /**
  * Test that the std::move() Train() function works.
  */
-BOOST_AUTO_TEST_CASE(MoveTrainTest)
+TEST_CASE("MoveTrainTest", "[RangeSearchTest]")
 {
   arma::mat dataset = arma::randu<arma::mat>(3, 100);
   arma::mat copy(dataset);
@@ -1217,18 +1229,18 @@ BOOST_AUTO_TEST_CASE(MoveTrainTest)
   movers.Train(std::move(copy));
   RangeSearch<> rs(dataset);
 
-  BOOST_REQUIRE_EQUAL(copy.n_elem, 0);
-  BOOST_REQUIRE_EQUAL(movers.ReferenceSet().n_rows, 3);
-  BOOST_REQUIRE_EQUAL(movers.ReferenceSet().n_cols, 100);
+  REQUIRE(copy.n_elem == 0);
+  REQUIRE(movers.ReferenceSet().n_rows == 3);
+  REQUIRE(movers.ReferenceSet().n_cols == 100);
 
   vector<vector<size_t>> moveNeighbors, neighbors;
   vector<vector<double>> moveDistances, distances;
 
-  movers.Search(math::Range(0.5, 0.7), moveNeighbors, moveDistances);
-  rs.Search(math::Range(0.5, 0.7), neighbors, distances);
+  movers.Search(Range(0.5, 0.7), moveNeighbors, moveDistances);
+  rs.Search(Range(0.5, 0.7), neighbors, distances);
 
-  BOOST_REQUIRE_EQUAL(neighbors.size(), moveNeighbors.size());
-  BOOST_REQUIRE_EQUAL(distances.size(), moveDistances.size());
+  REQUIRE(neighbors.size() == moveNeighbors.size());
+  REQUIRE(distances.size() == moveDistances.size());
 
   // Sort the results before comparing.
   vector<vector<pair<double, size_t>>> sorted;
@@ -1238,16 +1250,17 @@ BOOST_AUTO_TEST_CASE(MoveTrainTest)
 
   for (size_t i = 0; i < sorted.size(); ++i)
   {
-    BOOST_REQUIRE_EQUAL(sorted[i].size(), moveSorted[i].size());
+    REQUIRE(sorted[i].size() == moveSorted[i].size());
     for (size_t j = 0; j < sorted[i].size(); ++j)
     {
-      BOOST_REQUIRE_EQUAL(sorted[i][j].second, moveSorted[i][j].second);
-      BOOST_REQUIRE_CLOSE(sorted[i][j].first, moveSorted[i][j].first, 1e-5);
+      REQUIRE(sorted[i][j].second == moveSorted[i][j].second);
+      REQUIRE(sorted[i][j].first ==
+          Approx(moveSorted[i][j].first).epsilon(1e-7));
     }
   }
 }
 
-BOOST_AUTO_TEST_CASE(RSModelTest)
+TEST_CASE("RSModelTest", "[RangeSearchTest]")
 {
   // Ensure that we can build an RSModel and get correct results.
   arma::mat queryData = arma::randu<arma::mat>(10, 50);
@@ -1284,13 +1297,15 @@ BOOST_AUTO_TEST_CASE(RSModelTest)
   models[26] = RSModel(RSModel::TreeTypes::OCTREE, true);
   models[27] = RSModel(RSModel::TreeTypes::OCTREE, false);
 
-  for (size_t j = 0; j < 2; ++j)
+  util::Timers timers;
+
+  for (size_t j = 0; j < 3; ++j)
   {
     // Get a baseline.
     RangeSearch<> rs(referenceData);
     vector<vector<size_t>> baselineNeighbors;
     vector<vector<double>> baselineDistances;
-    rs.Search(queryData, math::Range(0.25, 0.75), baselineNeighbors,
+    rs.Search(queryData, Range(0.25, 0.75), baselineNeighbors,
         baselineDistances);
 
     vector<vector<pair<double, size_t>>> baselineSorted;
@@ -1302,39 +1317,39 @@ BOOST_AUTO_TEST_CASE(RSModelTest)
       arma::mat referenceCopy(referenceData);
       arma::mat queryCopy(queryData);
       if (j == 0)
-        models[i].BuildModel(std::move(referenceCopy), 5, false, false);
+        models[i].BuildModel(timers, std::move(referenceCopy), 5, false, false);
       else if (j == 1)
-        models[i].BuildModel(std::move(referenceCopy), 5, false, true);
+        models[i].BuildModel(timers, std::move(referenceCopy), 5, false, true);
       else if (j == 2)
-        models[i].BuildModel(std::move(referenceCopy), 5, true, false);
+        models[i].BuildModel(timers, std::move(referenceCopy), 5, true, false);
 
       vector<vector<size_t>> neighbors;
       vector<vector<double>> distances;
 
-      models[i].Search(std::move(queryCopy), math::Range(0.25, 0.75), neighbors,
-          distances);
+      models[i].Search(timers, std::move(queryCopy), Range(0.25, 0.75),
+          neighbors, distances);
 
-      BOOST_REQUIRE_EQUAL(neighbors.size(), baselineNeighbors.size());
-      BOOST_REQUIRE_EQUAL(distances.size(), baselineDistances.size());
+      REQUIRE(neighbors.size() == baselineNeighbors.size());
+      REQUIRE(distances.size() == baselineDistances.size());
 
       vector<vector<pair<double, size_t>>> sorted;
       SortResults(neighbors, distances, sorted);
 
       for (size_t k = 0; k < sorted.size(); ++k)
       {
-        BOOST_REQUIRE_EQUAL(sorted[k].size(), baselineSorted[k].size());
+        REQUIRE(sorted[k].size() == baselineSorted[k].size());
         for (size_t l = 0; l < sorted[k].size(); ++l)
         {
-          BOOST_REQUIRE_EQUAL(sorted[k][l].second, baselineSorted[k][l].second);
-          BOOST_REQUIRE_CLOSE(sorted[k][l].first, baselineSorted[k][l].first,
-              1e-5);
+          REQUIRE(sorted[k][l].second == baselineSorted[k][l].second);
+          REQUIRE(sorted[k][l].first ==
+              Approx(baselineSorted[k][l].first).epsilon(1e-7));
         }
       }
     }
   }
 }
 
-BOOST_AUTO_TEST_CASE(RSModelMonochromaticTest)
+TEST_CASE("RSModelMonochromaticTest", "[RangeSearchTest]")
 {
   // Ensure that we can build an RSModel and get correct results.
   arma::mat referenceData = arma::randu<arma::mat>(10, 200);
@@ -1370,13 +1385,15 @@ BOOST_AUTO_TEST_CASE(RSModelMonochromaticTest)
   models[26] = RSModel(RSModel::TreeTypes::OCTREE, true);
   models[27] = RSModel(RSModel::TreeTypes::OCTREE, false);
 
-  for (size_t j = 0; j < 2; ++j)
+  util::Timers timers;
+
+  for (size_t j = 0; j < 3; ++j)
   {
     // Get a baseline.
     RangeSearch<> rs(referenceData);
     vector<vector<size_t>> baselineNeighbors;
     vector<vector<double>> baselineDistances;
-    rs.Search(math::Range(0.25, 0.5), baselineNeighbors, baselineDistances);
+    rs.Search(Range(0.25, 0.5), baselineNeighbors, baselineDistances);
 
     vector<vector<pair<double, size_t>>> baselineSorted;
     SortResults(baselineNeighbors, baselineDistances, baselineSorted);
@@ -1386,31 +1403,31 @@ BOOST_AUTO_TEST_CASE(RSModelMonochromaticTest)
       // We only have std::move() cosntructors, so make a copy of our data.
       arma::mat referenceCopy(referenceData);
       if (j == 0)
-        models[i].BuildModel(std::move(referenceCopy), 5, false, false);
+        models[i].BuildModel(timers, std::move(referenceCopy), 5, false, false);
       else if (j == 1)
-        models[i].BuildModel(std::move(referenceCopy), 5, false, true);
+        models[i].BuildModel(timers, std::move(referenceCopy), 5, false, true);
       else if (j == 2)
-        models[i].BuildModel(std::move(referenceCopy), 5, true, false);
+        models[i].BuildModel(timers, std::move(referenceCopy), 5, true, false);
 
       vector<vector<size_t>> neighbors;
       vector<vector<double>> distances;
 
-      models[i].Search(math::Range(0.25, 0.5), neighbors, distances);
+      models[i].Search(timers, Range(0.25, 0.5), neighbors, distances);
 
-      BOOST_REQUIRE_EQUAL(neighbors.size(), baselineNeighbors.size());
-      BOOST_REQUIRE_EQUAL(distances.size(), baselineDistances.size());
+      REQUIRE(neighbors.size() == baselineNeighbors.size());
+      REQUIRE(distances.size() == baselineDistances.size());
 
       vector<vector<pair<double, size_t>>> sorted;
       SortResults(neighbors, distances, sorted);
 
       for (size_t k = 0; k < sorted.size(); ++k)
       {
-        BOOST_REQUIRE_EQUAL(sorted[k].size(), baselineSorted[k].size());
+        REQUIRE(sorted[k].size() == baselineSorted[k].size());
         for (size_t l = 0; l < sorted[k].size(); ++l)
         {
-          BOOST_REQUIRE_EQUAL(sorted[k][l].second, baselineSorted[k][l].second);
-          BOOST_REQUIRE_CLOSE(sorted[k][l].first, baselineSorted[k][l].first,
-              1e-5);
+          REQUIRE(sorted[k][l].second == baselineSorted[k][l].second);
+          REQUIRE(sorted[k][l].first ==
+              Approx(baselineSorted[k][l].first).epsilon(1e-7));
         }
       }
     }
@@ -1421,12 +1438,12 @@ BOOST_AUTO_TEST_CASE(RSModelMonochromaticTest)
  * Make sure that the neighborPtr matrix isn't accidentally deleted.
  * See issue #478.
  */
-BOOST_AUTO_TEST_CASE(NeighborPtrDeleteTest)
+TEST_CASE("NeighborPtrDeleteTest", "[RangeSearchTest]")
 {
   arma::mat dataset = arma::randu<arma::mat>(5, 100);
 
   // Build the tree ourselves.
-  std::vector<size_t> oldFromNewReferences;
+  vector<size_t> oldFromNewReferences;
   RangeSearch<>::Tree tree(dataset);
   RangeSearch<> ra(&tree);
 
@@ -1434,13 +1451,264 @@ BOOST_AUTO_TEST_CASE(NeighborPtrDeleteTest)
   arma::mat queryset = arma::randu<arma::mat>(5, 50);
   vector<vector<double>> distances;
   vector<vector<size_t>> neighbors;
-  ra.Search(queryset, math::Range(0.2, 0.5), neighbors, distances);
+  ra.Search(queryset, Range(0.2, 0.5), neighbors, distances);
 
   // These will (hopefully) fail is either the neighbors or the distances matrix
   // has been accidentally deleted.
-  BOOST_REQUIRE_EQUAL(neighbors.size(), 50);
-  BOOST_REQUIRE_EQUAL(distances.size(), 50);
+  REQUIRE(neighbors.size() == 50);
+  REQUIRE(distances.size() == 50);
 }
 
+/**
+ * Test copy constructor and copy operator.
+ */
+TEST_CASE("RangeSearchCopyConstructorAndOperatorTest", "[RangeSearchTest]")
+{
+  arma::mat dataset = arma::randu<arma::mat>(5, 500);
+  RangeSearch<> rs(std::move(dataset));
 
-BOOST_AUTO_TEST_SUITE_END();
+  // Copy constructor and operator.
+  RangeSearch<> rs2(rs);
+  RangeSearch<> rs3 = rs;
+
+  // Get results.
+  vector<vector<double>> distances, distances2, distances3;
+  vector<vector<size_t>> neighbors, neighbors2, neighbors3;
+
+  rs.Search(Range(0.2, 0.3), neighbors, distances);
+  rs2.Search(Range(0.2, 0.3), neighbors2, distances2);
+  rs3.Search(Range(0.2, 0.3), neighbors3, distances3);
+
+  // Check results.
+  REQUIRE(distances.size() == distances2.size());
+  REQUIRE(distances.size() == distances3.size());
+  REQUIRE(neighbors.size() == neighbors2.size());
+  REQUIRE(neighbors.size() == neighbors3.size());
+
+  for (size_t i = 0; i < neighbors.size(); ++i)
+  {
+    REQUIRE(distances[i].size() == distances2[i].size());
+    REQUIRE(distances[i].size() == distances3[i].size());
+    REQUIRE(neighbors[i].size() == neighbors2[i].size());
+    REQUIRE(neighbors[i].size() == neighbors3[i].size());
+
+    for (size_t j = 0; j < neighbors[i].size(); ++j)
+    {
+      REQUIRE(neighbors[i][j] == neighbors2[i][j]);
+      REQUIRE(neighbors[i][j] == neighbors3[i][j]);
+
+      // Distances will always be between 0.2 and 0.3.
+      REQUIRE(distances[i][j] == Approx(distances2[i][j]).epsilon(1e-7));
+      REQUIRE(distances[i][j] == Approx(distances3[i][j]).epsilon(1e-7));
+    }
+  }
+}
+
+/**
+ * Test move constructor.
+ */
+TEST_CASE("RangeSearchMoveConstructorTest", "[RangeSearchTest]")
+{
+  arma::mat dataset = arma::randu<arma::mat>(5, 500);
+  RangeSearch<>* rs = new RangeSearch<>(std::move(dataset));
+
+  // Get results.
+  vector<vector<double>> distances, distances2;
+  vector<vector<size_t>> neighbors, neighbors2;
+
+  rs->Search(Range(0.2, 0.3), neighbors, distances);
+
+  RangeSearch<> rs2(std::move(*rs));
+
+  delete rs;
+
+  rs2.Search(Range(0.2, 0.3), neighbors2, distances2);
+
+  // Check results.
+  REQUIRE(distances.size() == distances2.size());
+  REQUIRE(neighbors.size() == neighbors2.size());
+
+  for (size_t i = 0; i < neighbors.size(); ++i)
+  {
+    REQUIRE(distances[i].size() == distances2[i].size());
+    REQUIRE(neighbors[i].size() == neighbors2[i].size());
+
+    for (size_t j = 0; j < neighbors[i].size(); ++j)
+    {
+      REQUIRE(neighbors[i][j] == neighbors2[i][j]);
+
+      // Distances will always be between 0.2 and 0.3.
+      REQUIRE(distances[i][j] == Approx(distances2[i][j]).epsilon(1e-7));
+    }
+  }
+}
+
+/**
+ * Test move operator.
+ */
+TEST_CASE("RangeSearchMoveOperatorTest", "[RangeSearchTest]")
+{
+  arma::mat dataset = arma::randu<arma::mat>(5, 500);
+  RangeSearch<>* rs = new RangeSearch<>(std::move(dataset));
+
+  // Get results.
+  vector<vector<double>> distances, distances2;
+  vector<vector<size_t>> neighbors, neighbors2;
+
+  rs->Search(Range(0.2, 0.3), neighbors, distances);
+
+  RangeSearch<> rs2 = std::move(*rs);
+
+  delete rs;
+
+  rs2.Search(Range(0.2, 0.3), neighbors2, distances2);
+
+  // Check results.
+  REQUIRE(distances.size() == distances2.size());
+  REQUIRE(neighbors.size() == neighbors2.size());
+
+  for (size_t i = 0; i < neighbors.size(); ++i)
+  {
+    REQUIRE(distances[i].size() == distances2[i].size());
+    REQUIRE(neighbors[i].size() == neighbors2[i].size());
+
+    for (size_t j = 0; j < neighbors[i].size(); ++j)
+    {
+      REQUIRE(neighbors[i][j] == neighbors2[i][j]);
+
+      // Distances will always be between 0.2 and 0.3.
+      REQUIRE(distances[i][j] == Approx(distances2[i][j]).epsilon(1e-7));
+    }
+  }
+}
+
+/**
+ * Test copy constructor and copy operator in naive mode (so there are no
+ * trees).
+ */
+TEST_CASE("CopyConstructorAndOperatorNaiveTest", "[RangeSearchTest]")
+{
+  arma::mat dataset = arma::randu<arma::mat>(5, 500);
+  RangeSearch<> rs(std::move(dataset), true);
+
+  // Copy constructor and operator.
+  RangeSearch<> rs2(rs);
+  RangeSearch<> rs3 = rs;
+
+  REQUIRE(rs2.Naive() == true);
+  REQUIRE(rs3.Naive() == true);
+
+  // Get results.
+  vector<vector<double>> distances, distances2, distances3;
+  vector<vector<size_t>> neighbors, neighbors2, neighbors3;
+
+  rs.Search(Range(0.2, 0.3), neighbors, distances);
+  rs2.Search(Range(0.2, 0.3), neighbors2, distances2);
+  rs3.Search(Range(0.2, 0.3), neighbors3, distances3);
+
+  // Check results.
+  REQUIRE(distances.size() == distances2.size());
+  REQUIRE(distances.size() == distances3.size());
+  REQUIRE(neighbors.size() == neighbors2.size());
+  REQUIRE(neighbors.size() == neighbors3.size());
+
+  for (size_t i = 0; i < neighbors.size(); ++i)
+  {
+    REQUIRE(distances[i].size() == distances2[i].size());
+    REQUIRE(distances[i].size() == distances3[i].size());
+    REQUIRE(neighbors[i].size() == neighbors2[i].size());
+    REQUIRE(neighbors[i].size() == neighbors3[i].size());
+
+    for (size_t j = 0; j < neighbors[i].size(); ++j)
+    {
+      REQUIRE(neighbors[i][j] == neighbors2[i][j]);
+      REQUIRE(neighbors[i][j] == neighbors3[i][j]);
+
+      // Distances will always be between 0.2 and 0.3.
+      REQUIRE(distances[i][j] == Approx(distances2[i][j]).epsilon(1e-7));
+      REQUIRE(distances[i][j] == Approx(distances3[i][j]).epsilon(1e-7));
+    }
+  }
+}
+
+/**
+ * Test move constructor.
+ */
+TEST_CASE("MoveConstructorNaiveTest", "[RangeSearchTest]")
+{
+  arma::mat dataset = arma::randu<arma::mat>(5, 500);
+  RangeSearch<>* rs = new RangeSearch<>(std::move(dataset), true);
+
+  // Get results.
+  vector<vector<double>> distances, distances2;
+  vector<vector<size_t>> neighbors, neighbors2;
+
+  rs->Search(Range(0.2, 0.3), neighbors, distances);
+
+  RangeSearch<> rs2(std::move(*rs));
+
+  REQUIRE(rs2.Naive() == true);
+
+  delete rs;
+
+  rs2.Search(Range(0.2, 0.3), neighbors2, distances2);
+
+  // Check results.
+  REQUIRE(distances.size() == distances2.size());
+  REQUIRE(neighbors.size() == neighbors2.size());
+
+  for (size_t i = 0; i < neighbors.size(); ++i)
+  {
+    REQUIRE(distances[i].size() == distances2[i].size());
+    REQUIRE(neighbors[i].size() == neighbors2[i].size());
+
+    for (size_t j = 0; j < neighbors[i].size(); ++j)
+    {
+      REQUIRE(neighbors[i][j] == neighbors2[i][j]);
+
+      // Distances will always be between 0.2 and 0.3.
+      REQUIRE(distances[i][j] == Approx(distances2[i][j]).epsilon(1e-7));
+    }
+  }
+}
+
+/**
+ * Test move operator.
+ */
+TEST_CASE("MoveOperatorNaiveTest", "[RangeSearchTest]")
+{
+  arma::mat dataset = arma::randu<arma::mat>(5, 500);
+  RangeSearch<>* rs = new RangeSearch<>(std::move(dataset), true);
+
+  // Get results.
+  vector<vector<double>> distances, distances2;
+  vector<vector<size_t>> neighbors, neighbors2;
+
+  rs->Search(Range(0.2, 0.3), neighbors, distances);
+
+  RangeSearch<> rs2 = std::move(*rs);
+
+  REQUIRE(rs2.Naive() == true);
+
+  delete rs;
+
+  rs2.Search(Range(0.2, 0.3), neighbors2, distances2);
+
+  // Check results.
+  REQUIRE(distances.size() == distances2.size());
+  REQUIRE(neighbors.size() == neighbors2.size());
+
+  for (size_t i = 0; i < neighbors.size(); ++i)
+  {
+    REQUIRE(distances[i].size() == distances2[i].size());
+    REQUIRE(neighbors[i].size() == neighbors2[i].size());
+
+    for (size_t j = 0; j < neighbors[i].size(); ++j)
+    {
+      REQUIRE(neighbors[i][j] == neighbors2[i][j]);
+
+      // Distances will always be between 0.2 and 0.3.
+      REQUIRE(distances[i][j] == Approx(distances2[i][j]).epsilon(1e-7));
+    }
+  }
+}

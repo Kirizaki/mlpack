@@ -2,18 +2,8 @@ mlpack is provided without any warranty of fitness for any purpose.  You
 can redistribute the library and/or modify it under the terms of the 3-clause
 BSD license.  The text of the 3-clause BSD license is contained below.
 
-mlpack contains some reproductions of the source code of Armadillo, which is
-licensed under the Mozilla Public License v2.0 (MPL2).  This code is found in
-src/mlpack/core/arma_extend/ and more details on the licensing are available
-there.
-
-mlpack also contains some reproductions of the source code of Boost, which is
-licensed under the Boost Software License, version 1.0.  This code is found in
-src/mlpack/core/boost_backport/ and more details on the licensing are available
-there.
-
 ----
-Copyright (c) 2007-2016, mlpack contributors (see COPYRIGHT.txt)
+Copyright (c) 2007-2025, mlpack contributors (see COPYRIGHT.txt)
 All rights reserved.
 
 Redistribution and use of mlpack in source and binary forms, with or without
@@ -40,3 +30,9 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+------
+mlpack also contains some usage of the source code of the STB library,
+which is providing support for image loading, saving and resizing. STB is
+dual-licensed under the MIT license and the public domain. This code can be
+found in src/mlpack/core/stb/ for more details about licensing and usage.

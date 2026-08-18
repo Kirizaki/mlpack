@@ -1,5 +1,5 @@
 /**
- * @file kfn_test.cpp
+ * @file tests/kfn_test.cpp
  *
  * Tests for KFN (k-furthest-neighbors).
  *
@@ -9,18 +9,11 @@
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #include <mlpack/core.hpp>
-#include <mlpack/methods/neighbor_search/neighbor_search.hpp>
-#include <mlpack/core/tree/cover_tree.hpp>
-#include <boost/test/unit_test.hpp>
-#include "test_tools.hpp"
+#include <mlpack/methods/neighbor_search.hpp>
+#include "test_catch_tools.hpp"
+#include "catch.hpp"
 
 using namespace mlpack;
-using namespace mlpack::neighbor;
-using namespace mlpack::tree;
-using namespace mlpack::metric;
-using namespace mlpack::bound;
-
-BOOST_AUTO_TEST_SUITE(KFNTest);
 
 /**
  * Simple furthest-neighbors test with small, synthetic dataset.  This is an
@@ -30,7 +23,7 @@ BOOST_AUTO_TEST_SUITE(KFNTest);
  * is in one dimension for simplicity -- the correct functionality of distance
  * functions is not tested here.
  */
-BOOST_AUTO_TEST_CASE(ExhaustiveSyntheticTest)
+TEST_CASE("KFNExhaustiveSyntheticTest", "[KFNTest]")
 {
   // Set up our data.
   arma::mat data(1, 11);
@@ -46,8 +39,8 @@ BOOST_AUTO_TEST_CASE(ExhaustiveSyntheticTest)
   data[9] = 0.90;
   data[10] = 1.00;
 
-  typedef BinarySpaceTree<EuclideanDistance,
-      NeighborSearchStat<FurthestNeighborSort>, arma::mat> TreeType;
+  using TreeType = BinarySpaceTree<EuclideanDistance,
+      NeighborSearchStat<FurthestNeighborSort>, arma::mat>;
 
   // We will loop through three times, one for each method of performing the
   // calculation.  We'll always use 10 neighbors, so set that parameter.
@@ -56,18 +49,18 @@ BOOST_AUTO_TEST_CASE(ExhaustiveSyntheticTest)
   TreeType tree(data, oldFromNew, newFromOld, 1);
   KFN kfn(std::move(tree));
 
-  for (int i = 0; i < 3; i++)
+  for (int i = 0; i < 3; ++i)
   {
     switch (i)
     {
       case 0: // Use the dual-tree method.
-        kfn.SearchMode() = DUAL_TREE_MODE;
+        kfn.SearchStrategy() = DUAL_TREE;
         break;
       case 1: // Use the single-tree method.
-        kfn.SearchMode() = SINGLE_TREE_MODE;
+        kfn.SearchStrategy() = SINGLE_TREE;
         break;
       case 2: // Use the naive method.
-        kfn.SearchMode() = NAIVE_MODE;
+        kfn.SearchStrategy() = NAIVE;
         break;
     }
 
@@ -82,246 +75,246 @@ BOOST_AUTO_TEST_CASE(ExhaustiveSyntheticTest)
     // readability.
 
     // Neighbors of point 0.
-    BOOST_REQUIRE_EQUAL(neighbors(9, newFromOld[0]), newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(distances(9, newFromOld[0]), 0.10, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(8, newFromOld[0]), newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(distances(8, newFromOld[0]), 0.27, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(7, newFromOld[0]), newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(distances(7, newFromOld[0]), 0.30, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(6, newFromOld[0]), newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(distances(6, newFromOld[0]), 0.40, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(5, newFromOld[0]), newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(distances(5, newFromOld[0]), 0.85, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(4, newFromOld[0]), newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(distances(4, newFromOld[0]), 0.95, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(3, newFromOld[0]), newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(distances(3, newFromOld[0]), 1.20, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(2, newFromOld[0]), newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(distances(2, newFromOld[0]), 1.35, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(1, newFromOld[0]), newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(distances(1, newFromOld[0]), 2.05, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(0, newFromOld[0]), newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(distances(0, newFromOld[0]), 5.00, 1e-5);
+    REQUIRE(neighbors(9, newFromOld[0]) == newFromOld[2]);
+    REQUIRE(distances(9, newFromOld[0]) == Approx(0.10).epsilon(1e-7));
+    REQUIRE(neighbors(8, newFromOld[0]) == newFromOld[5]);
+    REQUIRE(distances(8, newFromOld[0]) == Approx(0.27).epsilon(1e-7));
+    REQUIRE(neighbors(7, newFromOld[0]) == newFromOld[1]);
+    REQUIRE(distances(7, newFromOld[0]) == Approx(0.30).epsilon(1e-7));
+    REQUIRE(neighbors(6, newFromOld[0]) == newFromOld[8]);
+    REQUIRE(distances(6, newFromOld[0]) == Approx(0.40).epsilon(1e-7));
+    REQUIRE(neighbors(5, newFromOld[0]) == newFromOld[9]);
+    REQUIRE(distances(5, newFromOld[0]) == Approx(0.85).epsilon(1e-7));
+    REQUIRE(neighbors(4, newFromOld[0]) == newFromOld[10]);
+    REQUIRE(distances(4, newFromOld[0]) == Approx(0.95).epsilon(1e-7));
+    REQUIRE(neighbors(3, newFromOld[0]) == newFromOld[3]);
+    REQUIRE(distances(3, newFromOld[0]) == Approx(1.20).epsilon(1e-7));
+    REQUIRE(neighbors(2, newFromOld[0]) == newFromOld[7]);
+    REQUIRE(distances(2, newFromOld[0]) == Approx(1.35).epsilon(1e-7));
+    REQUIRE(neighbors(1, newFromOld[0]) == newFromOld[6]);
+    REQUIRE(distances(1, newFromOld[0]) == Approx(2.05).epsilon(1e-7));
+    REQUIRE(neighbors(0, newFromOld[0]) == newFromOld[4]);
+    REQUIRE(distances(0, newFromOld[0]) == Approx(5.00).epsilon(1e-7));
 
     // Neighbors of point 1.
-    BOOST_REQUIRE_EQUAL(neighbors(9, newFromOld[1]), newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(distances(9, newFromOld[1]), 0.10, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(8, newFromOld[1]), newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(distances(8, newFromOld[1]), 0.20, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(7, newFromOld[1]), newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(distances(7, newFromOld[1]), 0.30, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(6, newFromOld[1]), newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(distances(6, newFromOld[1]), 0.55, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(5, newFromOld[1]), newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(distances(5, newFromOld[1]), 0.57, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(4, newFromOld[1]), newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(distances(4, newFromOld[1]), 0.65, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(3, newFromOld[1]), newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(distances(3, newFromOld[1]), 0.90, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(2, newFromOld[1]), newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(distances(2, newFromOld[1]), 1.65, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(1, newFromOld[1]), newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(distances(1, newFromOld[1]), 2.35, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(0, newFromOld[1]), newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(distances(0, newFromOld[1]), 4.70, 1e-5);
+    REQUIRE(neighbors(9, newFromOld[1]) == newFromOld[8]);
+    REQUIRE(distances(9, newFromOld[1]) == Approx(0.10).epsilon(1e-7));
+    REQUIRE(neighbors(8, newFromOld[1]) == newFromOld[2]);
+    REQUIRE(distances(8, newFromOld[1]) == Approx(0.20).epsilon(1e-7));
+    REQUIRE(neighbors(7, newFromOld[1]) == newFromOld[0]);
+    REQUIRE(distances(7, newFromOld[1]) == Approx(0.30).epsilon(1e-7));
+    REQUIRE(neighbors(6, newFromOld[1]) == newFromOld[9]);
+    REQUIRE(distances(6, newFromOld[1]) == Approx(0.55).epsilon(1e-7));
+    REQUIRE(neighbors(5, newFromOld[1]) == newFromOld[5]);
+    REQUIRE(distances(5, newFromOld[1]) == Approx(0.57).epsilon(1e-7));
+    REQUIRE(neighbors(4, newFromOld[1]) == newFromOld[10]);
+    REQUIRE(distances(4, newFromOld[1]) == Approx(0.65).epsilon(1e-7));
+    REQUIRE(neighbors(3, newFromOld[1]) == newFromOld[3]);
+    REQUIRE(distances(3, newFromOld[1]) == Approx(0.90).epsilon(1e-7));
+    REQUIRE(neighbors(2, newFromOld[1]) == newFromOld[7]);
+    REQUIRE(distances(2, newFromOld[1]) == Approx(1.65).epsilon(1e-7));
+    REQUIRE(neighbors(1, newFromOld[1]) == newFromOld[6]);
+    REQUIRE(distances(1, newFromOld[1]) == Approx(2.35).epsilon(1e-7));
+    REQUIRE(neighbors(0, newFromOld[1]) == newFromOld[4]);
+    REQUIRE(distances(0, newFromOld[1]) == Approx(4.70).epsilon(1e-7));
 
     // Neighbors of point 2.
-    BOOST_REQUIRE_EQUAL(neighbors(9, newFromOld[2]), newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(distances(9, newFromOld[2]), 0.10, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(8, newFromOld[2]), newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(distances(8, newFromOld[2]), 0.20, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(7, newFromOld[2]), newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(distances(7, newFromOld[2]), 0.30, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(6, newFromOld[2]), newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(distances(6, newFromOld[2]), 0.37, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(5, newFromOld[2]), newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(distances(5, newFromOld[2]), 0.75, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(4, newFromOld[2]), newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(distances(4, newFromOld[2]), 0.85, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(3, newFromOld[2]), newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(distances(3, newFromOld[2]), 1.10, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(2, newFromOld[2]), newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(distances(2, newFromOld[2]), 1.45, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(1, newFromOld[2]), newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(distances(1, newFromOld[2]), 2.15, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(0, newFromOld[2]), newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(distances(0, newFromOld[2]), 4.90, 1e-5);
+    REQUIRE(neighbors(9, newFromOld[2]) == newFromOld[0]);
+    REQUIRE(distances(9, newFromOld[2]) == Approx(0.10).epsilon(1e-7));
+    REQUIRE(neighbors(8, newFromOld[2]) == newFromOld[1]);
+    REQUIRE(distances(8, newFromOld[2]) == Approx(0.20).epsilon(1e-7));
+    REQUIRE(neighbors(7, newFromOld[2]) == newFromOld[8]);
+    REQUIRE(distances(7, newFromOld[2]) == Approx(0.30).epsilon(1e-7));
+    REQUIRE(neighbors(6, newFromOld[2]) == newFromOld[5]);
+    REQUIRE(distances(6, newFromOld[2]) == Approx(0.37).epsilon(1e-7));
+    REQUIRE(neighbors(5, newFromOld[2]) == newFromOld[9]);
+    REQUIRE(distances(5, newFromOld[2]) == Approx(0.75).epsilon(1e-7));
+    REQUIRE(neighbors(4, newFromOld[2]) == newFromOld[10]);
+    REQUIRE(distances(4, newFromOld[2]) == Approx(0.85).epsilon(1e-7));
+    REQUIRE(neighbors(3, newFromOld[2]) == newFromOld[3]);
+    REQUIRE(distances(3, newFromOld[2]) == Approx(1.10).epsilon(1e-7));
+    REQUIRE(neighbors(2, newFromOld[2]) == newFromOld[7]);
+    REQUIRE(distances(2, newFromOld[2]) == Approx(1.45).epsilon(1e-7));
+    REQUIRE(neighbors(1, newFromOld[2]) == newFromOld[6]);
+    REQUIRE(distances(1, newFromOld[2]) == Approx(2.15).epsilon(1e-7));
+    REQUIRE(neighbors(0, newFromOld[2]) == newFromOld[4]);
+    REQUIRE(distances(0, newFromOld[2]) == Approx(4.90).epsilon(1e-7));
 
     // Neighbors of point 3.
-    BOOST_REQUIRE_EQUAL(neighbors(9, newFromOld[3]), newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(distances(9, newFromOld[3]), 0.25, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(8, newFromOld[3]), newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(distances(8, newFromOld[3]), 0.35, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(7, newFromOld[3]), newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(distances(7, newFromOld[3]), 0.80, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(6, newFromOld[3]), newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(distances(6, newFromOld[3]), 0.90, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(5, newFromOld[3]), newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(distances(5, newFromOld[3]), 1.10, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(4, newFromOld[3]), newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(distances(4, newFromOld[3]), 1.20, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(3, newFromOld[3]), newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(distances(3, newFromOld[3]), 1.47, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(2, newFromOld[3]), newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(distances(2, newFromOld[3]), 2.55, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(1, newFromOld[3]), newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(distances(1, newFromOld[3]), 3.25, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(0, newFromOld[3]), newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(distances(0, newFromOld[3]), 3.80, 1e-5);
+    REQUIRE(neighbors(9, newFromOld[3]) == newFromOld[10]);
+    REQUIRE(distances(9, newFromOld[3]) == Approx(0.25).epsilon(1e-7));
+    REQUIRE(neighbors(8, newFromOld[3]) == newFromOld[9]);
+    REQUIRE(distances(8, newFromOld[3]) == Approx(0.35).epsilon(1e-7));
+    REQUIRE(neighbors(7, newFromOld[3]) == newFromOld[8]);
+    REQUIRE(distances(7, newFromOld[3]) == Approx(0.80).epsilon(1e-7));
+    REQUIRE(neighbors(6, newFromOld[3]) == newFromOld[1]);
+    REQUIRE(distances(6, newFromOld[3]) == Approx(0.90).epsilon(1e-7));
+    REQUIRE(neighbors(5, newFromOld[3]) == newFromOld[2]);
+    REQUIRE(distances(5, newFromOld[3]) == Approx(1.10).epsilon(1e-7));
+    REQUIRE(neighbors(4, newFromOld[3]) == newFromOld[0]);
+    REQUIRE(distances(4, newFromOld[3]) == Approx(1.20).epsilon(1e-7));
+    REQUIRE(neighbors(3, newFromOld[3]) == newFromOld[5]);
+    REQUIRE(distances(3, newFromOld[3]) == Approx(1.47).epsilon(1e-7));
+    REQUIRE(neighbors(2, newFromOld[3]) == newFromOld[7]);
+    REQUIRE(distances(2, newFromOld[3]) == Approx(2.55).epsilon(1e-7));
+    REQUIRE(neighbors(1, newFromOld[3]) == newFromOld[6]);
+    REQUIRE(distances(1, newFromOld[3]) == Approx(3.25).epsilon(1e-7));
+    REQUIRE(neighbors(0, newFromOld[3]) == newFromOld[4]);
+    REQUIRE(distances(0, newFromOld[3]) == Approx(3.80).epsilon(1e-7));
 
     // Neighbors of point 4.
-    BOOST_REQUIRE_EQUAL(neighbors(9, newFromOld[4]), newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(distances(9, newFromOld[4]), 3.80, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(8, newFromOld[4]), newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(distances(8, newFromOld[4]), 4.05, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(7, newFromOld[4]), newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(distances(7, newFromOld[4]), 4.15, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(6, newFromOld[4]), newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(distances(6, newFromOld[4]), 4.60, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(5, newFromOld[4]), newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(distances(5, newFromOld[4]), 4.70, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(4, newFromOld[4]), newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(distances(4, newFromOld[4]), 4.90, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(3, newFromOld[4]), newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(distances(3, newFromOld[4]), 5.00, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(2, newFromOld[4]), newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(distances(2, newFromOld[4]), 5.27, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(1, newFromOld[4]), newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(distances(1, newFromOld[4]), 6.35, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(0, newFromOld[4]), newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(distances(0, newFromOld[4]), 7.05, 1e-5);
+    REQUIRE(neighbors(9, newFromOld[4]) == newFromOld[3]);
+    REQUIRE(distances(9, newFromOld[4]) == Approx(3.80).epsilon(1e-7));
+    REQUIRE(neighbors(8, newFromOld[4]) == newFromOld[10]);
+    REQUIRE(distances(8, newFromOld[4]) == Approx(4.05).epsilon(1e-7));
+    REQUIRE(neighbors(7, newFromOld[4]) == newFromOld[9]);
+    REQUIRE(distances(7, newFromOld[4]) == Approx(4.15).epsilon(1e-7));
+    REQUIRE(neighbors(6, newFromOld[4]) == newFromOld[8]);
+    REQUIRE(distances(6, newFromOld[4]) == Approx(4.60).epsilon(1e-7));
+    REQUIRE(neighbors(5, newFromOld[4]) == newFromOld[1]);
+    REQUIRE(distances(5, newFromOld[4]) == Approx(4.70).epsilon(1e-7));
+    REQUIRE(neighbors(4, newFromOld[4]) == newFromOld[2]);
+    REQUIRE(distances(4, newFromOld[4]) == Approx(4.90).epsilon(1e-7));
+    REQUIRE(neighbors(3, newFromOld[4]) == newFromOld[0]);
+    REQUIRE(distances(3, newFromOld[4]) == Approx(5.00).epsilon(1e-7));
+    REQUIRE(neighbors(2, newFromOld[4]) == newFromOld[5]);
+    REQUIRE(distances(2, newFromOld[4]) == Approx(5.27).epsilon(1e-7));
+    REQUIRE(neighbors(1, newFromOld[4]) == newFromOld[7]);
+    REQUIRE(distances(1, newFromOld[4]) == Approx(6.35).epsilon(1e-7));
+    REQUIRE(neighbors(0, newFromOld[4]) == newFromOld[6]);
+    REQUIRE(distances(0, newFromOld[4]) == Approx(7.05).epsilon(1e-7));
 
     // Neighbors of point 5.
-    BOOST_REQUIRE_EQUAL(neighbors(9, newFromOld[5]), newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(distances(9, newFromOld[5]), 0.27, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(8, newFromOld[5]), newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(distances(8, newFromOld[5]), 0.37, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(7, newFromOld[5]), newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(distances(7, newFromOld[5]), 0.57, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(6, newFromOld[5]), newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(distances(6, newFromOld[5]), 0.67, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(5, newFromOld[5]), newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(distances(5, newFromOld[5]), 1.08, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(4, newFromOld[5]), newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(distances(4, newFromOld[5]), 1.12, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(3, newFromOld[5]), newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(distances(3, newFromOld[5]), 1.22, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(2, newFromOld[5]), newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(distances(2, newFromOld[5]), 1.47, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(1, newFromOld[5]), newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(distances(1, newFromOld[5]), 1.78, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(0, newFromOld[5]), newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(distances(0, newFromOld[5]), 5.27, 1e-5);
+    REQUIRE(neighbors(9, newFromOld[5]) == newFromOld[0]);
+    REQUIRE(distances(9, newFromOld[5]) == Approx(0.27).epsilon(1e-7));
+    REQUIRE(neighbors(8, newFromOld[5]) == newFromOld[2]);
+    REQUIRE(distances(8, newFromOld[5]) == Approx(0.37).epsilon(1e-7));
+    REQUIRE(neighbors(7, newFromOld[5]) == newFromOld[1]);
+    REQUIRE(distances(7, newFromOld[5]) == Approx(0.57).epsilon(1e-7));
+    REQUIRE(neighbors(6, newFromOld[5]) == newFromOld[8]);
+    REQUIRE(distances(6, newFromOld[5]) == Approx(0.67).epsilon(1e-7));
+    REQUIRE(neighbors(5, newFromOld[5]) == newFromOld[7]);
+    REQUIRE(distances(5, newFromOld[5]) == Approx(1.08).epsilon(1e-7));
+    REQUIRE(neighbors(4, newFromOld[5]) == newFromOld[9]);
+    REQUIRE(distances(4, newFromOld[5]) == Approx(1.12).epsilon(1e-7));
+    REQUIRE(neighbors(3, newFromOld[5]) == newFromOld[10]);
+    REQUIRE(distances(3, newFromOld[5]) == Approx(1.22).epsilon(1e-7));
+    REQUIRE(neighbors(2, newFromOld[5]) == newFromOld[3]);
+    REQUIRE(distances(2, newFromOld[5]) == Approx(1.47).epsilon(1e-7));
+    REQUIRE(neighbors(1, newFromOld[5]) == newFromOld[6]);
+    REQUIRE(distances(1, newFromOld[5]) == Approx(1.78).epsilon(1e-7));
+    REQUIRE(neighbors(0, newFromOld[5]) == newFromOld[4]);
+    REQUIRE(distances(0, newFromOld[5]) == Approx(5.27).epsilon(1e-7));
 
     // Neighbors of point 6.
-    BOOST_REQUIRE_EQUAL(neighbors(9, newFromOld[6]), newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(distances(9, newFromOld[6]), 0.70, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(8, newFromOld[6]), newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(distances(8, newFromOld[6]), 1.78, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(7, newFromOld[6]), newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(distances(7, newFromOld[6]), 2.05, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(6, newFromOld[6]), newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(distances(6, newFromOld[6]), 2.15, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(5, newFromOld[6]), newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(distances(5, newFromOld[6]), 2.35, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(4, newFromOld[6]), newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(distances(4, newFromOld[6]), 2.45, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(3, newFromOld[6]), newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(distances(3, newFromOld[6]), 2.90, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(2, newFromOld[6]), newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(distances(2, newFromOld[6]), 3.00, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(1, newFromOld[6]), newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(distances(1, newFromOld[6]), 3.25, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(0, newFromOld[6]), newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(distances(0, newFromOld[6]), 7.05, 1e-5);
+    REQUIRE(neighbors(9, newFromOld[6]) == newFromOld[7]);
+    REQUIRE(distances(9, newFromOld[6]) == Approx(0.70).epsilon(1e-7));
+    REQUIRE(neighbors(8, newFromOld[6]) == newFromOld[5]);
+    REQUIRE(distances(8, newFromOld[6]) == Approx(1.78).epsilon(1e-7));
+    REQUIRE(neighbors(7, newFromOld[6]) == newFromOld[0]);
+    REQUIRE(distances(7, newFromOld[6]) == Approx(2.05).epsilon(1e-7));
+    REQUIRE(neighbors(6, newFromOld[6]) == newFromOld[2]);
+    REQUIRE(distances(6, newFromOld[6]) == Approx(2.15).epsilon(1e-7));
+    REQUIRE(neighbors(5, newFromOld[6]) == newFromOld[1]);
+    REQUIRE(distances(5, newFromOld[6]) == Approx(2.35).epsilon(1e-7));
+    REQUIRE(neighbors(4, newFromOld[6]) == newFromOld[8]);
+    REQUIRE(distances(4, newFromOld[6]) == Approx(2.45).epsilon(1e-7));
+    REQUIRE(neighbors(3, newFromOld[6]) == newFromOld[9]);
+    REQUIRE(distances(3, newFromOld[6]) == Approx(2.90).epsilon(1e-7));
+    REQUIRE(neighbors(2, newFromOld[6]) == newFromOld[10]);
+    REQUIRE(distances(2, newFromOld[6]) == Approx(3.00).epsilon(1e-7));
+    REQUIRE(neighbors(1, newFromOld[6]) == newFromOld[3]);
+    REQUIRE(distances(1, newFromOld[6]) == Approx(3.25).epsilon(1e-7));
+    REQUIRE(neighbors(0, newFromOld[6]) == newFromOld[4]);
+    REQUIRE(distances(0, newFromOld[6]) == Approx(7.05).epsilon(1e-7));
 
     // Neighbors of point 7.
-    BOOST_REQUIRE_EQUAL(neighbors(9, newFromOld[7]), newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(distances(9, newFromOld[7]), 0.70, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(8, newFromOld[7]), newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(distances(8, newFromOld[7]), 1.08, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(7, newFromOld[7]), newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(distances(7, newFromOld[7]), 1.35, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(6, newFromOld[7]), newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(distances(6, newFromOld[7]), 1.45, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(5, newFromOld[7]), newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(distances(5, newFromOld[7]), 1.65, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(4, newFromOld[7]), newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(distances(4, newFromOld[7]), 1.75, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(3, newFromOld[7]), newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(distances(3, newFromOld[7]), 2.20, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(2, newFromOld[7]), newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(distances(2, newFromOld[7]), 2.30, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(1, newFromOld[7]), newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(distances(1, newFromOld[7]), 2.55, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(0, newFromOld[7]), newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(distances(0, newFromOld[7]), 6.35, 1e-5);
+    REQUIRE(neighbors(9, newFromOld[7]) == newFromOld[6]);
+    REQUIRE(distances(9, newFromOld[7]) == Approx(0.70).epsilon(1e-7));
+    REQUIRE(neighbors(8, newFromOld[7]) == newFromOld[5]);
+    REQUIRE(distances(8, newFromOld[7]) == Approx(1.08).epsilon(1e-7));
+    REQUIRE(neighbors(7, newFromOld[7]) == newFromOld[0]);
+    REQUIRE(distances(7, newFromOld[7]) == Approx(1.35).epsilon(1e-7));
+    REQUIRE(neighbors(6, newFromOld[7]) == newFromOld[2]);
+    REQUIRE(distances(6, newFromOld[7]) == Approx(1.45).epsilon(1e-7));
+    REQUIRE(neighbors(5, newFromOld[7]) == newFromOld[1]);
+    REQUIRE(distances(5, newFromOld[7]) == Approx(1.65).epsilon(1e-7));
+    REQUIRE(neighbors(4, newFromOld[7]) == newFromOld[8]);
+    REQUIRE(distances(4, newFromOld[7]) == Approx(1.75).epsilon(1e-7));
+    REQUIRE(neighbors(3, newFromOld[7]) == newFromOld[9]);
+    REQUIRE(distances(3, newFromOld[7]) == Approx(2.20).epsilon(1e-7));
+    REQUIRE(neighbors(2, newFromOld[7]) == newFromOld[10]);
+    REQUIRE(distances(2, newFromOld[7]) == Approx(2.30).epsilon(1e-7));
+    REQUIRE(neighbors(1, newFromOld[7]) == newFromOld[3]);
+    REQUIRE(distances(1, newFromOld[7]) == Approx(2.55).epsilon(1e-7));
+    REQUIRE(neighbors(0, newFromOld[7]) == newFromOld[4]);
+    REQUIRE(distances(0, newFromOld[7]) == Approx(6.35).epsilon(1e-7));
 
     // Neighbors of point 8.
-    BOOST_REQUIRE_EQUAL(neighbors(9, newFromOld[8]), newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(distances(9, newFromOld[8]), 0.10, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(8, newFromOld[8]), newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(distances(8, newFromOld[8]), 0.30, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(7, newFromOld[8]), newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(distances(7, newFromOld[8]), 0.40, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(6, newFromOld[8]), newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(distances(6, newFromOld[8]), 0.45, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(5, newFromOld[8]), newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(distances(5, newFromOld[8]), 0.55, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(4, newFromOld[8]), newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(distances(4, newFromOld[8]), 0.67, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(3, newFromOld[8]), newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(distances(3, newFromOld[8]), 0.80, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(2, newFromOld[8]), newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(distances(2, newFromOld[8]), 1.75, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(1, newFromOld[8]), newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(distances(1, newFromOld[8]), 2.45, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(0, newFromOld[8]), newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(distances(0, newFromOld[8]), 4.60, 1e-5);
+    REQUIRE(neighbors(9, newFromOld[8]) == newFromOld[1]);
+    REQUIRE(distances(9, newFromOld[8]) == Approx(0.10).epsilon(1e-7));
+    REQUIRE(neighbors(8, newFromOld[8]) == newFromOld[2]);
+    REQUIRE(distances(8, newFromOld[8]) == Approx(0.30).epsilon(1e-7));
+    REQUIRE(neighbors(7, newFromOld[8]) == newFromOld[0]);
+    REQUIRE(distances(7, newFromOld[8]) == Approx(0.40).epsilon(1e-7));
+    REQUIRE(neighbors(6, newFromOld[8]) == newFromOld[9]);
+    REQUIRE(distances(6, newFromOld[8]) == Approx(0.45).epsilon(1e-7));
+    REQUIRE(neighbors(5, newFromOld[8]) == newFromOld[10]);
+    REQUIRE(distances(5, newFromOld[8]) == Approx(0.55).epsilon(1e-7));
+    REQUIRE(neighbors(4, newFromOld[8]) == newFromOld[5]);
+    REQUIRE(distances(4, newFromOld[8]) == Approx(0.67).epsilon(1e-7));
+    REQUIRE(neighbors(3, newFromOld[8]) == newFromOld[3]);
+    REQUIRE(distances(3, newFromOld[8]) == Approx(0.80).epsilon(1e-7));
+    REQUIRE(neighbors(2, newFromOld[8]) == newFromOld[7]);
+    REQUIRE(distances(2, newFromOld[8]) == Approx(1.75).epsilon(1e-7));
+    REQUIRE(neighbors(1, newFromOld[8]) == newFromOld[6]);
+    REQUIRE(distances(1, newFromOld[8]) == Approx(2.45).epsilon(1e-7));
+    REQUIRE(neighbors(0, newFromOld[8]) == newFromOld[4]);
+    REQUIRE(distances(0, newFromOld[8]) == Approx(4.60).epsilon(1e-7));
 
     // Neighbors of point 9.
-    BOOST_REQUIRE_EQUAL(neighbors(9, newFromOld[9]), newFromOld[10]);
-    BOOST_REQUIRE_CLOSE(distances(9, newFromOld[9]), 0.10, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(8, newFromOld[9]), newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(distances(8, newFromOld[9]), 0.35, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(7, newFromOld[9]), newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(distances(7, newFromOld[9]), 0.45, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(6, newFromOld[9]), newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(distances(6, newFromOld[9]), 0.55, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(5, newFromOld[9]), newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(distances(5, newFromOld[9]), 0.75, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(4, newFromOld[9]), newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(distances(4, newFromOld[9]), 0.85, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(3, newFromOld[9]), newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(distances(3, newFromOld[9]), 1.12, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(2, newFromOld[9]), newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(distances(2, newFromOld[9]), 2.20, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(1, newFromOld[9]), newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(distances(1, newFromOld[9]), 2.90, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(0, newFromOld[9]), newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(distances(0, newFromOld[9]), 4.15, 1e-5);
+    REQUIRE(neighbors(9, newFromOld[9]) == newFromOld[10]);
+    REQUIRE(distances(9, newFromOld[9]) == Approx(0.10).epsilon(1e-7));
+    REQUIRE(neighbors(8, newFromOld[9]) == newFromOld[3]);
+    REQUIRE(distances(8, newFromOld[9]) == Approx(0.35).epsilon(1e-7));
+    REQUIRE(neighbors(7, newFromOld[9]) == newFromOld[8]);
+    REQUIRE(distances(7, newFromOld[9]) == Approx(0.45).epsilon(1e-7));
+    REQUIRE(neighbors(6, newFromOld[9]) == newFromOld[1]);
+    REQUIRE(distances(6, newFromOld[9]) == Approx(0.55).epsilon(1e-7));
+    REQUIRE(neighbors(5, newFromOld[9]) == newFromOld[2]);
+    REQUIRE(distances(5, newFromOld[9]) == Approx(0.75).epsilon(1e-7));
+    REQUIRE(neighbors(4, newFromOld[9]) == newFromOld[0]);
+    REQUIRE(distances(4, newFromOld[9]) == Approx(0.85).epsilon(1e-7));
+    REQUIRE(neighbors(3, newFromOld[9]) == newFromOld[5]);
+    REQUIRE(distances(3, newFromOld[9]) == Approx(1.12).epsilon(1e-7));
+    REQUIRE(neighbors(2, newFromOld[9]) == newFromOld[7]);
+    REQUIRE(distances(2, newFromOld[9]) == Approx(2.20).epsilon(1e-7));
+    REQUIRE(neighbors(1, newFromOld[9]) == newFromOld[6]);
+    REQUIRE(distances(1, newFromOld[9]) == Approx(2.90).epsilon(1e-7));
+    REQUIRE(neighbors(0, newFromOld[9]) == newFromOld[4]);
+    REQUIRE(distances(0, newFromOld[9]) == Approx(4.15).epsilon(1e-7));
 
     // Neighbors of point 10.
-    BOOST_REQUIRE_EQUAL(neighbors(9, newFromOld[10]), newFromOld[9]);
-    BOOST_REQUIRE_CLOSE(distances(9, newFromOld[10]), 0.10, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(8, newFromOld[10]), newFromOld[3]);
-    BOOST_REQUIRE_CLOSE(distances(8, newFromOld[10]), 0.25, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(7, newFromOld[10]), newFromOld[8]);
-    BOOST_REQUIRE_CLOSE(distances(7, newFromOld[10]), 0.55, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(6, newFromOld[10]), newFromOld[1]);
-    BOOST_REQUIRE_CLOSE(distances(6, newFromOld[10]), 0.65, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(5, newFromOld[10]), newFromOld[2]);
-    BOOST_REQUIRE_CLOSE(distances(5, newFromOld[10]), 0.85, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(4, newFromOld[10]), newFromOld[0]);
-    BOOST_REQUIRE_CLOSE(distances(4, newFromOld[10]), 0.95, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(3, newFromOld[10]), newFromOld[5]);
-    BOOST_REQUIRE_CLOSE(distances(3, newFromOld[10]), 1.22, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(2, newFromOld[10]), newFromOld[7]);
-    BOOST_REQUIRE_CLOSE(distances(2, newFromOld[10]), 2.30, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(1, newFromOld[10]), newFromOld[6]);
-    BOOST_REQUIRE_CLOSE(distances(1, newFromOld[10]), 3.00, 1e-5);
-    BOOST_REQUIRE_EQUAL(neighbors(0, newFromOld[10]), newFromOld[4]);
-    BOOST_REQUIRE_CLOSE(distances(0, newFromOld[10]), 4.05, 1e-5);
+    REQUIRE(neighbors(9, newFromOld[10]) == newFromOld[9]);
+    REQUIRE(distances(9, newFromOld[10]) == Approx(0.10).epsilon(1e-7));
+    REQUIRE(neighbors(8, newFromOld[10]) == newFromOld[3]);
+    REQUIRE(distances(8, newFromOld[10]) == Approx(0.25).epsilon(1e-7));
+    REQUIRE(neighbors(7, newFromOld[10]) == newFromOld[8]);
+    REQUIRE(distances(7, newFromOld[10]) == Approx(0.55).epsilon(1e-7));
+    REQUIRE(neighbors(6, newFromOld[10]) == newFromOld[1]);
+    REQUIRE(distances(6, newFromOld[10]) == Approx(0.65).epsilon(1e-7));
+    REQUIRE(neighbors(5, newFromOld[10]) == newFromOld[2]);
+    REQUIRE(distances(5, newFromOld[10]) == Approx(0.85).epsilon(1e-7));
+    REQUIRE(neighbors(4, newFromOld[10]) == newFromOld[0]);
+    REQUIRE(distances(4, newFromOld[10]) == Approx(0.95).epsilon(1e-7));
+    REQUIRE(neighbors(3, newFromOld[10]) == newFromOld[5]);
+    REQUIRE(distances(3, newFromOld[10]) == Approx(1.22).epsilon(1e-7));
+    REQUIRE(neighbors(2, newFromOld[10]) == newFromOld[7]);
+    REQUIRE(distances(2, newFromOld[10]) == Approx(2.30).epsilon(1e-7));
+    REQUIRE(neighbors(1, newFromOld[10]) == newFromOld[6]);
+    REQUIRE(distances(1, newFromOld[10]) == Approx(3.00).epsilon(1e-7));
+    REQUIRE(neighbors(0, newFromOld[10]) == newFromOld[4]);
+    REQUIRE(distances(0, newFromOld[10]) == Approx(4.05).epsilon(1e-7));
   }
 }
 
@@ -331,17 +324,17 @@ BOOST_AUTO_TEST_CASE(ExhaustiveSyntheticTest)
  *
  * Errors are produced if the results are not identical.
  */
-BOOST_AUTO_TEST_CASE(DualTreeVsNaive1)
+TEST_CASE("KFNDualTreeVsNaive1", "[KFNTest][tiny]")
 {
   arma::mat dataset;
 
   // Hard-coded filename: bad?
-  if (!data::Load("test_data_3_1000.csv", dataset))
-    BOOST_FAIL("Cannot load test dataset test_data_3_1000.csv!");
+  if (!Load("test_data_3_1000.csv", dataset))
+    FAIL("Cannot load test dataset test_data_3_1000.csv");
 
   KFN kfn(dataset);
 
-  KFN naive(dataset, NAIVE_MODE);
+  KFN naive(dataset, NAIVE);
 
   arma::Mat<size_t> neighborsTree;
   arma::mat distancesTree;
@@ -351,10 +344,10 @@ BOOST_AUTO_TEST_CASE(DualTreeVsNaive1)
   arma::mat distancesNaive;
   naive.Search(dataset, 15, neighborsNaive, distancesNaive);
 
-  for (size_t i = 0; i < neighborsTree.n_elem; i++)
+  for (size_t i = 0; i < neighborsTree.n_elem; ++i)
   {
-    BOOST_REQUIRE(neighborsTree[i] == neighborsNaive[i]);
-    BOOST_REQUIRE_CLOSE(distancesTree[i], distancesNaive[i], 1e-5);
+    REQUIRE(neighborsTree[i] == neighborsNaive[i]);
+    REQUIRE(distancesTree[i] == Approx(distancesNaive[i]).epsilon(1e-7));
   }
 }
 
@@ -364,18 +357,18 @@ BOOST_AUTO_TEST_CASE(DualTreeVsNaive1)
  *
  * Errors are produced if the results are not identical.
  */
-BOOST_AUTO_TEST_CASE(DualTreeVsNaive2)
+TEST_CASE("KFNDualTreeVsNaive2", "[KFNTest]")
 {
   arma::mat dataset;
 
   // Hard-coded filename: bad?
   // Code duplication: also bad!
-  if (!data::Load("test_data_3_1000.csv", dataset))
-    BOOST_FAIL("Cannot load test dataset test_data_3_1000.csv!");
+  if (!Load("test_data_3_1000.csv", dataset))
+    FAIL("Cannot load test dataset test_data_3_1000.csv");
 
   KFN kfn(dataset);
 
-  KFN naive(dataset, NAIVE_MODE);
+  KFN naive(dataset, NAIVE);
 
   arma::Mat<size_t> neighborsTree;
   arma::mat distancesTree;
@@ -385,10 +378,10 @@ BOOST_AUTO_TEST_CASE(DualTreeVsNaive2)
   arma::mat distancesNaive;
   naive.Search(15, neighborsNaive, distancesNaive);
 
-  for (size_t i = 0; i < neighborsTree.n_elem; i++)
+  for (size_t i = 0; i < neighborsTree.n_elem; ++i)
   {
-    BOOST_REQUIRE_EQUAL(neighborsTree[i], neighborsNaive[i]);
-    BOOST_REQUIRE_CLOSE(distancesTree[i], distancesNaive[i], 1e-5);
+    REQUIRE(neighborsTree[i] == neighborsNaive[i]);
+    REQUIRE(distancesTree[i] == Approx(distancesNaive[i]).epsilon(1e-7));
   }
 }
 
@@ -398,18 +391,18 @@ BOOST_AUTO_TEST_CASE(DualTreeVsNaive2)
  *
  * Errors are produced if the results are not identical.
  */
-BOOST_AUTO_TEST_CASE(SingleTreeVsNaive)
+TEST_CASE("KFNSingleTreeVsNaive", "[KFNTest]")
 {
   arma::mat dataset;
 
   // Hard-coded filename: bad!
   // Code duplication: also bad!
-  if (!data::Load("test_data_3_1000.csv", dataset))
-    BOOST_FAIL("Cannot load test dataset test_data_3_1000.csv!");
+  if (!Load("test_data_3_1000.csv", dataset))
+    FAIL("Cannot load test dataset test_data_3_1000.csv");
 
-  KFN kfn(dataset, SINGLE_TREE_MODE);
+  KFN kfn(dataset, SINGLE_TREE);
 
-  KFN naive(dataset, NAIVE_MODE);
+  KFN naive(dataset, NAIVE);
 
   arma::Mat<size_t> neighborsTree;
   arma::mat distancesTree;
@@ -419,10 +412,10 @@ BOOST_AUTO_TEST_CASE(SingleTreeVsNaive)
   arma::mat distancesNaive;
   naive.Search(15, neighborsNaive, distancesNaive);
 
-  for (size_t i = 0; i < neighborsTree.n_elem; i++)
+  for (size_t i = 0; i < neighborsTree.n_elem; ++i)
   {
-    BOOST_REQUIRE_EQUAL(neighborsTree[i], neighborsNaive[i]);
-    BOOST_REQUIRE_CLOSE(distancesTree[i], distancesNaive[i], 1e-5);
+    REQUIRE(neighborsTree[i] == neighborsNaive[i]);
+    REQUIRE(distancesTree[i] == Approx(distancesNaive[i]).epsilon(1e-7));
   }
 }
 
@@ -432,7 +425,7 @@ BOOST_AUTO_TEST_CASE(SingleTreeVsNaive)
  *
  * Errors are produced if the results are not identical.
  */
-BOOST_AUTO_TEST_CASE(SingleCoverTreeTest)
+TEST_CASE("KFNSingleCoverTreeTest", "[KFNTest]")
 {
   arma::mat data;
   data.randu(75, 1000); // 75 dimensional, 1000 points.
@@ -442,9 +435,9 @@ BOOST_AUTO_TEST_CASE(SingleCoverTreeTest)
       FirstPointIsRoot> tree(data);
 
   NeighborSearch<FurthestNeighborSort, LMetric<2>, arma::mat, StandardCoverTree>
-      coverTreeSearch(std::move(tree), SINGLE_TREE_MODE);
+      coverTreeSearch(std::move(tree), SINGLE_TREE);
 
-  KFN naive(data, NAIVE_MODE);
+  KFN naive(data, NAIVE);
 
   arma::Mat<size_t> coverTreeNeighbors;
   arma::mat coverTreeDistances;
@@ -456,8 +449,8 @@ BOOST_AUTO_TEST_CASE(SingleCoverTreeTest)
 
   for (size_t i = 0; i < coverTreeNeighbors.n_elem; ++i)
   {
-    BOOST_REQUIRE_EQUAL(coverTreeNeighbors[i], naiveNeighbors[i]);
-    BOOST_REQUIRE_CLOSE(coverTreeDistances[i], naiveDistances[i], 1e-5);
+    REQUIRE(coverTreeNeighbors[i] == naiveNeighbors[i]);
+    REQUIRE(coverTreeDistances[i] == Approx(naiveDistances[i]).epsilon(1e-7));
   }
 }
 
@@ -465,10 +458,11 @@ BOOST_AUTO_TEST_CASE(SingleCoverTreeTest)
  * Test the cover tree dual-tree furthest neighbors method against the naive
  * method.
  */
-BOOST_AUTO_TEST_CASE(DualCoverTreeTest)
+TEST_CASE("KFNDualCoverTreeTest", "[KFNTest]")
 {
   arma::mat dataset;
-  data::Load("test_data_3_1000.csv", dataset);
+  if (!Load("test_data_3_1000.csv", dataset))
+    FAIL("Cannot load test dataset test_data_3_1000.csv");
 
   KFN tree(dataset);
 
@@ -476,8 +470,8 @@ BOOST_AUTO_TEST_CASE(DualCoverTreeTest)
   arma::mat kdDistances;
   tree.Search(dataset, 5, kdNeighbors, kdDistances);
 
-  typedef CoverTree<LMetric<2, true>, NeighborSearchStat<FurthestNeighborSort>,
-      arma::mat, FirstPointIsRoot> TreeType;
+  using TreeType = CoverTree<LMetric<2, true>,
+      NeighborSearchStat<FurthestNeighborSort>, arma::mat, FirstPointIsRoot>;
 
   TreeType referenceTree(dataset);
 
@@ -490,8 +484,8 @@ BOOST_AUTO_TEST_CASE(DualCoverTreeTest)
 
   for (size_t i = 0; i < coverNeighbors.n_elem; ++i)
   {
-    BOOST_REQUIRE_EQUAL(coverNeighbors(i), kdNeighbors(i));
-    BOOST_REQUIRE_CLOSE(coverDistances(i), kdDistances(i), 1e-5);
+    REQUIRE(coverNeighbors(i) == kdNeighbors(i));
+    REQUIRE(coverDistances(i) == Approx(kdDistances(i)).epsilon(1e-7));
   }
 }
 
@@ -501,22 +495,22 @@ BOOST_AUTO_TEST_CASE(DualCoverTreeTest)
  *
  * Errors are produced if the results are not identical.
  */
-BOOST_AUTO_TEST_CASE(SingleBallTreeTest)
+TEST_CASE("KFNSingleBallTreeTest", "[KFNTest]")
 {
   arma::mat data;
   data.randu(75, 1000); // 75 dimensional, 1000 points.
 
-  typedef BallTree<EuclideanDistance, NeighborSearchStat<FurthestNeighborSort>,
-      arma::mat> TreeType;
+  using TreeType = BallTree<EuclideanDistance,
+      NeighborSearchStat<FurthestNeighborSort>, arma::mat>;
   TreeType tree(data);
 
-  KFN naive(tree.Dataset(), NAIVE_MODE);
+  KFN naive(tree.Dataset(), NAIVE);
 
   // BinarySpaceTree modifies data. Use modified data to maintain the
   // correspondence between points in the dataset for both methods. The order of
   // query points in both methods should be same.
   NeighborSearch<FurthestNeighborSort, LMetric<2>, arma::mat, BallTree>
-      ballTreeSearch(std::move(tree), SINGLE_TREE_MODE);
+      ballTreeSearch(std::move(tree), SINGLE_TREE);
 
   arma::Mat<size_t> ballTreeNeighbors;
   arma::mat ballTreeDistances;
@@ -528,8 +522,8 @@ BOOST_AUTO_TEST_CASE(SingleBallTreeTest)
 
   for (size_t i = 0; i < ballTreeNeighbors.n_elem; ++i)
   {
-    BOOST_REQUIRE_EQUAL(ballTreeNeighbors[i], naiveNeighbors[i]);
-    BOOST_REQUIRE_CLOSE(ballTreeDistances[i], naiveDistances[i], 1e-5);
+    REQUIRE(ballTreeNeighbors[i] == naiveNeighbors[i]);
+    REQUIRE(ballTreeDistances[i] == Approx(naiveDistances[i]).epsilon(1e-7));
   }
 }
 
@@ -537,10 +531,11 @@ BOOST_AUTO_TEST_CASE(SingleBallTreeTest)
  * Test the ball tree dual-tree furthest neighbors method against the naive
  * method.
  */
-BOOST_AUTO_TEST_CASE(DualBallTreeTest)
+TEST_CASE("KFNDualBallTreeTest", "[KFNTest]")
 {
   arma::mat dataset;
-  data::Load("test_data_3_1000.csv", dataset);
+  if (!Load("test_data_3_1000.csv", dataset))
+    FAIL("Cannot load test dataset test_data_3_1000.csv");
 
   KFN tree(dataset);
 
@@ -557,9 +552,7 @@ BOOST_AUTO_TEST_CASE(DualBallTreeTest)
 
   for (size_t i = 0; i < ballNeighbors.n_elem; ++i)
   {
-    BOOST_REQUIRE_EQUAL(ballNeighbors(i), kdNeighbors(i));
-    BOOST_REQUIRE_CLOSE(ballDistances(i), kdDistances(i), 1e-5);
+    REQUIRE(ballNeighbors(i) == kdNeighbors(i));
+    REQUIRE(ballDistances(i) == Approx(kdDistances(i)).epsilon(1e-7));
   }
 }
-
-BOOST_AUTO_TEST_SUITE_END();

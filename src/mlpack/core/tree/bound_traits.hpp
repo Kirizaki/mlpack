@@ -1,5 +1,5 @@
 /**
- * @file bound_traits.hpp
+ * @file core/tree/bound_traits.hpp
  * @author Ryan Curtin
  *
  * A class for template metaprogramming traits for bounds.
@@ -13,7 +13,6 @@
 #define MLPACK_CORE_TREE_BOUND_TRAITS_HPP
 
 namespace mlpack {
-namespace bound {
 
 /**
  * A class to obtain compile-time traits about BoundType classes.  If you are
@@ -31,7 +30,6 @@ struct BoundTraits
   static const bool HasTightBounds = false;
 };
 
-} // namespace bound
 } // namespace mlpack
 
 #endif

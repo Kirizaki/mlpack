@@ -1,5 +1,5 @@
 /**
- * @file softsign_function.hpp
+ * @file methods/ann/activation_functions/softsign_function.hpp
  * @author Marcus Edel
  *
  * Definition and implementation of the softsign function as described by
@@ -9,7 +9,7 @@
  *
  * @code
  * @inproceedings{GlorotAISTATS2010,
- *   title={title={Understanding the difficulty of training deep feedforward
+ *   title={Understanding the difficulty of training deep feedforward
  *   neural networks},
  *   author={Glorot, Xavier and Bengio, Yoshua},
  *   booktitle={Proceedings of AISTATS 2010},
@@ -28,36 +28,28 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace ann /** Artificial Neural Network. */ {
 
 /**
  * The softsign function, defined by
  *
  * @f{eqnarray*}{
  * f(x) &=& \frac{x}{1 + |x|} \\
- * f'(x) &=& (1 - |x|)^2 \\
- * f(x) &=& \left\{
- *   \begin{array}{lr}
- *     -\frac{y}{y-1} & : x > 0 \\
- *     \frac{x}{1 + x} & : x \le 0
- *   \end{array}
- * \right.
+ * f'(x) &=& (1 + |f(x)|)^2 \\
  * @f}
  */
 class SoftsignFunction
 {
-  public:
+ public:
   /**
    * Computes the softsign function.
    *
    * @param x Input data.
    * @return f(x).
    */
-  static double fn(const double x)
+  template<typename ElemType>
+  static ElemType Fn(const ElemType x)
   {
-    if (x < DBL_MAX)
-      return x > -DBL_MAX ? x / (1.0 + std::abs(x)) : -1.0;
-    return 1.0;
+    return x / (1 + std::abs(x));
   }
 
   /**
@@ -67,35 +59,37 @@ class SoftsignFunction
    * @param y The resulting output activation.
    */
   template<typename InputVecType, typename OutputVecType>
-  static void fn(const InputVecType& x, OutputVecType& y)
+  static void Fn(const InputVecType& x, OutputVecType& y)
   {
-    y = x;
-
-    for (size_t i = 0; i < x.n_elem; i++)
-      y(i) = fn(x(i));
+    y = x / (1 + abs(x));
   }
 
   /**
    * Computes the first derivative of the softsign function.
    *
-   * @param y Input data.
+   * @param x Input activation.
+   * @param y Result of Fn(x).
    * @return f'(x)
    */
-  static double deriv(const double y)
+  template<typename ElemType>
+  static ElemType Deriv(const ElemType x, const ElemType /* y */)
   {
-    return std::pow(1.0 - std::abs(y), 2);
+    return 1 / std::pow(1 + std::abs(x), ElemType(2));
   }
 
   /**
    * Computes the first derivatives of the softsign function.
    *
-   * @param y Input activations.
-   * @param x The resulting derivatives.
+   * @param x Input activation.
+   * @param y Result of Fn(x).
+   * @param dy The resulting derivatives.
    */
-  template<typename InputVecType, typename OutputVecType>
-  static void deriv(const InputVecType& y, OutputVecType& x)
+  template<typename InputVecType, typename OutputVecType, typename DerivVecType>
+  static void Deriv(const InputVecType& x,
+                    const OutputVecType& /* y */,
+                    DerivVecType& dy)
   {
-    x = arma::pow(1.0 - arma::abs(y), 2);
+    dy = 1 / square(1 + abs(x));
   }
 
   /**
@@ -104,12 +98,13 @@ class SoftsignFunction
    * @param y Input data.
    * @return f^{-1}(y)
    */
-  static double inv(const double y)
+  template<typename ElemType>
+  static ElemType Inv(const ElemType y)
   {
     if (y > 0)
-      return y < 1 ? -y / (y - 1) : DBL_MAX;
+      return -y / (y - 1);
     else
-      return y > -1 ? y / (1 + y) : -DBL_MAX;
+      return y / (1 + y);
   }
 
   /**
@@ -119,16 +114,15 @@ class SoftsignFunction
    * @param x The resulting inverse of the input data.
    */
   template<typename InputVecType, typename OutputVecType>
-  static void inv(const InputVecType& y, OutputVecType& x)
+  static void Inv(const InputVecType& y, OutputVecType& x)
   {
-    x = y;
+    x.set_size(size(y));
 
-    for (size_t i = 0; i < y.n_elem; i++)
-      x(i) = inv(y(i));
+    for (size_t i = 0; i < y.n_elem; ++i)
+      x(i) = Inv(y(i));
   }
 }; // class SoftsignFunction
 
-} // namespace ann
 } // namespace mlpack
 
 #endif

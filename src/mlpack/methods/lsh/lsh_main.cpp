@@ -1,5 +1,5 @@
 /**
- * @file lsh_main.cpp
+ * @file methods/lsh/lsh_main.cpp
  * @author Parikshit Ram
  *
  * This file computes the approximate nearest-neighbors using 2-stable
@@ -10,38 +10,69 @@
  * 3-clause BSD license along with mlpack.  If not, see
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
-#include <mlpack/prereqs.hpp>
-#include <mlpack/core/util/param.hpp>
-#include <mlpack/core/metrics/lmetric.hpp>
+#include <mlpack/core.hpp>
+
+#undef BINDING_NAME
+#define BINDING_NAME lsh
+
+#include <mlpack/core/util/mlpack_main.hpp>
 
 #include "lsh_search.hpp"
 
 using namespace std;
 using namespace mlpack;
-using namespace mlpack::neighbor;
+using namespace mlpack::util;
 
-// Information about the program itself.
-PROGRAM_INFO("All K-Approximate-Nearest-Neighbor Search with LSH",
+// Program Name.
+BINDING_USER_NAME("K-Approximate-Nearest-Neighbor Search with LSH");
+
+// Short description.
+BINDING_SHORT_DESC(
+    "An implementation of approximate k-nearest-neighbor search with "
+    "locality-sensitive hashing (LSH).  Given a set of reference points and a "
+    "set of query points, this will compute the k approximate nearest neighbors"
+    " of each query point in the reference set; models can be saved for future "
+    "use.");
+
+// Long description.
+BINDING_LONG_DESC(
     "This program will calculate the k approximate-nearest-neighbors of a set "
     "of points using locality-sensitive hashing. You may specify a separate set"
     " of reference points and query points, or just a reference set which will "
-    "be used as both the reference and query set. "
-    "\n\n"
+    "be used as both the reference and query set. ");
+
+// Example.
+BINDING_EXAMPLE(
     "For example, the following will return 5 neighbors from the data for each "
-    "point in 'input.csv' and store the distances in 'distances.csv' and the "
-    "neighbors in the file 'neighbors.csv':"
+    "point in " + PRINT_DATASET("input") + " and store the distances in " +
+    PRINT_DATASET("distances") + " and the neighbors in " +
+    PRINT_DATASET("neighbors") + ":"
+    "\n\n" +
+    PRINT_CALL("lsh", "k", 5, "reference", "input", "distances", "distances",
+        "neighbors", "neighbors") +
     "\n\n"
-    "$ lsh -k 5 -r input.csv -d distances.csv -n neighbors.csv "
-    "\n\n"
-    "The output files are organized such that row i and column j in the "
-    "neighbors output file corresponds to the index of the point in the "
-    "reference set which is the i'th nearest neighbor from the point in the "
-    "query set with index j.  Row i and column j in the distances output file "
-    "corresponds to the distance between those two points."
+    "The output is organized such that row i and column j in the neighbors "
+    "output corresponds to the index of the point in the reference set which "
+    "is the j'th nearest neighbor from the point in the query set with index "
+    "i.  Row j and column i in the distances output file corresponds to the "
+    "distance between those two points."
     "\n\n"
     "Because this is approximate-nearest-neighbors search, results may be "
-    "different from run to run.  Thus, the --seed option can be specified to "
-    "set the random seed.");
+    "different from run to run.  Thus, the " + PRINT_PARAM_STRING("seed") +
+    " parameter can be specified to set the random seed."
+    "\n\n"
+    "This program also has many other parameters to control its functionality;"
+    " see the parameter-specific documentation for more information.");
+
+// See also...
+BINDING_SEE_ALSO("@knn", "#knn");
+BINDING_SEE_ALSO("@krann", "#krann");
+BINDING_SEE_ALSO("Locality-sensitive hashing on Wikipedia",
+    "https://en.wikipedia.org/wiki/Locality-sensitive_hashing");
+BINDING_SEE_ALSO("Locality-sensitive hashing scheme based on p-stable"
+    "  distributions(pdf)", "https://www.mlpack.org/papers/lsh.pdf");
+BINDING_SEE_ALSO("LSHSearch C++ class documentation",
+    "@src/mlpack/methods/lsh/lsh.hpp");
 
 // Define our input parameters that this program will take.
 PARAM_MATRIX_IN("reference", "Matrix containing the reference dataset.", "r");
@@ -49,9 +80,9 @@ PARAM_MATRIX_OUT("distances", "Matrix to output distances into.", "d");
 PARAM_UMATRIX_OUT("neighbors", "Matrix to output neighbors into.", "n");
 
 // We can load or save models.
-PARAM_STRING_IN("input_model_file", "File to load LSH model from.  (Cannot be "
-    "specified with --reference_file.)", "m", "");
-PARAM_STRING_OUT("output_model_file", "File to save LSH model to.", "M");
+PARAM_MODEL_IN(LSHSearch<>, "input_model", "Input LSH model.", "m");
+PARAM_MODEL_OUT(LSHSearch<>, "output_model", "Output for trained LSH model.",
+    "M");
 
 // For testing recall.
 PARAM_UMATRIX_IN("true_neighbors", "Matrix of true neighbors to compute "
@@ -74,78 +105,69 @@ PARAM_INT_IN("bucket_size", "The size of a bucket in the second level hash.",
     "B", 500);
 PARAM_INT_IN("seed", "Random seed.  If 0, 'std::time(NULL)' is used.", "s", 0);
 
-int main(int argc, char *argv[])
+void BINDING_FUNCTION(util::Params& params, util::Timers& timers)
 {
-  // Give CLI the command line parameters the user passed in.
-  CLI::ParseCommandLine(argc, argv);
-
-  if (CLI::GetParam<int>("seed") != 0)
-    math::RandomSeed((size_t) CLI::GetParam<int>("seed"));
+  if (params.Get<int>("seed") != 0)
+    RandomSeed((size_t) params.Get<int>("seed"));
   else
-    math::RandomSeed((size_t) time(NULL));
+    RandomSeed((size_t) time(NULL));
 
-  // Get all the parameters.
-  const string inputModelFile = CLI::GetParam<string>("input_model_file");
-  const string outputModelFile = CLI::GetParam<string>("output_model_file");
-
-  size_t k = CLI::GetParam<int>("k");
-  size_t secondHashSize = CLI::GetParam<int>("second_hash_size");
-  size_t bucketSize = CLI::GetParam<int>("bucket_size");
-
-  if (CLI::HasParam("input_model_file") && CLI::HasParam("reference"))
+  // Get all the parameters after checking them.
+  if (params.Has("k"))
   {
-    Log::Fatal << "Cannot specify both --reference_file and --input_model_file!"
-        << " Either create a new model with --reference_file or use an existing"
-        << " model with --input_model_file." << endl;
+    RequireParamValue<int>(params, "k", [](int x) { return x > 0; }, true,
+        "k must be greater than 0");
+  }
+  RequireParamValue<int>(params, "second_hash_size",
+      [](int x) { return x > 0; }, true,
+      "second hash size must be greater than 0");
+  RequireParamValue<int>(params, "bucket_size", [](int x) { return x > 0; },
+      true, "bucket size must be greater than 0");
+
+  size_t k = params.Get<int>("k");
+  size_t secondHashSize = params.Get<int>("second_hash_size");
+  size_t bucketSize = params.Get<int>("bucket_size");
+
+  RequireOnlyOnePassed(params, { "input_model", "reference" }, true);
+  RequireAtLeastOnePassed(params, { "neighbors", "distances", "output_model" },
+      false, "no results will be saved");
+
+  if (params.Has("k"))
+  {
+    RequireAtLeastOnePassed(params, { "query", "reference", "input_model" },
+        true, "must pass set to search");
   }
 
-  if (!CLI::HasParam("input_model_file") && !CLI::HasParam("reference"))
-  {
-    Log::Fatal << "Must specify either --input_model_file or --reference_file!"
-        << endl;
-  }
-
-  if (!CLI::HasParam("neighbors") && !CLI::HasParam("distances") &&
-      !CLI::HasParam("output_model_file"))
-  {
-    Log::Warn << "Neither --neighbors_file, --distances_file, nor "
-        << "--output_model_file are specified; no results will be saved."
-        << endl;
-  }
-
-  if ((CLI::HasParam("query") && !CLI::HasParam("k")) ||
-      (!CLI::HasParam("query") && !CLI::HasParam("reference") &&
-       CLI::HasParam("k")))
-  {
-    Log::Fatal << "Both --query_file or --reference_file and --k must be "
-        << "specified if search is to be done!" << endl;
-  }
-
-  if (CLI::HasParam("input_model_file") && CLI::HasParam("k") &&
-      !CLI::HasParam("query"))
+  if (params.Has("input_model") && params.Has("k") &&
+      !params.Has("query"))
   {
     Log::Info << "Performing LSH-based approximate nearest neighbor search on "
-        << "the reference dataset in the model stored in '" << inputModelFile
-        << "'." << endl;
+        << "the reference dataset in the model stored in '"
+        << params.GetPrintable<LSHSearch<>>("input_model") << "'." << endl;
   }
 
-  if (!CLI::HasParam("k") && CLI::HasParam("neighbors"))
-    Log::Warn << "--neighbors_file ignored because --k is not specified."
-        << endl;
+  ReportIgnoredParam(params, {{ "k", false }}, "neighbors");
+  ReportIgnoredParam(params, {{ "k", false }}, "distances");
 
-  if (!CLI::HasParam("k") && CLI::HasParam("distances"))
-    Log::Warn << "--distances_file ignored because --k is not specified."
-        << endl;
+  ReportIgnoredParam(params, {{ "reference", false }}, "bucket_size");
+  ReportIgnoredParam(params, {{ "reference", false }}, "second_hash_size");
+  ReportIgnoredParam(params, {{ "reference", false }}, "hash_width");
+
+  if (params.Has("input_model") && !params.Has("k"))
+  {
+    Log::Warn << PRINT_PARAM_STRING("k") << " not passed; no search will be "
+        << "performed!" << std::endl;
+  }
 
   // These declarations are here so that the matrices don't go out of scope.
   arma::mat referenceData;
   arma::mat queryData;
 
   // Pick up the LSH-specific parameters.
-  const size_t numProj = CLI::GetParam<int>("projections");
-  const size_t numTables = CLI::GetParam<int>("tables");
-  const double hashWidth = CLI::GetParam<double>("hash_width");
-  const size_t numProbes = (size_t) CLI::GetParam<int>("num_probes");
+  const size_t numProj = params.Get<int>("projections");
+  const size_t numTables = params.Get<int>("tables");
+  const double hashWidth = params.Get<double>("hash_width");
+  const size_t numProbes = (size_t) params.Get<int>("num_probes");
 
   arma::Mat<size_t> neighbors;
   arma::mat distances;
@@ -155,70 +177,92 @@ int main(int argc, char *argv[])
         numTables << " tables (L) with default hash width." << endl;
   else
     Log::Info << "Using LSH with " << numProj << " projections (K) and " <<
-        numTables << " tables (L) with hash width(r): " << hashWidth << endl;
+        numTables << " tables (L) with hash width (r): " << hashWidth << endl;
 
-  LSHSearch<> allkann;
-  if (CLI::HasParam("reference"))
+  LSHSearch<>* allkann;
+  if (params.Has("reference"))
   {
-    referenceData = std::move(CLI::GetParam<arma::mat>("reference"));
-    Log::Info << "Loaded reference data from '"
-        << CLI::GetUnmappedParam<arma::mat>("reference") << "' ("
-        << referenceData.n_rows << " x " << referenceData.n_cols << ")."
-        << endl;
+    // Workaround: this avoids printing load information twice for the CLI
+    // bindings, where GetPrintable() will trigger a call to Load(),
+    // which prints loading information in the middle of the Log::Info
+    // message.
+    (void) params.Get<arma::mat>("reference");
 
-    Timer::Start("hash_building");
-    allkann.Train(referenceData, numProj, numTables, hashWidth, secondHashSize,
-        bucketSize);
-    Timer::Stop("hash_building");
+    allkann = new LSHSearch<>();
+    Log::Info << "Using reference data from "
+        << params.GetPrintable<arma::mat>("reference") << "." << endl;
+    referenceData = std::move(params.Get<arma::mat>("reference"));
+
+    timers.Start("hash_building");
+    allkann->Train(std::move(referenceData), numProj, numTables, hashWidth,
+        secondHashSize, bucketSize);
+    timers.Stop("hash_building");
   }
-  else if (CLI::HasParam("input_model_file"))
+  else // We must have an input model.
   {
-    data::Load(inputModelFile, "lsh_model", allkann, true); // Fatal on fail.
+    allkann = params.Get<LSHSearch<>*>("input_model");
   }
 
-  if (CLI::HasParam("k"))
+  if (params.Has("k"))
   {
     Log::Info << "Computing " << k << " distance approximate nearest neighbors."
         << endl;
-    if (CLI::HasParam("query"))
+    if (params.Has("query"))
     {
-      queryData = std::move(CLI::GetParam<arma::mat>("query"));
-      Log::Info << "Loaded query data from '"
-          << CLI::GetUnmappedParam<arma::mat>("query") << "' ("
-          << queryData.n_rows << " x " << queryData.n_cols << ")." << endl;
+      // Workaround: avoid printing load information twice for CLI bindings.
+      (void) params.Get<arma::mat>("query");
 
-      allkann.Search(queryData, k, neighbors, distances, 0, numProbes);
+      Log::Info << "Loaded query data from "
+          << params.GetPrintable<arma::mat>("query") << "." << endl;
+      queryData = std::move(params.Get<arma::mat>("query"));
+
+      timers.Start("computing_neighbors");
+      allkann->Search(queryData, k, neighbors, distances, 0, numProbes);
+      timers.Stop("computing_neighbors");
     }
     else
     {
-      allkann.Search(k, neighbors, distances, 0, numProbes);
+      timers.Start("computing_neighbors");
+      allkann->Search(k, neighbors, distances, 0, numProbes);
+      timers.Stop("computing_neighbors");
     }
+
+    Log::Info << "Neighbors computed." << endl;
   }
 
-  Log::Info << "Neighbors computed." << endl;
-
   // Compute recall, if desired.
-  if (CLI::HasParam("true_neighbors"))
+  if (params.Has("true_neighbors"))
   {
-    // Load the true neighbors.
-    arma::Mat<size_t> trueNeighbors =
-        std::move(CLI::GetParam<arma::Mat<size_t>>("true_neighbors"));
-    Log::Info << "Loaded true neighbor indices from '"
-        << CLI::GetUnmappedParam<arma::Mat<size_t>>("true_neighbors") << "'."
+    Log::Info << "Using true neighbor indices from '"
+        << params.GetPrintable<arma::Mat<size_t>>("true_neighbors") << "'."
         << endl;
 
+    // Load the true neighbors.
+    arma::Mat<size_t> trueNeighbors =
+        std::move(params.Get<arma::Mat<size_t>>("true_neighbors"));
+
+    if (trueNeighbors.n_rows != neighbors.n_rows ||
+        trueNeighbors.n_cols != neighbors.n_cols)
+    {
+      // Delete the model if needed.
+      if (params.Has("reference"))
+        delete allkann;
+      Log::Fatal << "The true neighbors file must have the same number of "
+          << "values as the set of neighbors being queried!" << endl;
+    }
+
     // Compute recall and print it.
-    double recallPercentage = 100 * allkann.ComputeRecall(neighbors,
+    double recallPercentage = 100 * allkann->ComputeRecall(neighbors,
         trueNeighbors);
 
     Log::Info << "Recall: " << recallPercentage << endl;
   }
 
-  // Save output, if desired.
-  if (CLI::HasParam("distances"))
-    CLI::GetParam<arma::mat>("distances") = std::move(distances);
-  if (CLI::HasParam("neighbors"))
-    CLI::GetParam<arma::Mat<size_t>>("neighbors") = std::move(neighbors);
-  if (CLI::HasParam("output_model_file"))
-    data::Save(outputModelFile, "lsh_model", allkann);
+  // Save output, if we did a search..
+  if (params.Has("k"))
+  {
+    params.Get<arma::mat>("distances") = std::move(distances);
+    params.Get<arma::Mat<size_t>>("neighbors") = std::move(neighbors);
+  }
+  params.Get<LSHSearch<>*>("output_model") = allkann;
 }

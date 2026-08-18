@@ -1,5 +1,5 @@
 /**
- * @file simple_weight_update.hpp
+ * @file methods/perceptron/learning_policies/simple_weight_update.hpp
  * @author Udit Saxena
  *
  * Simple weight update rule for the perceptron.
@@ -25,7 +25,6 @@
  *  where w' is the weight vector which correctly classifies x.
  */
 namespace mlpack {
-namespace perceptron {
 
 class SimpleWeightUpdate
 {
@@ -46,13 +45,13 @@ class SimpleWeightUpdate
    * @param instanceWeight Weight to be given to this particular point during
    *      training (this is useful for boosting).
    */
-  template<typename VecType>
+  template<typename VecType, typename eT>
   void UpdateWeights(const VecType& trainingPoint,
-                     arma::mat& weights,
-                     arma::vec& biases,
+                     arma::Mat<eT>& weights,
+                     arma::Col<eT>& biases,
                      const size_t incorrectClass,
                      const size_t correctClass,
-                     const double instanceWeight = 1.0)
+                     const eT instanceWeight = 1.0)
   {
     weights.col(incorrectClass) -= instanceWeight * trainingPoint;
     biases(incorrectClass) -= instanceWeight;
@@ -62,7 +61,6 @@ class SimpleWeightUpdate
   }
 };
 
-} // namespace perceptron
 } // namespace mlpack
 
 #endif

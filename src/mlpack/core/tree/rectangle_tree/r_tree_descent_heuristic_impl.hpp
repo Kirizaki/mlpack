@@ -1,5 +1,5 @@
 /**
- * @file r_tree_descent_heuristic_impl.hpp
+ * @file core/tree/rectangle_tree/r_tree_descent_heuristic_impl.hpp
  * @author Andrew Wells
  *
  * Implementation of RTreeDescentHeuristic, a class that chooses the best child
@@ -16,24 +16,23 @@
 #include "r_tree_descent_heuristic.hpp"
 
 namespace mlpack {
-namespace tree {
 
 template<typename TreeType>
 inline size_t RTreeDescentHeuristic::ChooseDescentNode(const TreeType* node,
                                                        const size_t point)
 {
   // Convenience typedef.
-  typedef typename TreeType::ElemType ElemType;
+  using ElemType = typename TreeType::ElemType;
 
   ElemType minScore = std::numeric_limits<ElemType>::max();
   int bestIndex = 0;
   ElemType bestVol = 0.0;
 
-  for (size_t i = 0; i < node->NumChildren(); i++)
+  for (size_t i = 0; i < node->NumChildren(); ++i)
   {
     ElemType v1 = 1.0;
     ElemType v2 = 1.0;
-    for (size_t j = 0; j < node->Child(i).Bound().Dim(); j++)
+    for (size_t j = 0; j < node->Child(i).Bound().Dim(); ++j)
     {
       v1 *= node->Child(i).Bound()[j].Width();
       v2 *= node->Child(i).Bound()[j].Contains(node->Dataset().col(point)[j]) ?
@@ -67,17 +66,17 @@ inline size_t RTreeDescentHeuristic::ChooseDescentNode(
     const TreeType* insertedNode)
 {
   // Convenience typedef.
-  typedef typename TreeType::ElemType ElemType;
+  using ElemType = typename TreeType::ElemType;
 
   ElemType minScore = std::numeric_limits<ElemType>::max();
   int bestIndex = 0;
   ElemType bestVol = 0.0;
 
-  for (size_t i = 0; i < node->NumChildren(); i++)
+  for (size_t i = 0; i < node->NumChildren(); ++i)
   {
     ElemType v1 = 1.0;
     ElemType v2 = 1.0;
-    for (size_t j = 0; j < node->Child(i).Bound().Dim(); j++)
+    for (size_t j = 0; j < node->Child(i).Bound().Dim(); ++j)
     {
       v1 *= node->Child(i).Bound()[j].Width();
       v2 *= node->Child(i).Bound()[j].Contains(insertedNode->Bound()[j]) ?
@@ -108,7 +107,6 @@ inline size_t RTreeDescentHeuristic::ChooseDescentNode(
   return bestIndex;
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

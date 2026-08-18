@@ -1,5 +1,5 @@
 /**
- * @file regularized_svd.hpp
+ * @file methods/regularized_svd/regularized_svd.hpp
  * @author Siddharth Agrawal
  *
  * An implementation of Regularized SVD.
@@ -13,14 +13,11 @@
 #ifndef MLPACK_METHODS_REGULARIZED_SVD_REGULARIZED_SVD_HPP
 #define MLPACK_METHODS_REGULARIZED_SVD_REGULARIZED_SVD_HPP
 
-#include <mlpack/prereqs.hpp>
-#include <mlpack/core/optimizers/sgd/sgd.hpp>
-#include <mlpack/methods/cf/cf.hpp>
+#include <mlpack/core.hpp>
 
 #include "regularized_svd_function.hpp"
 
 namespace mlpack {
-namespace svd {
 
 /**
  * Regularized SVD is a matrix factorization technique that seeks to reduce the
@@ -54,14 +51,10 @@ namespace svd {
  * rSVD.Apply(data, rank, u, v);
  * @endcode
  */
-
-template<
-  template<typename> class OptimizerType = mlpack::optimization::SGD
->
+template<typename OptimizerType = ens::StandardSGD>
 class RegularizedSVD
 {
  public:
-
   /**
    * Constructor for Regularized SVD. Obtains the user and item matrices after
    * training on the passed data. The constructor initiates an object of class
@@ -98,22 +91,6 @@ class RegularizedSVD
   double lambda;
 };
 
-} // namespace svd
-} // namespace mlpack
-
-namespace mlpack {
-namespace cf {
-
-//! Factorizer traits of Regularized SVD.
-template<>
-class FactorizerTraits<mlpack::svd::RegularizedSVD<> >
-{
- public:
-  //! Data provided to RegularizedSVD need not be cleaned.
-  static const bool UsesCoordinateList = true;
-};
-
-} // namespace cf
 } // namespace mlpack
 
 // Include implementation.

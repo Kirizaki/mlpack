@@ -1,5 +1,5 @@
 /**
- * @file single_tree_traverser.hpp
+ * @file core/tree/cover_tree/single_tree_traverser.hpp
  * @author Ryan Curtin
  *
  * Defines the SingleTreeTraverser for the cover tree.  This implements a
@@ -17,18 +17,18 @@
 #include <mlpack/prereqs.hpp>
 
 #include "cover_tree.hpp"
+#include "recursion_sets.hpp"
 
 namespace mlpack {
-namespace tree {
 
 template<
-    typename MetricType,
+    typename DistanceType,
     typename StatisticType,
     typename MatType,
     typename RootPointPolicy
 >
 template<typename RuleType>
-class CoverTree<MetricType, StatisticType, MatType, RootPointPolicy>::
+class CoverTree<DistanceType, StatisticType, MatType, RootPointPolicy>::
     SingleTreeTraverser
 {
  public:
@@ -52,14 +52,20 @@ class CoverTree<MetricType, StatisticType, MatType, RootPointPolicy>::
   size_t& NumPrunes() { return numPrunes; }
 
  private:
-  //! Reference to the rules with which the tree will be traversed.
+  // Reference to the rules with which the tree will be traversed.
   RuleType& rule;
 
-  //! The number of nodes which have been pruned during traversal.
+  // The number of nodes which have been pruned during traversal.
   size_t numPrunes;
+
+  typedef SingleCoverTreeMapEntry<CoverTree> MapEntryType;
+
+  // Auxiliary data structures for managing the breadth-first search.  We keep
+  // them at the class level, because the memory allocated with them can be
+  // reused for each query point.
+  CoverTreeRecursionSets<MapEntryType, 8> recursionSets;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

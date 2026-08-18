@@ -1,5 +1,5 @@
 /**
- * @file hmm_util_impl.hpp
+ * @file methods/hmm/hmm_util_impl.hpp
  * @author Ryan Curtin
  *
  * Implementation of HMM utilities to load arbitrary HMM types.
@@ -16,9 +16,9 @@
 
 #include <mlpack/methods/hmm/hmm.hpp>
 #include <mlpack/methods/gmm/gmm.hpp>
+#include <mlpack/methods/gmm/diagonal_gmm.hpp>
 
 namespace mlpack {
-namespace hmm {
 
 // Forward declarations of utility functions.
 
@@ -38,18 +38,27 @@ template<typename ActionType, typename ExtraInfoType>
 void LoadHMMAndPerformAction(const std::string& modelFile,
                              ExtraInfoType* x)
 {
-  using namespace boost::archive;
-
-  const std::string extension = data::Extension(modelFile);
+  const std::string extension = Extension(modelFile);
   if (extension == "xml")
-    LoadHMMAndPerformActionHelper<ActionType, xml_iarchive>(modelFile, x);
+  {
+    LoadHMMAndPerformActionHelper<ActionType, cereal::XMLInputArchive>(
+        modelFile, x);
+  }
   else if (extension == "bin")
-    LoadHMMAndPerformActionHelper<ActionType, binary_iarchive>(modelFile, x);
-  else if (extension == "txt")
-    LoadHMMAndPerformActionHelper<ActionType, text_iarchive>(modelFile, x);
+  {
+    LoadHMMAndPerformActionHelper<ActionType, cereal::BinaryInputArchive>(
+        modelFile, x);
+  }
+  else if (extension == "json")
+  {
+    LoadHMMAndPerformActionHelper<ActionType, cereal::JSONInputArchive>(
+        modelFile, x);
+  }
   else
+  {
     Log::Fatal << "Unknown extension '" << extension << "' for HMM model file "
-        << "(known: 'xml', 'txt', 'bin')." << std::endl;
+        << "(known: 'xml', 'json', 'bin')." << std::endl;
+  }
 }
 
 template<typename ActionType,
@@ -66,26 +75,28 @@ void LoadHMMAndPerformActionHelper(const std::string& modelFile,
 
   // Read in the unsigned integer that denotes the type of the model.
   char type;
-  ar >> data::CreateNVP(type, "hmm_type");
-
-  using namespace mlpack::distribution;
+  ar(CEREAL_NVP(type));
 
   switch (type)
   {
     case HMMType::DiscreteHMM:
       DeserializeHMMAndPerformAction<ActionType, ArchiveType,
-          HMM<DiscreteDistribution>>(ar, x);
+          HMM<DiscreteDistribution<>>>(ar, x);
       break;
 
     case HMMType::GaussianHMM:
       DeserializeHMMAndPerformAction<ActionType, ArchiveType,
-          HMM<GaussianDistribution>>(ar, x);
+          HMM<GaussianDistribution<>>>(ar, x);
       break;
 
     case HMMType::GaussianMixtureModelHMM:
       DeserializeHMMAndPerformAction<ActionType, ArchiveType,
-          HMM<gmm::GMM>>(ar, x);
+          HMM<GMM>>(ar, x);
       break;
+
+    case HMMType::DiagonalGaussianMixtureModelHMM:
+      DeserializeHMMAndPerformAction<ActionType, ArchiveType,
+          HMM<DiagonalGMM>>(ar, x);
 
     default:
       Log::Fatal << "Unknown HMM type '" << (unsigned int) type << "'!"
@@ -101,7 +112,7 @@ void DeserializeHMMAndPerformAction(ArchiveType& ar, ExtraInfoType* x)
 {
   // Extract the HMM and perform the action.
   HMMType hmm;
-  ar >> data::CreateNVP(hmm, "hmm");
+  ar(CEREAL_NVP(hmm));
   ActionType::Apply(hmm, x);
 }
 
@@ -115,15 +126,13 @@ char GetHMMType();
 template<typename HMMType>
 void SaveHMM(HMMType& hmm, const std::string& modelFile)
 {
-  using namespace boost::archive;
-
-  const std::string extension = data::Extension(modelFile);
+  const std::string extension = Extension(modelFile);
   if (extension == "xml")
-    SaveHMMHelper<xml_oarchive>(hmm, modelFile);
+    SaveHMMHelper<cereal::XMLOutputArchive>(hmm, modelFile);
   else if (extension == "bin")
-    SaveHMMHelper<binary_oarchive>(hmm, modelFile);
-  else if (extension == "txt")
-    SaveHMMHelper<text_oarchive>(hmm, modelFile);
+    SaveHMMHelper<cereal::BinaryOutputArchive>(hmm, modelFile);
+  else if (extension == "json")
+    SaveHMMHelper<cereal::JSONOutputArchive>(hmm, modelFile);
   else
     Log::Fatal << "Unknown extension '" << extension << "' for HMM model file."
         << std::endl;
@@ -143,8 +152,8 @@ void SaveHMMHelper(HMMType& hmm, const std::string& modelFile)
   if (type == char(-1))
     Log::Fatal << "Unknown HMM type given to SaveHMM()!" << std::endl;
 
-  ar << data::CreateNVP(type, "hmm_type");
-  ar << data::CreateNVP(hmm, "hmm");
+  ar(CEREAL_NVP(type));
+  ar(CEREAL_NVP(hmm));
 }
 
 // Utility functions to turn a type into something we can store.
@@ -152,24 +161,29 @@ template<typename HMMType>
 char GetHMMType() { return char(-1); }
 
 template<>
-char GetHMMType<HMM<distribution::DiscreteDistribution>>()
+char GetHMMType<HMM<DiscreteDistribution<>>>()
 {
   return HMMType::DiscreteHMM;
 }
 
 template<>
-char GetHMMType<HMM<distribution::GaussianDistribution>>()
+char GetHMMType<HMM<GaussianDistribution<>>>()
 {
   return HMMType::GaussianHMM;
 }
 
 template<>
-char GetHMMType<HMM<gmm::GMM>>()
+char GetHMMType<HMM<GMM>>()
 {
   return HMMType::GaussianMixtureModelHMM;
 }
 
-} // namespace hmm
+template<>
+char GetHMMType<HMM<DiagonalGMM>>()
+{
+  return HMMType::DiagonalGaussianMixtureModelHMM;
+}
+
 } // namespace mlpack
 
 #endif

@@ -1,9 +1,9 @@
 /**
- * @file r_star_tree_descent_heuristic_impl.hpp
+ * @file core/tree/rectangle_tree/r_star_tree_descent_heuristic_impl.hpp
  * @author Andrew Wells
  *
- * Implementation of RStarTreeDescentHeuristic, a class that chooses the best child of a node in
- * an R tree when inserting a new point.
+ * Implementation of RStarTreeDescentHeuristic, a class that chooses the best
+ * child of a node in an R tree when inserting a new point.
  *
  * mlpack is free software; you may redistribute it and/or modify it under the
  * terms of the 3-clause BSD license.  You should have received a copy of the
@@ -16,7 +16,6 @@
 #include "r_star_tree_descent_heuristic.hpp"
 
 namespace mlpack {
-namespace tree {
 
 template<typename TreeType>
 inline size_t RStarTreeDescentHeuristic::ChooseDescentNode(
@@ -24,7 +23,7 @@ inline size_t RStarTreeDescentHeuristic::ChooseDescentNode(
     const size_t point)
 {
   // Convenience typedef.
-  typedef typename TreeType::ElemType ElemType;
+  using ElemType = typename TreeType::ElemType;
 
   bool tiedOne = false;
   std::vector<ElemType> originalScores(node->NumChildren());
@@ -35,16 +34,16 @@ inline size_t RStarTreeDescentHeuristic::ChooseDescentNode(
     // If its children are leaf nodes, use minimum overlap to choose.
     size_t bestIndex = 0;
 
-    for (size_t i = 0; i < node->NumChildren(); i++)
+    for (size_t i = 0; i < node->NumChildren(); ++i)
     {
       ElemType sc = 0;
-      for (size_t j = 0; j < node->NumChildren(); j++)
+      for (size_t j = 0; j < node->NumChildren(); ++j)
       {
         if (j != i)
         {
           ElemType overlap = 1.0;
           ElemType newOverlap = 1.0;
-          for (size_t k = 0; k < node->Bound().Dim(); k++)
+          for (size_t k = 0; k < node->Bound().Dim(); ++k)
           {
             ElemType newHigh = std::max(node->Dataset().col(point)[k],
                 node->Child(i).Bound()[k].Hi());
@@ -89,7 +88,7 @@ inline size_t RStarTreeDescentHeuristic::ChooseDescentNode(
   if (tiedOne)
   {
     // If the first heuristic was tied, we need to eliminate garbage values.
-    for (size_t i = 0; i < scores.size(); i++)
+    for (size_t i = 0; i < scores.size(); ++i)
       scores[i] = std::numeric_limits<ElemType>::max();
   }
 
@@ -98,13 +97,13 @@ inline size_t RStarTreeDescentHeuristic::ChooseDescentNode(
   size_t bestIndex = 0;
   bool tied = false;
 
-  for (size_t i = 0; i < node->NumChildren(); i++)
+  for (size_t i = 0; i < node->NumChildren(); ++i)
   {
     if (!tiedOne || originalScores[i] == origMinScore)
     {
       ElemType v1 = 1.0;
       ElemType v2 = 1.0;
-      for (size_t j = 0; j < node->Bound().Dim(); j++)
+      for (size_t j = 0; j < node->Bound().Dim(); ++j)
       {
         v1 *= node->Child(i).Bound()[j].Width();
         v2 *= node->Child(i).Bound()[j].Contains(
@@ -136,7 +135,7 @@ inline size_t RStarTreeDescentHeuristic::ChooseDescentNode(
     // We break ties by choosing the smallest bound.
     ElemType minVol = std::numeric_limits<ElemType>::max();
     bestIndex = 0;
-    for (size_t i = 0; i < scores.size(); i++)
+    for (size_t i = 0; i < scores.size(); ++i)
     {
       if (scores[i] == minScore)
       {
@@ -165,7 +164,7 @@ inline size_t RStarTreeDescentHeuristic::ChooseDescentNode(
     const TreeType* insertedNode)
 {
   // Convenience typedef.
-  typedef typename TreeType::ElemType ElemType;
+  using ElemType = typename TreeType::ElemType;
 
   std::vector<ElemType> scores(node->NumChildren());
   std::vector<ElemType> vols(node->NumChildren());
@@ -173,11 +172,11 @@ inline size_t RStarTreeDescentHeuristic::ChooseDescentNode(
   size_t bestIndex = 0;
   bool tied = false;
 
-  for (size_t i = 0; i < node->NumChildren(); i++)
+  for (size_t i = 0; i < node->NumChildren(); ++i)
   {
     ElemType v1 = 1.0;
     ElemType v2 = 1.0;
-    for (size_t j = 0; j < node->Child(i).Bound().Dim(); j++)
+    for (size_t j = 0; j < node->Child(i).Bound().Dim(); ++j)
     {
       v1 *= node->Child(i).Bound()[j].Width();
       v2 *= node->Child(i).Bound()[j].Contains(insertedNode->Bound()[j]) ?
@@ -209,7 +208,7 @@ inline size_t RStarTreeDescentHeuristic::ChooseDescentNode(
     // We break ties by choosing the smallest bound.
     ElemType minVol = std::numeric_limits<ElemType>::max();
     bestIndex = 0;
-    for (size_t i = 0; i < scores.size(); i++)
+    for (size_t i = 0; i < scores.size(); ++i)
     {
       if (scores[i] == minScore)
       {
@@ -225,7 +224,6 @@ inline size_t RStarTreeDescentHeuristic::ChooseDescentNode(
   return bestIndex;
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

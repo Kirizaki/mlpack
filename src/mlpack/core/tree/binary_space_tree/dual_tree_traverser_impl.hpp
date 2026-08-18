@@ -1,5 +1,5 @@
 /**
- * @file dual_tree_traverser_impl.hpp
+ * @file core/tree/binary_space_tree/dual_tree_traverser_impl.hpp
  * @author Ryan Curtin
  *
  * Implementation of the DualTreeTraverser for BinarySpaceTree.  This is a way
@@ -18,16 +18,17 @@
 #include "dual_tree_traverser.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename BoundMetricType, typename...> class BoundType,
-         template<typename SplitBoundType, typename SplitMatType>
-             class SplitType>
+         template<typename BoundDistanceType,
+                  typename BoundElemType,
+                  typename...> class BoundType,
+         template<typename SplitBoundType,
+                  typename SplitMatType> class SplitType>
 template<typename RuleType>
-BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>::
+BinarySpaceTree<DistanceType, StatisticType, MatType, BoundType, SplitType>::
 DualTreeTraverser<RuleType>::DualTreeTraverser(RuleType& rule) :
     rule(rule),
     numPrunes(0),
@@ -36,18 +37,21 @@ DualTreeTraverser<RuleType>::DualTreeTraverser(RuleType& rule) :
     numBaseCases(0)
 { /* Nothing to do. */ }
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename BoundMetricType, typename...> class BoundType,
-         template<typename SplitBoundType, typename SplitMatType>
-             class SplitType>
+         template<typename BoundDistanceType,
+                  typename BoundElemType,
+                  typename...> class BoundType,
+         template<typename SplitBoundType,
+                  typename SplitMatType> class SplitType>
 template<typename RuleType>
-void BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>::
+void
+BinarySpaceTree<DistanceType, StatisticType, MatType, BoundType, SplitType>::
 DualTreeTraverser<RuleType>::Traverse(
-    BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>&
+    BinarySpaceTree<DistanceType, StatisticType, MatType, BoundType, SplitType>&
         queryNode,
-    BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>&
+    BinarySpaceTree<DistanceType, StatisticType, MatType, BoundType, SplitType>&
         referenceNode)
 {
   // Increment the visit counter.
@@ -55,6 +59,18 @@ DualTreeTraverser<RuleType>::Traverse(
 
   // Store the current traversal info.
   traversalInfo = rule.TraversalInfo();
+
+  // If both nodes are root nodes, just score them.
+  if (queryNode.Parent() == NULL && referenceNode.Parent() == NULL)
+  {
+    const double rootScore = rule.Score(queryNode, referenceNode);
+    // If root score is DBL_MAX, don't recurse.
+    if (rootScore == DBL_MAX)
+    {
+      ++numPrunes;
+      return;
+    }
+  }
 
   // If both are leaves, we must evaluate the base case.
   if (queryNode.IsLeaf() && referenceNode.IsLeaf())
@@ -340,7 +356,6 @@ DualTreeTraverser<RuleType>::Traverse(
   }
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif // MLPACK_CORE_TREE_BINARY_SPACE_TREE_DUAL_TREE_TRAVERSER_IMPL_HPP

@@ -1,5 +1,5 @@
 /**
- * @file r_plus_plus_tree_auxiliary_information.hpp
+ * @file core/tree/rectangle_tree/r_plus_plus_tree_auxiliary_information.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of the RPlusPlusTreeAuxiliaryInformation class,
@@ -11,23 +11,22 @@
  * 3-clause BSD license along with mlpack.  If not, see
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
-#ifndef MLPACK_CORE_TREE_RECTANGLE_TREE_R_PLUS_PLUS_TREE_AUXILIARY_INFORMATION_HPP
-#define MLPACK_CORE_TREE_RECTANGLE_TREE_R_PLUS_PLUS_TREE_AUXILIARY_INFORMATION_HPP
+#ifndef MLPACK_CORE_TREE_RECTANGLE_TREE_RPP_TREE_AUXILIARY_INFO_HPP
+#define MLPACK_CORE_TREE_RECTANGLE_TREE_RPP_TREE_AUXILIARY_INFO_HPP
 
 #include <mlpack/prereqs.hpp>
 #include "../hrectbound.hpp"
 
 namespace mlpack {
-namespace tree {
 
 template<typename TreeType>
 class RPlusPlusTreeAuxiliaryInformation
 {
  public:
   //! The element type held by the tree.
-  typedef typename TreeType::ElemType ElemType;
+  using ElemType = typename TreeType::ElemType;
   //! The bound type held by the auxiliary information.
-  typedef bound::HRectBound<metric::EuclideanDistance, ElemType> BoundType;
+  using BoundType = HRectBound<EuclideanDistance, ElemType>;
 
   //! Construct the auxiliary information object.
   RPlusPlusTreeAuxiliaryInformation();
@@ -35,7 +34,7 @@ class RPlusPlusTreeAuxiliaryInformation
   /**
    * Construct this as an auxiliary information for the given node.
    *
-   * @param node The node that stores this auxiliary information.
+   * @param * (node) The node that stores this auxiliary information.
    */
   RPlusPlusTreeAuxiliaryInformation(const TreeType* /* node */);
 
@@ -45,7 +44,7 @@ class RPlusPlusTreeAuxiliaryInformation
    * @param other Another auxiliary information object from which the
    *    information will be copied.
    * @param tree The node that holds the auxiliary information.
-   * @param deepCopy If false, the new object uses the same memory
+   * @param * (deepCopy) If false, the new object uses the same memory
    *    (not used here).
    */
   RPlusPlusTreeAuxiliaryInformation(
@@ -62,14 +61,26 @@ class RPlusPlusTreeAuxiliaryInformation
   RPlusPlusTreeAuxiliaryInformation(RPlusPlusTreeAuxiliaryInformation&& other);
 
   /**
+   * Copy the given RPlusPlusTreeAuxiliaryInformation.
+   */
+  RPlusPlusTreeAuxiliaryInformation& operator=(
+      const RPlusPlusTreeAuxiliaryInformation& other);
+
+  /**
+   * Take ownership of the given RPlusPlusTreeAuxiliaryInformation's data.
+   */
+  RPlusPlusTreeAuxiliaryInformation& operator=(
+      RPlusPlusTreeAuxiliaryInformation&& other);
+
+  /**
    * Some tree types require to save some properties at the insertion process.
    * This method allows the auxiliary information the option of manipulating
    * the tree in order to perform the insertion process. If the auxiliary
    * information does that, then the method should return true; if the method
    * returns false the RectangleTree performs its default behavior.
    *
-   * @param node The node in which the point is being inserted.
-   * @param point The global number of the point being inserted.
+   * @param * (node) The node in which the point is being inserted.
+   * @param * (point) The global number of the point being inserted.
    */
   bool HandlePointInsertion(TreeType* /* node */, const size_t /* point */);
 
@@ -80,9 +91,9 @@ class RPlusPlusTreeAuxiliaryInformation
    * information does that, then the method should return true; if the method
    * returns false the RectangleTree performs its default behavior.
    *
-   * @param node The node in which the nodeToInsert is being inserted.
-   * @param nodeToInsert The node being inserted.
-   * @param insertionLevel The level of the tree at which the nodeToInsert
+   * @param * (node) The node in which the nodeToInsert is being inserted.
+   * @param * (nodeToInsert) The node being inserted.
+   * @param * (insertionLevel) The level of the tree at which the nodeToInsert
    *        should be inserted.
    */
   bool HandleNodeInsertion(TreeType* /* node */,
@@ -96,8 +107,8 @@ class RPlusPlusTreeAuxiliaryInformation
    * information does that, then the method should return true; if the method
    * returns false the RectangleTree performs its default behavior.
    *
-   * @param node The node from which the point is being deleted.
-   * @param localIndex The local index of the point being deleted.
+   * @param * (node) The node from which the point is being deleted.
+   * @param * (localIndex) The local index of the point being deleted.
    */
   bool HandlePointDeletion(TreeType* /* node */, const size_t /* localIndex */);
 
@@ -108,8 +119,8 @@ class RPlusPlusTreeAuxiliaryInformation
    * information does that, then the method should return true; if the method
    * returns false the RectangleTree performs its default behavior.
    *
-   * @param node The node from which the node is being deleted.
-   * @param nodeIndex The local index of the node being deleted.
+   * @param * (node) The node from which the node is being deleted.
+   * @param * (nodeIndex) The local index of the node being deleted.
    */
   bool HandleNodeRemoval(TreeType* /* node */, const size_t /* nodeIndex */);
 
@@ -119,7 +130,7 @@ class RPlusPlusTreeAuxiliaryInformation
    * This method should return false if this is not the case. If true is
    * returned, the update will be propagated upward.
    *
-   * @param node The node in which the auxiliary information being update.
+   * @param * (node) The node in which the auxiliary information being update.
    */
   bool UpdateAuxiliaryInfo(TreeType* /* node */);
 
@@ -147,20 +158,21 @@ class RPlusPlusTreeAuxiliaryInformation
 
   //! Modify the maximum bounding rectangle.
   const BoundType& OuterBound() const { return outerBound; }
+
  private:
   //! The maximum bounding rectangle.
   BoundType outerBound;
+
  public:
   /**
    * Serialize the information.
    */
   template<typename Archive>
-  void Serialize(Archive &, const unsigned int /* version */);
+  void serialize(Archive &, const uint32_t /* version */);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #include "r_plus_plus_tree_auxiliary_information_impl.hpp"
 
-#endif//MLPACK_CORE_TREE_RECTANGLE_TREE_R_PLUS_PLUS_TREE_AUXILIARY_INFORMATION_HPP
+#endif // MLPACK_CORE_TREE_RECTANGLE_TREE_RPP_TREE_AUXILIARY_INFO_HPP

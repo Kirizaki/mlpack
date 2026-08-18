@@ -1,5 +1,5 @@
 /**
- * @file r_plus_plus_tree_split_policy.hpp
+ * @file core/tree/rectangle_tree/r_plus_plus_tree_split_policy.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition and implementation of the RPlusPlusTreeSplitPolicy class, a class
@@ -15,7 +15,6 @@
 #define MLPACK_CORE_TREE_RECTANGLE_TREE_R_PLUS_PLUS_TREE_SPLIT_POLICY_HPP
 
 namespace mlpack {
-namespace tree {
 
 /**
  * The RPlusPlusTreeSplitPolicy helps to determine the subtree into which
@@ -65,15 +64,13 @@ class RPlusPlusTreeSplitPolicy
    * @param node The node whose bound is requested.
    */
   template<typename TreeType>
-  static const
-      bound::HRectBound<metric::EuclideanDistance, typename TreeType::ElemType>&
-          Bound(const TreeType& node)
+  static const HRectBound<EuclideanDistance, typename TreeType::ElemType>&
+      Bound(const TreeType& node)
   {
     return node.AuxiliaryInfo().OuterBound();
   }
 };
 
-} //  namespace tree
 } //  namespace mlpack
 
 #endif //  MLPACK_CORE_TREE_RECTANGLE_TREE_R_PLUS_PLUS_TREE_SPLIT_POLICY_HPP

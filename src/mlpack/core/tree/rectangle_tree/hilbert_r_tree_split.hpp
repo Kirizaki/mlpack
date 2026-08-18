@@ -1,5 +1,5 @@
 /**
- * @file hilbert_r_tree_split.hpp
+ * @file core/tree/rectangle_tree/hilbert_r_tree_split.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of the HilbertRTreeSplit class, a class that splits the nodes of an R
@@ -16,7 +16,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace tree /** Trees and tree-building procedures. */ {
 
 /**
  * The splitting procedure for the Hilbert R tree.  The template parameter
@@ -33,7 +32,7 @@ class HilbertRTreeSplit
    * Split a leaf node using the "default" algorithm.  If necessary, this split
    * will propagate upwards through the tree.
    *
-   * @param node The node that is being split.
+   * @param tree The node that is being split.
    * @param relevels Not used.
    */
   template<typename TreeType>
@@ -43,7 +42,7 @@ class HilbertRTreeSplit
    * Split a non-leaf node using the "default" algorithm.  If this is a root
    * node, the tree increases in depth.
    *
-   * @param node The node that is being split.
+   * @param tree The node that is being split.
    * @param relevels Not used.
    */
   template<typename TreeType>
@@ -90,11 +89,9 @@ class HilbertRTreeSplit
                                        const size_t lastSibling);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.
 #include "hilbert_r_tree_split_impl.hpp"
 
 #endif
-

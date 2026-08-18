@@ -1,5 +1,5 @@
 /**
- * @file regularized_svd_impl.hpp
+ * @file methods/regularized_svd/regularized_svd_impl.hpp
  * @author Siddharth Agrawal
  *
  * An implementation of Regularized SVD.
@@ -14,9 +14,8 @@
 #define MLPACK_METHODS_REGULARIZED_SVD_REGULARIZED_SVD_IMPL_HPP
 
 namespace mlpack {
-namespace svd {
 
-template<template<typename> class OptimizerType>
+template<typename OptimizerType>
 RegularizedSVD<OptimizerType>::RegularizedSVD(const size_t iterations,
                                               const double alpha,
                                               const double lambda) :
@@ -27,20 +26,26 @@ RegularizedSVD<OptimizerType>::RegularizedSVD(const size_t iterations,
   // Nothing to do.
 }
 
-template<template<typename> class OptimizerType>
+template<typename OptimizerType>
 void RegularizedSVD<OptimizerType>::Apply(const arma::mat& data,
                                           const size_t rank,
                                           arma::mat& u,
                                           arma::mat& v)
 {
+  // batchSize is 1 in our implementation of Regularized SVD.
+  // batchSize other than 1 has not been supported yet.
+  const int batchSize = 1;
+  Log::Warn << "The batch size for optimizing RegularizedSVD is 1."
+      << std::endl;
+
   // Make the optimizer object using a RegularizedSVDFunction object.
-  RegularizedSVDFunction rSVDFunc(data, rank, lambda);
-  mlpack::optimization::SGD<RegularizedSVDFunction> optimizer(rSVDFunc, alpha,
+  RegularizedSVDFunction<arma::mat> rSVDFunc(data, rank, lambda);
+  ens::StandardSGD optimizer(alpha, batchSize,
       iterations * data.n_cols);
 
   // Get optimized parameters.
   arma::mat parameters = rSVDFunc.GetInitialPoint();
-  optimizer.Optimize(parameters);
+  optimizer.Optimize(rSVDFunc, parameters);
 
   // Constants for extracting user and item matrices.
   const size_t numUsers = max(data.row(0)) + 1;
@@ -51,7 +56,6 @@ void RegularizedSVD<OptimizerType>::Apply(const arma::mat& data,
   v = parameters.submat(0, 0, rank - 1, numUsers - 1);
 }
 
-} // namespace svd
 } // namespace mlpack
 
 #endif

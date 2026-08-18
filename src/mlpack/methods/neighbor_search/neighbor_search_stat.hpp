@@ -1,5 +1,5 @@
 /**
- * @file neighbor_search.hpp
+ * @file methods/neighbor_search/neighbor_search_stat.hpp
  * @author Ryan Curtin
  *
  * Defines the NeighborSearch class, which performs an abstract
@@ -14,9 +14,10 @@
 #define MLPACK_METHODS_NEIGHBOR_SEARCH_NEIGHBOR_SEARCH_STAT_HPP
 
 #include <mlpack/prereqs.hpp>
+#include "sort_policies/nearest_neighbor_sort.hpp"
+#include "sort_policies/furthest_neighbor_sort.hpp"
 
 namespace mlpack {
-namespace neighbor {
 
 /**
  * Extra data for each node in the tree.  For neighbor searches, each node only
@@ -92,18 +93,23 @@ class NeighborSearchStat
 
   //! Serialize the statistic to/from an archive.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    using data::CreateNVP;
-
-    ar & CreateNVP(firstBound, "firstBound");
-    ar & CreateNVP(secondBound, "secondBound");
-    ar & CreateNVP(auxBound, "auxBound");
-    ar & CreateNVP(lastDistance, "lastDistance");
+    ar(CEREAL_NVP(firstBound));
+    ar(CEREAL_NVP(secondBound));
+    ar(CEREAL_NVP(auxBound));
+    ar(CEREAL_NVP(lastDistance));
   }
 };
 
-} // namespace neighbor
+// This is the type that must be used as the StatisticType for
+// k-nearest-neighbor search (e.g. the KNN or KNNType<> class).
+using NearestNeighborStat = NeighborSearchStat<NearestNeighborSort>;
+
+// This is the type that must be used as the StatisticType for
+// k-furthest-neighbor search (e.g. the KFN or KFNType<> class).
+using FurthestNeighborStat = NeighborSearchStat<FurthestNeighborSort>;
+
 } // namespace mlpack
 
 #endif

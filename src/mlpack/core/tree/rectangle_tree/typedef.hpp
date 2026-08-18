@@ -1,5 +1,5 @@
 /**
- * @file typedef.hpp
+ * @file core/tree/rectangle_tree/typedef.hpp
  * @author Ryan Curtin
  *
  * Typedefs of RectangleTrees, for use by classes that require trees matching
@@ -16,7 +16,6 @@
 #include "rectangle_tree.hpp"
 
 namespace mlpack {
-namespace tree {
 
 /**
  * An implementation of the R tree that satisfies the TreeType policy API.
@@ -38,8 +37,10 @@ namespace tree {
  *
  * @see @ref trees, RStarTree
  */
-template<typename MetricType, typename StatisticType, typename MatType>
-using RTree = RectangleTree<MetricType,
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using RTree = RectangleTree<DistanceType,
                             StatisticType,
                             MatType,
                             RTreeSplit,
@@ -66,8 +67,10 @@ using RTree = RectangleTree<MetricType,
  *
  * @see @ref trees, RTree
  */
-template<typename MetricType, typename StatisticType, typename MatType>
-using RStarTree = RectangleTree<MetricType,
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using RStarTree = RectangleTree<DistanceType,
                                 StatisticType,
                                 MatType,
                                 RStarTreeSplit,
@@ -92,8 +95,10 @@ using RStarTree = RectangleTree<MetricType,
  *
  * @see @ref trees, RTree, RStarTree
  */
-template<typename MetricType, typename StatisticType, typename MatType>
-using XTree = RectangleTree<MetricType,
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using XTree = RectangleTree<DistanceType,
                             StatisticType,
                             MatType,
                             XTreeSplit,
@@ -125,15 +130,17 @@ using XTree = RectangleTree<MetricType,
  */
 template<typename TreeType>
 using DiscreteHilbertRTreeAuxiliaryInformation =
-      HilbertRTreeAuxiliaryInformation<TreeType,DiscreteHilbertValue>;
+      HilbertRTreeAuxiliaryInformation<TreeType, DiscreteHilbertValue>;
 
-template<typename MetricType, typename StatisticType, typename MatType>
-using HilbertRTree = RectangleTree<MetricType,
-                            StatisticType,
-                            MatType,
-                            HilbertRTreeSplit<2>,
-                            HilbertRTreeDescentHeuristic,
-                            DiscreteHilbertRTreeAuxiliaryInformation>;
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using HilbertRTree = RectangleTree<DistanceType,
+                                   StatisticType,
+                                   MatType,
+                                   HilbertRTreeSplit<2>,
+                                   HilbertRTreeDescentHeuristic,
+                                   DiscreteHilbertRTreeAuxiliaryInformation>;
 
 /**
  * The R+ tree, a variant of the R tree that avoids overlapping rectangles.
@@ -158,14 +165,15 @@ using HilbertRTree = RectangleTree<MetricType,
  *
  * @see @ref trees, RTree, RTree, RPlusTree
  */
-template<typename MetricType, typename StatisticType, typename MatType>
-using RPlusTree = RectangleTree<MetricType,
-                            StatisticType,
-                            MatType,
-                            RPlusTreeSplit<RPlusTreeSplitPolicy,
-                                           MinimalCoverageSweep>,
-                            RPlusTreeDescentHeuristic,
-                            NoAuxiliaryInformation>;
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using RPlusTree = RectangleTree<DistanceType,
+                                StatisticType,
+                                MatType,
+                                RPlusTreeSplit,
+                                RPlusTreeDescentHeuristic,
+                                NoAuxiliaryInformation>;
 
 /**
  * The R++ tree, a variant of the R+ tree with maximum buonding rectangles.
@@ -186,15 +194,16 @@ using RPlusTree = RectangleTree<MetricType,
  * @endcode
  *
  * @see @ref trees, RTree, RTree, RPlusTree, RPlusPlusTree
- */template<typename MetricType, typename StatisticType, typename MatType>
-using RPlusPlusTree = RectangleTree<MetricType,
-                            StatisticType,
-                            MatType,
-                            RPlusTreeSplit<RPlusPlusTreeSplitPolicy,
-                                           MinimalSplitsNumberSweep>,
-                            RPlusPlusTreeDescentHeuristic,
-                            RPlusPlusTreeAuxiliaryInformation>;
-} // namespace tree
+ */
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using RPlusPlusTree = RectangleTree<DistanceType,
+                                    StatisticType,
+                                    MatType,
+                                    RPlusPlusTreeSplit,
+                                    RPlusPlusTreeDescentHeuristic,
+                                    RPlusPlusTreeAuxiliaryInformation>;
 } // namespace mlpack
 
 #endif

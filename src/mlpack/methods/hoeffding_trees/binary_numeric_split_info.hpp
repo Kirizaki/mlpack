@@ -1,5 +1,5 @@
 /**
- * @file binary_numeric_split_info.hpp
+ * @file methods/hoeffding_trees/binary_numeric_split_info.hpp
  * @author Ryan Curtin
  *
  * After a binary numeric split has been made, this holds information on the
@@ -16,7 +16,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace tree {
 
 template<typename ObservationType = double>
 class BinaryNumericSplitInfo
@@ -34,16 +33,15 @@ class BinaryNumericSplitInfo
 
   //! Serialize the split (save/load the split points).
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    ar & data::CreateNVP(splitPoint, "splitPoint");
+    ar(CEREAL_NVP(splitPoint));
   }
 
  private:
   ObservationType splitPoint;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

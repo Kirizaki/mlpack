@@ -1,5 +1,5 @@
 /**
- * @file cellbound.hpp
+ * @file core/tree/cellbound.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of the CellBound class. The class describes a bound that consists
@@ -36,12 +36,11 @@
 
 #include <mlpack/prereqs.hpp>
 #include <mlpack/core/math/range.hpp>
-#include <mlpack/core/metrics/lmetric.hpp>
+#include <mlpack/core/distances/lmetric.hpp>
 #include "bound_traits.hpp"
 #include "address.hpp"
 
 namespace mlpack {
-namespace bound {
 
 /**
  * The CellBound class describes a bound that consists of a number of
@@ -70,16 +69,15 @@ namespace bound {
  * }
  * @endcode
  */
-template<typename MetricType = metric::LMetric<2, true>,
+template<typename DistanceType = LMetric<2, true>,
          typename ElemType = double>
 class CellBound
 {
  public:
   //! Depending on the precision of the tree element type, we may need to use
   //! uint32_t or uint64_t.
-  typedef typename std::conditional<sizeof(ElemType) * CHAR_BIT <= 32,
-                                    uint32_t,
-                                    uint64_t>::type AddressElemType;
+  using AddressElemType = std::conditional_t<
+      (sizeof(ElemType) * CHAR_BIT <= 32), uint32_t, uint64_t>;
 
   /**
    * Empty constructor; creates a bound of dimensionality 0.
@@ -89,6 +87,8 @@ class CellBound
   /**
    * Initializes to specified dimensionality with each dimension the empty
    * set.
+   *
+   * @param dimension Dimensionality of bound.
    */
   CellBound(const size_t dimension);
 
@@ -114,16 +114,16 @@ class CellBound
 
   //! Get the range for a particular dimension.  No bounds checking.  Be
   //! careful: this may make MinWidth() invalid.
-  math::RangeType<ElemType>& operator[](const size_t i) { return bounds[i]; }
+  RangeType<ElemType>& operator[](const size_t i) { return bounds[i]; }
   //! Modify the range for a particular dimension.  No bounds checking.
-  const math::RangeType<ElemType>& operator[](const size_t i) const
+  const RangeType<ElemType>& operator[](const size_t i) const
   { return bounds[i]; }
 
   //! Get lower address.
   arma::Col<AddressElemType>& LoAddress() { return loAddress; }
   //! Modify lower address.
   const arma::Col<AddressElemType>& LoAddress() const {return loAddress; }
-  
+
   //! Get high address.
   arma::Col<AddressElemType>& HiAddress() { return hiAddress; }
   //! Modify high address.
@@ -141,6 +141,18 @@ class CellBound
   ElemType MinWidth() const { return minWidth; }
   //! Modify the minimum width of the bound.
   ElemType& MinWidth() { return minWidth; }
+
+  //! Get the distance metric associated with this bound.
+  [[deprecated("Will be removed in mlpack 5.0.0; use Distance()")]]
+  const DistanceType& Metric() const { return distance; }
+  //! Modify the distance metric associated with this bound.
+  [[deprecated("Will be removed in mlpack 5.0.0; use Distance()")]]
+  DistanceType& Metric() { return distance; }
+
+  //! Get the distance metric associated with this bound.
+  const DistanceType& Distance() const { return distance; }
+  //! Modify the distance metric associated with this bound.
+  DistanceType& Distance() { return distance; }
 
   /**
    * Calculates the center of the range, placing it into the given vector.
@@ -189,7 +201,7 @@ class CellBound
    * @param other Bound to which the minimum and maximum distances are
    *     requested.
    */
-  math::RangeType<ElemType> RangeDistance(const CellBound& other) const;
+  RangeType<ElemType> RangeDistance(const CellBound& other) const;
 
   /**
    * Calculates minimum and maximum bound-to-point distance.
@@ -198,7 +210,7 @@ class CellBound
    *     requested.
    */
   template<typename VecType>
-  math::RangeType<ElemType> RangeDistance(
+  RangeType<ElemType> RangeDistance(
       const VecType& point,
       typename std::enable_if_t<IsVector<VecType>::value>* = 0) const;
 
@@ -214,11 +226,15 @@ class CellBound
 
   /**
    * Expands this region to encompass another bound.
+   *
+   * @param other Bound which needs to be encompassed.
    */
   CellBound& operator|=(const CellBound& other);
 
   /**
    * Determines if a point is within this bound.
+   *
+   * @param point Point to check the condition.
    */
   template<typename VecType>
   bool Contains(const VecType& point) const;
@@ -241,7 +257,7 @@ class CellBound
    * Serialize the bound object.
    */
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int version);
+  void serialize(Archive& ar, const uint32_t version);
 
  private:
   //! The precision of the tree element type.
@@ -251,7 +267,7 @@ class CellBound
   //! The dimensionality of the bound.
   size_t dim;
   //! The bounds for each dimension.
-  math::RangeType<ElemType>* bounds;
+  RangeType<ElemType>* bounds;
   //! Lower bounds of subrectangles.
   arma::Mat<ElemType> loBound;
   //! High bounds of subrectangles.
@@ -264,6 +280,8 @@ class CellBound
   arma::Col<AddressElemType> hiAddress;
   //! The minimal width of the outer rectangle.
   ElemType minWidth;
+  //! The instantiated distance metric (likely has size 0).
+  DistanceType distance;
 
   /**
    * Add a subrectangle to the bound.
@@ -300,14 +318,13 @@ class CellBound
 };
 
 // A specialization of BoundTraits for this class.
-template<typename MetricType, typename ElemType>
-struct BoundTraits<CellBound<MetricType, ElemType>>
+template<typename DistanceType, typename ElemType>
+struct BoundTraits<CellBound<DistanceType, ElemType>>
 {
   //! These bounds are always tight for each dimension.
-  const static bool HasTightBounds = true;
+  static const bool HasTightBounds = true;
 };
 
-} // namespace bound
 } // namespace mlpack
 
 #include "cellbound_impl.hpp"

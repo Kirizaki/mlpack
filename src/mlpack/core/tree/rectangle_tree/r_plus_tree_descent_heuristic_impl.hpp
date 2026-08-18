@@ -1,5 +1,5 @@
 /**
- * @file hilbert_r_tree_descent_heuristic_impl.hpp
+ * @file core/tree/rectangle_tree/r_plus_tree_descent_heuristic_impl.hpp
  * @author Mikhail Lozhnikov
  *
  * Implementation of HilbertRTreeDescentHeuristic, a class that chooses the best child
@@ -17,15 +17,14 @@
 #include "../hrectbound.hpp"
 
 namespace mlpack {
-namespace tree {
 
 template<typename TreeType>
 size_t RPlusTreeDescentHeuristic::ChooseDescentNode(TreeType* node,
                                                     const size_t point)
 {
-  typedef typename TreeType::ElemType ElemType;
+  using ElemType = typename TreeType::ElemType;
   size_t bestIndex = 0;
-  bool success;
+  bool success = true;
 
   // Try to find a node that contains the point.
   for (bestIndex = 0; bestIndex < node->NumChildren(); bestIndex++)
@@ -39,20 +38,20 @@ size_t RPlusTreeDescentHeuristic::ChooseDescentNode(TreeType* node,
   // the resulting node do not overlap other nodes.
   for (bestIndex = 0; bestIndex < node->NumChildren(); bestIndex++)
   {
-    bound::HRectBound<metric::EuclideanDistance, ElemType> bound =
+    HRectBound<EuclideanDistance, ElemType> bound =
         node->Child(bestIndex).Bound();
     bound |= node->Dataset().col(point);
 
     success = true;
 
-    for (size_t j = 0; j < node->NumChildren(); j++)
+    for (size_t j = 0; j < node->NumChildren(); ++j)
     {
       if (j == bestIndex)
         continue;
       success = false;
       // Two nodes overlap if and only if there are no dimension in which
       // they do not overlap each other.
-      for (size_t k = 0; k < node->Bound().Dim(); k++)
+      for (size_t k = 0; k < node->Bound().Dim(); ++k)
       {
         if (bound[k].Lo() >= node->Child(j).Bound()[k].Hi() ||
             node->Child(j).Bound()[k].Lo() >= bound[k].Hi())
@@ -102,7 +101,6 @@ size_t RPlusTreeDescentHeuristic::ChooseDescentNode(
   return 0;
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif // MLPACK_CORE_TREE_RECTANGLE_TREE_R_PLUS_TREE_DESCENT_HEURISTIC_IMPL_HPP

@@ -1,5 +1,5 @@
 /**
- * @file typedef.hpp
+ * @file methods/hoeffding_trees/typedef.hpp
  * @author Ryan Curtin
  *
  * Useful typedefs.
@@ -16,11 +16,9 @@
 #include "hoeffding_tree.hpp"
 
 namespace mlpack {
-namespace tree {
 
-typedef StreamingDecisionTree<HoeffdingTree<>> HoeffdingTreeType;
+using HoeffdingTreeType = StreamingDecisionTree<HoeffdingTree<>>;
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

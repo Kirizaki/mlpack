@@ -1,5 +1,5 @@
 /**
- * @file mean_shift_main.cpp
+ * @file methods/mean_shift/mean_shift_main.cpp
  * @author Shangtong Zhang
  *
  * Executable for running Mean Shift.
@@ -9,33 +9,76 @@
  * 3-clause BSD license along with mlpack.  If not, see
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
-#include <mlpack/prereqs.hpp>
-#include <mlpack/core/kernels/gaussian_kernel.hpp>
+#include <mlpack/core.hpp>
+
+#undef BINDING_NAME
+#define BINDING_NAME mean_shift
+
+#include <mlpack/core/util/mlpack_main.hpp>
+
 #include "mean_shift.hpp"
 
 using namespace mlpack;
-using namespace mlpack::meanshift;
-using namespace mlpack::kernel;
+using namespace mlpack::util;
 using namespace std;
 
-// Define parameters for the executable.
-PROGRAM_INFO("Mean Shift Clustering", "This program performs mean shift "
-    "clustering on the given dataset, storing the learned cluster assignments "
-    "either as a column of labels in the file containing the input dataset or "
-    "in a separate file.");
+// Program Name.
+BINDING_USER_NAME("Mean Shift Clustering");
+
+// Short description.
+BINDING_SHORT_DESC(
+    "A fast implementation of mean-shift clustering using dual-tree range "
+    "search.  Given a dataset, this uses the mean shift algorithm to produce "
+    "and return a clustering of the data.");
+
+// Long description.
+BINDING_LONG_DESC(
+    "This program performs mean shift clustering on the given dataset, storing "
+    "the learned cluster assignments either as a column of labels in the input "
+    "dataset or separately."
+    "\n\n"
+    "The input dataset should be specified with the " +
+    PRINT_PARAM_STRING("input") + " parameter, and the radius used for search"
+    " can be specified with the " + PRINT_PARAM_STRING("radius") + " "
+    "parameter.  The maximum number of iterations before algorithm termination "
+    "is controlled with the " + PRINT_PARAM_STRING("max_iterations") + " "
+    "parameter."
+    "\n\n"
+    "The output labels may be saved with the " + PRINT_PARAM_STRING("output") +
+    " output parameter and the centroids of each cluster may be saved with the"
+    " " + PRINT_PARAM_STRING("centroid") + " output parameter.");
+
+// Example.
+BINDING_EXAMPLE(
+    "For example, to run mean shift clustering on the dataset " +
+    PRINT_DATASET("data") + " and store the centroids to " +
+    PRINT_DATASET("centroids") + ", the following command may be used: "
+    "\n\n" +
+    PRINT_CALL("mean_shift", "input", "data", "centroid", "centroids"));
+
+// See also...
+BINDING_SEE_ALSO("@kmeans", "#kmeans");
+BINDING_SEE_ALSO("@dbscan", "#dbscan");
+BINDING_SEE_ALSO("Mean shift on Wikipedia",
+    "https://en.wikipedia.org/wiki/Mean_shift");
+BINDING_SEE_ALSO("Mean Shift, Mode Seeking, and Clustering (pdf)",
+    "https://members.loria.fr/MOBerger/Enseignement/Master2/Exposes/"
+    "meanShiftCluster.pdf");
+BINDING_SEE_ALSO("mlpack::mean_shift::MeanShift C++ class documentation",
+    "@doc/user/methods/mean_shift.md");
 
 // Required options.
-PARAM_MATRIX_IN("input", "Input dataset to perform clustering on.", "i");
-// This is kept for reverse compatibility and may be removed in mlpack 3.0.0.
-// At that time, --input_file should be made a required parameter.
-PARAM_STRING_IN("inputFile", "Input dataset to perform clustering on.", "", "");
+PARAM_MATRIX_IN_REQ("input", "Input dataset to perform clustering on.", "i");
 
 // Output options.
 PARAM_FLAG("in_place", "If specified, a column containing the learned cluster "
     "assignments will be added to the input dataset file.  In this case, "
-    "--output_file is overridden.", "P");
+    "--output_file is overridden.  (Do not use with Python.)", "P");
 PARAM_FLAG("labels_only", "If specified, only the output labels will be "
     "written to the file specified by --output_file.", "l");
+PARAM_FLAG("force_convergence", "If specified, the mean shift algorithm will "
+  "continue running regardless of max_iterations until the clusters converge."
+  , "f");
 PARAM_MATRIX_OUT("output", "Matrix to write output labels or labeled data to.",
     "o");
 PARAM_MATRIX_OUT("centroid", "If specified, the centroids of each cluster will "
@@ -49,114 +92,75 @@ PARAM_DOUBLE_IN("radius", "If the distance between two centroids is less than "
     "the given radius, one will be removed.  A radius of 0 or less means an "
     "estimate will be calculated and used for the radius.", "r", 0);
 
-int main(int argc, char** argv)
+void BINDING_FUNCTION(util::Params& params, util::Timers& timers)
 {
-  CLI::ParseCommandLine(argc, argv);
+  const double radius = params.Get<double>("radius");
+  const int maxIterations = params.Get<int>("max_iterations");
 
-  // This is for reverse compatibility and may be removed in mlpack 3.0.0.
-  if (CLI::HasParam("inputFile") && CLI::HasParam("input"))
-    Log::Fatal << "Cannot specify both --input_file and --inputFile!" << endl;
-
-  if (CLI::HasParam("inputFile"))
-  {
-    Log::Warn << "--inputFile is deprecated and will be removed in mlpack "
-        << "3.0.0; use --input_file instead." << endl;
-    CLI::GetUnmappedParam<string>("input_file") =
-        CLI::GetParam<string>("inputFile");
-  }
-
-  if (!CLI::HasParam("input"))
-    Log::Fatal << "--input_file must be specified!" << endl;
-
-  const double radius = CLI::GetParam<double>("radius");
-  const int maxIterations = CLI::GetParam<int>("max_iterations");
-
-  if (maxIterations < 0)
-  {
-    Log::Fatal << "Invalid value for maximum iterations (" << maxIterations <<
-        ")! Must be greater than or equal to 0." << endl;
-  }
+  RequireParamValue<int>(params, "max_iterations", [](int x) { return x >= 0; },
+      true, "maximum iterations must be greater than or equal to 0");
 
   // Make sure we have an output file if we're not doing the work in-place.
-  if (!CLI::HasParam("in_place") && !CLI::HasParam("output") &&
-      !CLI::HasParam("centroid"))
-  {
-    Log::Warn << "--output_file, --in_place, and --centroid_file are not set; "
-        << "no results will be saved." << endl;
-  }
+  RequireAtLeastOnePassed(params, { "in_place", "output", "centroid" }, false,
+      "no results will be saved");
+  ReportIgnoredParam(params, {{ "output", false }}, "labels_only");
+  ReportIgnoredParam(params, {{ "in_place", true }}, "output");
+  ReportIgnoredParam(params, {{ "in_place", true }}, "labels_only");
 
-  if (CLI::HasParam("labels_only") && !CLI::HasParam("output"))
-    Log::Warn << "--labels_only ignored because --output_file is not specified."
-        << endl;
-
-  if (CLI::HasParam("in_place") && CLI::HasParam("output"))
-    Log::Warn << "--output_file ignored because --in_place is specified."
-        << endl;
-
-  if (CLI::HasParam("in_place") && CLI::HasParam("labels_only"))
-    Log::Warn << "--labels_only ignored because --in_place is specified."
-        << endl;
-
-  arma::mat dataset = std::move(CLI::GetParam<arma::mat>("input"));
+  arma::mat dataset = std::move(params.Get<arma::mat>("input"));
   arma::mat centroids;
-  arma::Col<size_t> assignments;
+  arma::Row<size_t> assignments;
 
   MeanShift<> meanShift(radius, maxIterations);
 
-  Timer::Start("clustering");
+  timers.Start("clustering");
   Log::Info << "Performing mean shift clustering..." << endl;
-  meanShift.Cluster(dataset, assignments, centroids);
-  Timer::Stop("clustering");
+  meanShift.Cluster(dataset, assignments, centroids,
+      params.Has("force_convergence"));
+  timers.Stop("clustering");
 
   Log::Info << "Found " << centroids.n_cols << " centroids." << endl;
   if (radius <= 0.0)
     Log::Info << "Estimated radius was " << meanShift.Radius() << ".\n";
 
-  if (CLI::HasParam("in_place"))
+  if (params.Has("in_place"))
   {
     // Add the column of assignments to the dataset; but we have to convert them
     // to type double first.
     arma::vec converted(assignments.n_elem);
-    for (size_t i = 0; i < assignments.n_elem; i++)
+    for (size_t i = 0; i < assignments.n_elem; ++i)
       converted(i) = (double) assignments(i);
 
     dataset.insert_rows(dataset.n_rows, trans(converted));
 
-    // Save the dataset.  This takes a little trickery, because we have to set
-    // the output matrix parameter to have the same filename associated with it
-    // as the input.
-    CLI::GetUnmappedParam<arma::mat>("output") =
-        CLI::GetUnmappedParam<arma::mat>("input");
-    CLI::GetParam<arma::mat>("output") = std::move(dataset);
+    // Save the dataset.
+    params.MakeInPlaceCopy("output", "input");
+    params.Get<arma::mat>("output") = std::move(dataset);
   }
-  else if (CLI::HasParam("output"))
+  else if (params.Has("output"))
   {
-    if (!CLI::HasParam("labels_only"))
+    if (!params.Has("labels_only"))
     {
       // Convert the assignments to doubles.
       arma::vec converted(assignments.n_elem);
-      for (size_t i = 0; i < assignments.n_elem; i++)
+      for (size_t i = 0; i < assignments.n_elem; ++i)
         converted(i) = (double) assignments(i);
 
       dataset.insert_rows(dataset.n_rows, trans(converted));
 
       // Now save, in the different file.
-      CLI::GetParam<arma::mat>("output") = std::move(dataset);
+      params.Get<arma::mat>("output") = std::move(dataset);
     }
     else
     {
-      // We have to add an unsigned matrix output parameter so we can save the
-      // labels as the right type.
-      CLI::Add<arma::Mat<size_t>>(arma::Mat<size_t>(), "output_labels",
-          "Labels for input dataset.", '\0', false, false, true);
-      CLI::GetUnmappedParam<arma::Mat<size_t>>("output_labels") =
-          CLI::GetUnmappedParam<arma::mat>("output");
-      CLI::GetParam<arma::Mat<size_t>>("output_labels") =
-          std::move(assignments);
+      // TODO: figure out how to output as an arma::Mat<size_t> so that files
+      // aren't way larger than needed.
+      params.Get<arma::mat>("output") =
+          ConvTo<arma::mat>::From(assignments);
     }
   }
 
   // Should we write the centroids to a file?
-  if (CLI::HasParam("centroid"))
-    CLI::GetParam<arma::mat>("centroid") = std::move(centroids);
+  if (params.Has("centroid"))
+    params.Get<arma::mat>("centroid") = std::move(centroids);
 }

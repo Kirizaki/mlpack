@@ -1,5 +1,5 @@
 /**
- * @file gini_impurity.hpp
+ * @file methods/hoeffding_trees/gini_impurity.hpp
  * @author Ryan Curtin
  *
  * The GiniImpurity class, which is a fitness function (FitnessFunction) for
@@ -16,7 +16,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace tree {
 
 class GiniImpurity
 {
@@ -30,7 +29,7 @@ class GiniImpurity
     arma::vec splitCounts(counts.n_cols);
     for (size_t i = 0; i < counts.n_cols; ++i)
     {
-      splitCounts[i] = arma::accu(counts.col(i));
+      splitCounts[i] = accu(counts.col(i));
       numElem += splitCounts[i];
     }
 
@@ -38,7 +37,7 @@ class GiniImpurity
     if (numElem == 0)
       return 0.0;
 
-    arma::Col<size_t> classCounts = arma::sum(counts, 1);
+    arma::Col<size_t> classCounts = sum(counts, 1);
 
     // Calculate the Gini impurity of the un-split node.
     double impurity = 0.0;
@@ -83,7 +82,6 @@ class GiniImpurity
   }
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

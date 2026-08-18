@@ -1,5 +1,5 @@
 /**
- * @file hilbert_r_tree_auxiliary_information.hpp
+ * @file core/tree/rectangle_tree/hilbert_r_tree_auxiliary_information.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of the HilbertRTreeAuxiliaryInformation class,
@@ -11,11 +11,10 @@
  * 3-clause BSD license along with mlpack.  If not, see
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
-#ifndef MLPACK_CORE_TREE_RECTANGLE_TREE_HILBERT_R_TREE_AUXILIARY_INFORMATION_HPP
-#define MLPACK_CORE_TREE_RECTANGLE_TREE_HILBERT_R_TREE_AUXILIARY_INFORMATION_HPP
+#ifndef MLPACK_CORE_TREE_RECTANGLE_TREE_HR_TREE_AUXILIARY_INFO_HPP
+#define MLPACK_CORE_TREE_RECTANGLE_TREE_HR_TREE_AUXILIARY_INFO_HPP
 
 namespace mlpack {
-namespace tree {
 
 template<typename TreeType,
          template<typename> class HilbertValueType>
@@ -23,7 +22,7 @@ class HilbertRTreeAuxiliaryInformation
 {
  public:
   //! The element type held by the tree.
-  typedef typename TreeType::ElemType ElemType;
+  using ElemType = typename TreeType::ElemType;
   //! Default constructor
   HilbertRTreeAuxiliaryInformation();
 
@@ -139,12 +138,11 @@ class HilbertRTreeAuxiliaryInformation
    * Serialize the information.
    */
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */);
+  void serialize(Archive& ar, const uint32_t /* version */);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #include "hilbert_r_tree_auxiliary_information_impl.hpp"
 
-#endif//MLPACK_CORE_TREE_RECTANGLE_TREE_HILBERT_R_TREE_AUXILIARY_INFORMATION_HPP
+#endif // MLPACK_CORE_TREE_RECTANGLE_TREE_HR_TREE_AUXILIARY_INFO_HPP

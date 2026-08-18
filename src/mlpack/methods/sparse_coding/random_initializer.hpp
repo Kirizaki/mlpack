@@ -1,5 +1,5 @@
 /**
- * @file random_initializer.hpp
+ * @file methods/sparse_coding/random_initializer.hpp
  * @author Nishant Mehta
  *
  * A very simple random dictionary initializer for SparseCoding; it is probably
@@ -16,7 +16,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace sparse_coding {
 
 /**
  * A DictionaryInitializer for use with the SparseCoding class.  This provides a
@@ -34,9 +33,10 @@ class RandomInitializer
    * @param atoms Number of atoms (columns) in the dictionary.
    * @param dictionary Dictionary to initialize.
    */
-  static void Initialize(const arma::mat& data,
+  template<typename MatType>
+  static void Initialize(const MatType& data,
                          const size_t atoms,
-                         arma::mat& dictionary)
+                         MatType& dictionary)
   {
     // Create random dictionary.
     dictionary.randn(data.n_rows, atoms);
@@ -47,7 +47,6 @@ class RandomInitializer
   }
 };
 
-} // namespace sparse_coding
 } // namespace mlpack
 
 #endif

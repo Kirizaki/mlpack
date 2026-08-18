@@ -1,5 +1,5 @@
 /**
- * @file radical_main.cpp
+ * @file tests/radical_test.cpp
  * @author Nishant Mehta
  *
  * Test for RADICAL.
@@ -10,51 +10,54 @@
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #include <mlpack/core.hpp>
-#include <mlpack/methods/radical/radical.hpp>
-#include <boost/test/unit_test.hpp>
-#include "test_tools.hpp"
-
-BOOST_AUTO_TEST_SUITE(RadicalTest);
+#include <mlpack/methods/radical.hpp>
+#include "catch.hpp"
 
 using namespace mlpack;
-using namespace mlpack::radical;
 using namespace std;
-using namespace arma;
 
-BOOST_AUTO_TEST_CASE(Radical_Test_Radical3D)
+TEMPLATE_TEST_CASE("Radical_Test_Radical3D", "[RadicalTest][tiny]", float,
+    double)
 {
-  mat matX;
-  data::Load("data_3d_mixed.txt", matX);
+  using ElemType = TestType;
+  using VecType = arma::Col<ElemType>;
+  using MatType = arma::Mat<ElemType>;
+
+  MatType matX;
+  if (!Load("data_3d_mixed.txt", matX))
+    FAIL("Cannot load dataset data_3d_mixed.txt");
 
   Radical rad(0.175, 5, 100, matX.n_rows - 1);
 
-  mat matY;
-  mat matW;
-  rad.DoRadical(matX, matY, matW);
+  MatType matY;
+  MatType matW;
+  rad.Apply(matX, matY, matW);
 
-  mat matYT = trans(matY);
-  double valEst = 0;
+  const size_t m = std::floor(std::sqrt((ElemType) matX.n_rows));
 
-  for (uword i = 0; i < matYT.n_cols; i++)
+  MatType matYT = trans(matY);
+  ElemType valEst = 0;
+
+  for (arma::uword i = 0; i < matYT.n_cols; ++i)
   {
-    vec y = vec(matYT.col(i));
-    valEst += rad.Vasicek(y);
+    VecType y(matYT.col(i));
+    valEst += rad.Vasicek(y, m);
   }
 
-  mat matS;
-  data::Load("data_3d_ind.txt", matS);
-  rad.DoRadical(matS, matY, matW);
+  MatType matS;
+  if (!Load("data_3d_ind.txt", matS))
+    FAIL("Cannot load dataset data_3d_ind.txt");
+  rad.Apply(matS, matY, matW);
 
   matYT = trans(matY);
-  double valBest = 0;
+  ElemType valBest = 0;
 
-  for (uword i = 0; i < matYT.n_cols; i++)
+  for (arma::uword i = 0; i < matYT.n_cols; ++i)
   {
-    vec y = vec(matYT.col(i));
-    valBest += rad.Vasicek(y);
+    VecType y(matYT.col(i));
+    valBest += rad.Vasicek(y, m);
   }
 
-  BOOST_REQUIRE_CLOSE(valBest, valEst, 0.25);
+  // Larger tolerance is sometimes needed.
+  REQUIRE(valBest == Approx(valEst).epsilon(0.02));
 }
-
-BOOST_AUTO_TEST_SUITE_END();

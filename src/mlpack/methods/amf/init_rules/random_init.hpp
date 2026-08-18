@@ -1,5 +1,5 @@
 /**
- * @file random_init.hpp
+ * @file methods/amf/init_rules/random_init.hpp
  * @author Mohan Rajendran
  *
  * Initialization rule for alternating matrix factorization (AMF). This simple
@@ -16,17 +16,16 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace amf {
 
 /**
  * This initialization rule for AMF simply fills the W and H matrices with
  * uniform random noise in [0, 1].
  */
-class RandomInitialization
+class RandomAMFInitialization
 {
  public:
   // Empty constructor required for the InitializeRule template
-  RandomInitialization() { }
+  RandomAMFInitialization() { }
 
   /**
    * Fill W and H with random uniform noise.
@@ -36,11 +35,11 @@ class RandomInitialization
    * @param W W matrix, to be filled with random noise.
    * @param H H matrix, to be filled with random noise.
    */
-  template<typename MatType>
+  template<typename MatType, typename WHMatType>
   inline static void Initialize(const MatType& V,
                                 const size_t r,
-                                arma::mat& W,
-                                arma::mat& H)
+                                WHMatType& W,
+                                WHMatType& H)
   {
     // Simple implementation (left in the header file due to its simplicity).
     const size_t n = V.n_rows;
@@ -51,12 +50,40 @@ class RandomInitialization
     H.randu(r, m);
   }
 
+  /**
+   * Fill W or H with random uniform noise.
+   *
+   * @param V Input matrix.
+   * @param r Rank of decomposition.
+   * @param M W or H matrix, to be filled with random noise.
+   * @param whichMatrix If true, initialize W. Otherwise, initialize H.
+   */
+  template<typename MatType, typename WHMatType>
+  inline void InitializeOne(const MatType& V,
+                            const size_t r,
+                            WHMatType& M,
+                            const bool whichMatrix = true)
+  {
+    // Simple implementation (left in the header file due to its simplicity).
+    const size_t n = V.n_rows;
+    const size_t m = V.n_cols;
+
+    // Initialize W or H to random values
+    if (whichMatrix)
+    {
+      M.randu(n, r);
+    }
+    else
+    {
+      M.randu(r, m);
+    }
+  }
+
   //! Serialize the object (in this case, there is nothing to serialize).
   template<typename Archive>
-  void Serialize(Archive& /* ar */, const unsigned int /* version */) { }
+  void serialize(Archive& /* ar */, const uint32_t /* version */) { }
 };
 
-} // namespace amf
 } // namespace mlpack
 
 #endif

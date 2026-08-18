@@ -1,5 +1,5 @@
 /**
- * @file hilbert_r_tree_descent_heuristic_impl.hpp
+ * @file core/tree/rectangle_tree/hilbert_r_tree_descent_heuristic_impl.hpp
  * @author Mikhail Lozhnikov
  *
  * Implementation of HilbertRTreeDescentHeuristic, a class that chooses the best
@@ -10,13 +10,12 @@
  * 3-clause BSD license along with mlpack.  If not, see
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
-#ifndef MLPACK_CORE_TREE_RECTANGLE_TREE_HILBERT_R_TREE_DESCENT_HEURISTIC_IMPL_HPP
-#define MLPACK_CORE_TREE_RECTANGLE_TREE_HILBERT_R_TREE_DESCENT_HEURISTIC_IMPL_HPP
+#ifndef MLPACK_CORE_TREE_RECTANGLE_TREE_HR_TREE_DESCENT_HEURISTIC_IMPL_HPP
+#define MLPACK_CORE_TREE_RECTANGLE_TREE_HR_TREE_DESCENT_HEURISTIC_IMPL_HPP
 
 #include "hilbert_r_tree_descent_heuristic.hpp"
 
 namespace mlpack {
-namespace tree {
 
 template<typename TreeType>
 size_t HilbertRTreeDescentHeuristic::ChooseDescentNode(
@@ -42,13 +41,12 @@ size_t HilbertRTreeDescentHeuristic::ChooseDescentNode(
 
   for (bestIndex = 0; bestIndex < node->NumChildren() - 1; bestIndex++)
     if (node->Child(bestIndex).AuxiliaryInfo().HilbertValue().
-        CompareWith(node, node->AuxiliaryInfo().HilbertValue()) > 0)
+        CompareWith(node->AuxiliaryInfo().HilbertValue()) > 0)
       break;
 
   return bestIndex;
 }
 
-} //  namespace tree
 } //  namespace mlpack
 
-#endif // MLPACK_CORE_TREE_RECTANGLE_TREE_HILBERT_R_TREE_DESCENT_HEURISTIC_IMPL_HPP
+#endif // MLPACK_CORE_TREE_RECTANGLE_TREE_HR_TREE_DESCENT_HEURISTIC_IMPL_HPP

@@ -1,5 +1,5 @@
 /**
- * @file tanh_function.hpp
+ * @file methods/ann/activation_functions/tanh_function.hpp
  * @author Marcus Edel
  *
  * Definition and implementation of the Tangens Hyperbolic function.
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace ann /** Artificial Neural Network. */ {
 
 /**
  * The tanh function, defined by
@@ -28,14 +27,15 @@ namespace ann /** Artificial Neural Network. */ {
  */
 class TanhFunction
 {
-  public:
+ public:
   /**
    * Computes the tanh function.
    *
    * @param x Input data.
    * @return f(x).
    */
-  static double fn(const double x)
+  template<typename ElemType>
+  static ElemType Fn(const ElemType x)
   {
     return std::tanh(x);
   }
@@ -47,32 +47,37 @@ class TanhFunction
    * @param y The resulting output activation.
    */
   template<typename InputVecType, typename OutputVecType>
-  static void fn(const InputVecType& x, OutputVecType& y)
+  static void Fn(const InputVecType& x, OutputVecType& y)
   {
-    y = arma::tanh(x);
+    y = tanh(x);
   }
 
   /**
    * Computes the first derivative of the tanh function.
    *
-   * @param y Input data.
+   * @param x Input activation.
+   * @param y Result of Fn(x).
    * @return f'(x)
    */
-  static double deriv(const double y)
+  template<typename ElemType>
+  static ElemType Deriv(const ElemType /* x */, const ElemType y)
   {
-    return 1 - std::pow(y, 2);
+    return 1 - std::pow(y, ElemType(2));
   }
 
   /**
    * Computes the first derivatives of the tanh function.
    *
-   * @param y Input data.
-   * @param x The resulting derivatives.
+   * @param x Input activation.
+   * @param y Result of Fn(x).
+   * @param dy The resulting derivatives.
    */
-  template<typename InputVecType, typename OutputVecType>
-  static void deriv(const InputVecType& y, OutputVecType& x)
+  template<typename InputVecType, typename OutputVecType, typename DerivVecType>
+  static void Deriv(const InputVecType& /* x */,
+                    const OutputVecType& y,
+                    DerivVecType& dy)
   {
-    x = 1 - arma::pow(y, 2);
+    dy = 1 - square(y);
   }
 
   /**
@@ -81,7 +86,8 @@ class TanhFunction
    * @param y Input data.
    * @return f^{-1}(x)
    */
-  static double inv(const double y)
+  template<typename ElemType>
+  static ElemType Inv(const ElemType y)
   {
     return std::atanh(y);
   }
@@ -93,13 +99,12 @@ class TanhFunction
    * @param x The resulting inverse of the input data.
    */
   template<typename InputVecType, typename OutputVecType>
-  static void inv(const InputVecType& y, OutputVecType& x)
+  static void Inv(const InputVecType& y, OutputVecType& x)
   {
-    x = arma::atanh(y);
+    x = atanh(y);
   }
 }; // class TanhFunction
 
-} // namespace ann
 } // namespace mlpack
 
 #endif

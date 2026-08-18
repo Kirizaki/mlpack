@@ -1,5 +1,5 @@
 /**
- * @file mean_split_impl.hpp
+ * @file core/tree/binary_space_tree/mean_split_impl.hpp
  * @author Yash Vadalia
  * @author Ryan Curtin
  *
@@ -15,8 +15,9 @@
 
 #include "mean_split.hpp"
 
+#include <mlpack/core/util/log.hpp>
+
 namespace mlpack {
-namespace tree {
 
 template<typename BoundType, typename MatType>
 bool MeanSplit<BoundType, MatType>::SplitNode(const BoundType& bound,
@@ -31,7 +32,7 @@ bool MeanSplit<BoundType, MatType>::SplitNode(const BoundType& bound,
 
   // Find the split dimension.  If the bound is tight, we only need to consult
   // the bound's width.
-  if (bound::BoundTraits<BoundType>::HasTightBounds)
+  if (BoundTraits<BoundType>::HasTightBounds)
   {
     for (size_t d = 0; d < data.n_rows; d++)
     {
@@ -47,7 +48,7 @@ bool MeanSplit<BoundType, MatType>::SplitNode(const BoundType& bound,
   else
   {
     // We must individually calculate bounding boxes.
-    math::Range* ranges = new math::Range[data.n_rows];
+    Range* ranges = new Range[data.n_rows];
     for (size_t i = begin; i < begin + count; ++i)
     {
       // Expand each dimension as necessary.
@@ -90,7 +91,6 @@ bool MeanSplit<BoundType, MatType>::SplitNode(const BoundType& bound,
   return true;
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

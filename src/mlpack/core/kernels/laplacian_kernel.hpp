@@ -1,5 +1,5 @@
 /**
- * @file laplacian_kernel.hpp
+ * @file core/kernels/laplacian_kernel.hpp
  * @author Ajinkya Kale <kaleajinkya@gmail.com>
  *
  * Implementation of the Laplacian kernel (LaplacianKernel).
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace kernel {
 
 /**
  * The standard Laplacian kernel.  Given two vectors @f$ x @f$, @f$ y @f$, and a
@@ -31,19 +30,11 @@ class LaplacianKernel
 {
  public:
   /**
-   * Default constructor; sets bandwidth to 1.0.
-   */
-  LaplacianKernel() : bandwidth(1.0)
-  { }
-
-  /**
-   * Construct the Laplacian kernel with a custom bandwidth.
+   * Construct the Laplacian kernel with the given bandwidth.
    *
    * @param bandwidth The bandwidth of the kernel (@f$\mu@f$).
    */
-  LaplacianKernel(double bandwidth) :
-      bandwidth(bandwidth)
-  { }
+  LaplacianKernel(const double bandwidth = 1.0) : bandwidth(bandwidth) { }
 
   /**
    * Evaluation of the Laplacian kernel.  This could be generalized to use any
@@ -61,7 +52,7 @@ class LaplacianKernel
   double Evaluate(const VecTypeA& a, const VecTypeB& b) const
   {
     // The precalculation of gamma saves us a little computation time.
-    return exp(-metric::EuclideanDistance::Evaluate(a, b) / bandwidth);
+    return std::exp(-EuclideanDistance::Evaluate(a, b) / bandwidth);
   }
 
   /**
@@ -75,7 +66,7 @@ class LaplacianKernel
   double Evaluate(const double t) const
   {
     // The precalculation of gamma saves us a little computation time.
-    return exp(-t / bandwidth);
+    return std::exp(-t / bandwidth);
   }
 
   /**
@@ -88,19 +79,19 @@ class LaplacianKernel
    *     constructor.
    */
   double Gradient(const double t) const  {
-    return exp(-t / bandwidth) / -bandwidth;
+    return std::exp(-t / bandwidth) / -bandwidth;
   }
 
   //! Get the bandwidth.
   double Bandwidth() const { return bandwidth; }
   //! Modify the bandwidth.
-  double& Bandwidth() { return bandwidth; }
+  void Bandwidth(const double bandwidth) { this->bandwidth = bandwidth; }
 
   //! Serialize the kernel.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    ar & data::CreateNVP(bandwidth, "bandwidth");
+    ar(CEREAL_NVP(bandwidth));
   }
 
  private:
@@ -119,7 +110,6 @@ class KernelTraits<LaplacianKernel>
   static const bool UsesSquaredDistance = false;
 };
 
-} // namespace kernel
 } // namespace mlpack
 
 #endif

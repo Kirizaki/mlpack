@@ -1,5 +1,5 @@
 /**
- * @file randomized_svd_test.cpp
+ * @file tests/randomized_svd_test.cpp
  * @author Marcus Edel
  *
  * Test file for the Randomized SVD class.
@@ -11,12 +11,9 @@
  */
 
 #include <mlpack/core.hpp>
-#include <mlpack/methods/randomized_svd/randomized_svd.hpp>
+#include <mlpack/methods/randomized_svd.hpp>
 
-#include <boost/test/unit_test.hpp>
-#include "test_tools.hpp"
-
-BOOST_AUTO_TEST_SUITE(RandomizedSVDTest);
+#include "catch.hpp"
 
 using namespace mlpack;
 
@@ -24,7 +21,7 @@ using namespace mlpack;
  * The reconstruction and sigular value error of the obtained SVD should be
  * small.
  */
-BOOST_AUTO_TEST_CASE(RandomizedSVDReconstructionError)
+TEST_CASE("RandomizedSVDReconstructionError", "[RandomizedSVDTest][tiny]")
 {
   arma::mat U = arma::randn<arma::mat>(3, 20);
   arma::mat V = arma::randn<arma::mat>(10, 3);
@@ -35,18 +32,17 @@ BOOST_AUTO_TEST_CASE(RandomizedSVDReconstructionError)
 
   arma::mat s = arma::diagmat(arma::vec("1 0.1 0.01"));
 
-  arma::mat data = arma::trans(U * arma::diagmat(s) * V.t());
+  arma::mat data = trans(U * arma::diagmat(s) * V.t());
 
   // Center the data into a temporary matrix.
-  arma::mat centeredData;
-  math::Center(data, centeredData);
+  arma::mat centeredData = data.each_col() - arma::mean(data, 1);
 
   arma::mat U1, U2, V1, V2;
   arma::vec s1, s2, s3;
 
   arma::svd_econ(U1, s1, V1, centeredData);
 
-  svd::RandomizedSVD rSVD(0, 10);
+  RandomizedSVD rSVD(0, 10);
   rSVD.Apply(data, U2, s2, V2, 3);
 
   // Use the same amount of data for the compariosn (matrix rank).
@@ -54,14 +50,12 @@ BOOST_AUTO_TEST_CASE(RandomizedSVDReconstructionError)
 
   // The sigular value error should be small.
   double error = arma::norm(s2 - s3, "frob") / arma::norm(s2, "frob");
-  BOOST_REQUIRE_SMALL(error, 1e-5);
+  REQUIRE(error == Approx(0.0).margin(1e-5));
 
   arma::mat reconstruct = U2 * arma::diagmat(s2) * V2.t();
 
   // The relative reconstruction error should be small.
   error = arma::norm(centeredData - reconstruct, "frob") /
       arma::norm(centeredData, "frob");
-  BOOST_REQUIRE_SMALL(error, 1e-5);
+  REQUIRE(error == Approx(0.0).margin(1e-5));
 }
-
-BOOST_AUTO_TEST_SUITE_END();

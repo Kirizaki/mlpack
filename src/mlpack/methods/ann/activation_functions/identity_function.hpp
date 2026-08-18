@@ -1,5 +1,5 @@
 /**
- * @file identity_function.hpp
+ * @file methods/ann/activation_functions/identity_function.hpp
  * @author Marcus Edel
  *
  * Definition and implementation of the identity function.
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace ann /** Artificial Neural Network. */ {
 
 /**
  * The identity function, defined by
@@ -34,7 +33,8 @@ class IdentityFunction
    * @param x Input data.
    * @return f(x).
    */
-  static double fn(const double x)
+  template<typename ElemType>
+  static ElemType Fn(const ElemType x)
   {
     return x;
   }
@@ -46,7 +46,9 @@ class IdentityFunction
    * @param y The resulting output activation.
    */
   template<typename InputVecType, typename OutputVecType>
-  static void fn(const InputVecType& x, OutputVecType& y)
+  static void Fn(const InputVecType& x, OutputVecType& y,
+      const typename std::enable_if_t<IsVector<InputVecType>::value>* = 0,
+      const typename std::enable_if_t<IsVector<OutputVecType>::value>* = 0)
   {
     y = x;
   }
@@ -54,24 +56,29 @@ class IdentityFunction
   /**
    * Computes the first derivative of the identity function.
    *
-   * @param x Input data.
+   * @param * (x) Input activation.
+   * @param * (y) Result of Fn(x).
    * @return f'(x)
    */
-  static double deriv(const double /* unused */)
+  template<typename ElemType>
+  static ElemType Deriv(const ElemType /* x */, const ElemType /* y */)
   {
-    return 1.0;
+    return 1;
   }
 
   /**
    * Computes the first derivatives of the identity function.
    *
-   * @param y Input activations.
-   * @param x The resulting derivatives.
+   * @param x Input activation.
+   * @param * (y) Result of Fn(x).
+   * @param dy The resulting derivatives.
    */
-  template<typename InputVecType, typename OutputVecType>
-  static void deriv(const InputVecType& y, OutputVecType& x)
+  template<typename InputVecType, typename OutputVecType, typename DerivVecType>
+  static void Deriv(const InputVecType& x,
+                    const OutputVecType& /* y */,
+                    DerivVecType& dy)
   {
-    x.ones(y.n_elem);
+    dy.ones(size(x));
   }
 
   /**
@@ -79,18 +86,16 @@ class IdentityFunction
    * tensor as input.
    *
    * @param y Input activations.
-   * @param x The resulting derivatives.
+   * @param dy The resulting derivatives.
    */
-  template<typename eT>
-  static void deriv(const arma::Cube<eT>& y, arma::Cube<eT>& x)
+  template<typename CubeType>
+  static void Deriv(const CubeType& y, CubeType& x,
+      const typename std::enable_if_t<IsCube<CubeType>::value>* = 0)
   {
     x.ones(y.n_rows, y.n_cols, y.n_slices);
   }
-
-
 }; // class IdentityFunction
 
-} // namespace ann
 } // namespace mlpack
 
 #endif

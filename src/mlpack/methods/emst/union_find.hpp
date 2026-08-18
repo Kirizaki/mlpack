@@ -1,5 +1,5 @@
 /**
- * @file union_find.hpp
+ * @file methods/emst/union_find.hpp
  * @author Bill March (march@gatech.edu)
  *
  * Implements a union-find data structure.  This structure tracks the components
@@ -18,7 +18,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace emst {
 
 /**
  * A Union-Find data structure.  See Cormen, Rivest, & Stein for details.  The
@@ -61,7 +60,7 @@ class UnionFind
     }
     else
     {
-      // This ensures that the tree has a small depth
+      // This ensures that the tree has a small depth.
       parent[x] = Find(parent[x]);
       return parent[x];
     }
@@ -98,7 +97,6 @@ class UnionFind
   }
 }; // class UnionFind
 
-} // namespace emst
 } // namespace mlpack
 
 #endif // MLPACK_METHODS_EMST_UNION_FIND_HPP

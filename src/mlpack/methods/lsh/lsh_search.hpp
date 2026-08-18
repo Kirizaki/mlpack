@@ -1,5 +1,5 @@
 /**
- * @file lsh_search.hpp
+ * @file methods/lsh/lsh_search.hpp
  * @author Parikshit Ram
  *
  * Defines the LSHSearch class, which performs an approximate
@@ -9,6 +9,7 @@
  *
  * The details of this method can be found in the following paper:
  *
+ * @code
  * @inproceedings{datar2004locality,
  *  title={Locality-sensitive hashing scheme based on p-stable distributions},
  *  author={Datar, M. and Immorlica, N. and Indyk, P. and Mirrokni, V.S.},
@@ -18,11 +19,13 @@
  *  year={2004},
  *  organization={ACM}
  * }
+ * @endcode
  *
  * Additionally, the class implements Multiprobe LSH, which improves
  * approximation results during the search for approximate nearest neighbors.
  * The Multiprobe LSH algorithm was presented in the paper:
  *
+ * @code
  * @inproceedings{Lv2007multiprobe,
  *  tile={Multi-probe LSH: efficient indexing for high-dimensional similarity
  *  search},
@@ -33,6 +36,7 @@
  *  year={2007},
  *  pages={950--961}
  * }
+ * @endcode
  *
  *
  * mlpack is free software; you may redistribute it and/or modify it under the
@@ -43,13 +47,11 @@
 #ifndef MLPACK_METHODS_NEIGHBOR_SEARCH_LSH_SEARCH_HPP
 #define MLPACK_METHODS_NEIGHBOR_SEARCH_LSH_SEARCH_HPP
 
-#include <mlpack/prereqs.hpp>
+#include <mlpack/core.hpp>
 
-#include <mlpack/core/metrics/lmetric.hpp>
 #include <mlpack/methods/neighbor_search/sort_policies/nearest_neighbor_sort.hpp>
 
 namespace mlpack {
-namespace neighbor {
 
 /**
  * The LSHSearch class; this class builds a hash on the reference set and uses
@@ -57,15 +59,21 @@ namespace neighbor {
  * queries.
  *
  * @tparam SortPolicy The sort policy for distances; see NearestNeighborSort.
+ * @tparam MatType Type of matrix to use to store the data.
  */
-template<typename SortPolicy = NearestNeighborSort>
+template<
+    typename SortPolicy = NearestNeighborSort,
+    typename MatType = arma::mat
+>
 class LSHSearch
 {
  public:
   /**
    * This function initializes the LSH class. It builds the hash on the
    * reference set with 2-stable distributions. See the individual functions
-   * performing the hashing for details on how the hashing is done.
+   * performing the hashing for details on how the hashing is done.  In order to
+   * avoid copying the reference set, it is suggested to pass that parameter
+   * with std::move().
    *
    * @param referenceSet Set of reference points and the set of queries.
    * @param projections Cube of projection tables. For a cube of size (a, b, c)
@@ -82,7 +90,7 @@ class LSHSearch
    *     value of 0 indicates that there is no limit (so the second hash table
    *     can be arbitrarily large---be careful!).
    */
-  LSHSearch(const arma::mat& referenceSet,
+  LSHSearch(MatType referenceSet,
             const arma::cube& projections,
             const double hashWidth = 0.0,
             const size_t secondHashSize = 99901,
@@ -91,7 +99,8 @@ class LSHSearch
   /**
    * This function initializes the LSH class. It builds the hash one the
    * reference set using the provided projections. See the individual functions
-   * performing the hashing for details on how the hashing is done.
+   * performing the hashing for details on how the hashing is done.  In order to
+   * avoid copying the reference set, consider passing the set with std::move().
    *
    * @param referenceSet Set of reference points and the set of queries.
    * @param numProj Number of projections in each hash table (anything between
@@ -109,7 +118,7 @@ class LSHSearch
    *     value of 0 indicates that there is no limit (so the second hash table
    *     can be arbitrarily large---be careful!).
    */
-  LSHSearch(const arma::mat& referenceSet,
+  LSHSearch(MatType referenceSet,
             const size_t numProj,
             const size_t numTables,
             const double hashWidth = 0.0,
@@ -123,14 +132,38 @@ class LSHSearch
   LSHSearch();
 
   /**
-   * Clean memory.
+   * Copy the given LSH model.
+   *
+   * @param other Other LSH model to copy.
    */
-  ~LSHSearch();
+  LSHSearch(const LSHSearch& other);
+
+  /**
+   * Take ownership of the given LSH model.
+   *
+   * @param other Other LSH model to take ownership of.
+   */
+  LSHSearch(LSHSearch&& other);
+
+  /**
+   * Copy the given LSH model.
+   *
+   * @param other Other LSH model to copy.
+   */
+  LSHSearch& operator=(const LSHSearch& other);
+
+  /**
+   * Take ownership of the given LSH model.
+   *
+   * @param other Other LSH model to take ownership of.
+   */
+  LSHSearch& operator=(LSHSearch&& other);
 
   /**
    * Train the LSH model on the given dataset.  If a correctly-sized projection
    * cube is not provided, this means building new hash tables. Otherwise, we
-   * use the projections provided by the user.
+   * use the projections provided by the user.  In order to avoid copying the
+   * reference set, consider passing that parameter with std::move().
    *
    * @param referenceSet Set of reference points and the set of queries.
    * @param numProj Number of projections in each hash table (anything between
@@ -147,11 +180,11 @@ class LSHSearch
    *     the maximum number of points that can be hashed into single bucket.  A
    *     value of 0 indicates that there is no limit (so the second hash table
    *     can be arbitrarily large---be careful!).
-   * @param projections Cube of projection tables. For a cube of size (a, b, c)
+   * @param projection Cube of projection tables. For a cube of size (a, b, c)
    *     we set numProj = a, numTables = c. b is the reference set
    *     dimensionality.
    */
-  void Train(const arma::mat& referenceSet,
+  void Train(MatType referenceSet,
              const size_t numProj,
              const size_t numTables,
              const double hashWidth = 0.0,
@@ -180,7 +213,7 @@ class LSHSearch
    * @param T The number of additional probing bins to examine with multiprobe
    *     LSH. If T = 0, classic single-probe LSH is run (default).
    */
-  void Search(const arma::mat& querySet,
+  void Search(const MatType& querySet,
               const size_t k,
               arma::Mat<size_t>& resultingNeighbors,
               arma::mat& distances,
@@ -204,6 +237,7 @@ class LSHSearch
    *     available without having to build hashing for every table size.
    *     By default, this is set to zero in which case all tables are
    *     considered.
+   * @param T Number of probing bins.
    */
   void Search(const size_t k,
               arma::Mat<size_t>& resultingNeighbors,
@@ -227,9 +261,10 @@ class LSHSearch
    * Serialize the LSH model.
    *
    * @param ar Archive to serialize to.
+   * @param version serialize class version to provide backward compatibility
    */
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int version);
+  void serialize(Archive& ar, const uint32_t version);
 
   //! Return the number of distance evaluations performed.
   size_t DistanceEvaluations() const { return distanceEvaluations; }
@@ -237,7 +272,7 @@ class LSHSearch
   size_t& DistanceEvaluations() { return distanceEvaluations; }
 
   //! Return the reference dataset.
-  const arma::mat& ReferenceSet() const { return *referenceSet; }
+  const MatType& ReferenceSet() const { return referenceSet; }
 
   //! Get the number of projections.
   size_t NumProjections() const { return projections.n_slices; }
@@ -262,7 +297,7 @@ class LSHSearch
   void Projections(const arma::cube& projTables)
   {
     // Simply call Train() with the given projection tables.
-    Train(*referenceSet, numProj, numTables, hashWidth, secondHashSize,
+    Train(referenceSet, numProj, numTables, hashWidth, secondHashSize,
         bucketSize, projTables);
   }
 
@@ -324,7 +359,7 @@ class LSHSearch
   void BaseCase(const size_t queryIndex,
                 const arma::uvec& referenceIndices,
                 const size_t k,
-                const arma::mat& querySet,
+                const MatType& querySet,
                 arma::Mat<size_t>& neighbors,
                 arma::mat& distances) const;
 
@@ -358,36 +393,35 @@ class LSHSearch
                            const arma::vec& scores) const;
 
   /**
-   * Inline function used by GetAdditionalProbingBins. The vector shift operation
-   * replaces the largest element of a vector A with (largest element) + 1.
-   * Returns true if resulting vector is valid, otherwise false.
+   * Inline function used by GetAdditionalProbingBins. The vector shift
+   * operation replaces the largest element of a vector A with (largest element)
+   * + 1.  Returns true if resulting vector is valid, otherwise false.
+   *
    * @param A perturbation set to shift.
-  */
+   */
   bool PerturbationShift(std::vector<bool>& A) const;
 
   /**
    * Inline function used by GetAdditionalProbingBins. The vector expansion
    * operation adds the element [1 + (largest_element)] to a vector A, where
-   * largest_element is the largest element of A. Returns true if resulting vector
-   * is valid, otherwise false.
+   * largest_element is the largest element of A. Returns true if resulting
+   * vector is valid, otherwise false.
+   *
    * @param A perturbation set to expand.
-  */
+   */
   bool PerturbationExpand(std::vector<bool>& A) const;
 
   /**
-   * Return true if perturbation set A is valid. A perturbation set is invalid if
-   * it contains two (or more) actions for the same dimension or dimensions that
-   * are larger than the queryCode's dimensions.
+   * Return true if perturbation set A is valid. A perturbation set is invalid
+   * if it contains two (or more) actions for the same dimension or dimensions
+   * that are larger than the queryCode's dimensions.
+   *
    * @param A perturbation set to validate.
-  */
+   */
   bool PerturbationValid(const std::vector<bool>& A) const;
 
-
-
   //! Reference dataset.
-  const arma::mat* referenceSet;
-  //! If true, we own the reference set.
-  bool ownsSet;
+  MatType referenceSet;
 
   //! The number of projections.
   size_t numProj;
@@ -428,7 +462,7 @@ class LSHSearch
   size_t distanceEvaluations;
 
   //! Candidate represents a possible candidate neighbor (distance, index).
-  typedef std::pair<double, size_t> Candidate;
+  using Candidate = std::pair<double, size_t>;
 
   //! Compare two candidates based on the distance.
   struct CandidateCmp {
@@ -439,17 +473,11 @@ class LSHSearch
   };
 
   //! Use a priority queue to represent the list of candidate neighbors.
-  typedef std::priority_queue<Candidate, std::vector<Candidate>, CandidateCmp>
-      CandidateList;
-
+  using CandidateList = std::priority_queue<Candidate, std::vector<Candidate>,
+      CandidateCmp>;
 }; // class LSHSearch
 
-} // namespace neighbor
 } // namespace mlpack
-
-//! Set the serialization version of the LSHSearch class.
-BOOST_TEMPLATE_CLASS_VERSION(template<typename SortPolicy>,
-    mlpack::neighbor::LSHSearch<SortPolicy>, 1);
 
 // Include implementation.
 #include "lsh_search_impl.hpp"

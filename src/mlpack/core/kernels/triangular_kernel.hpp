@@ -1,5 +1,5 @@
 /**
- * @file triangular_kernel.hpp
+ * @file core/kernels/triangular_kernel.hpp
  * @author Ryan Curtin
  *
  * Definition and implementation of the trivially simple triangular kernel.
@@ -13,10 +13,9 @@
 #define MLPACK_CORE_KERNELS_TRIANGULAR_KERNEL_HPP
 
 #include <mlpack/prereqs.hpp>
-#include <mlpack/core/metrics/lmetric.hpp>
+#include <mlpack/core/distances/lmetric.hpp>
 
 namespace mlpack {
-namespace kernel {
 
 /**
  * The trivially simple triangular kernel, defined by
@@ -48,8 +47,7 @@ class TriangularKernel
   template<typename VecTypeA, typename VecTypeB>
   double Evaluate(const VecTypeA& a, const VecTypeB& b) const
   {
-    return std::max(0.0, (1 - metric::EuclideanDistance::Evaluate(a, b) /
-        bandwidth));
+    return std::max(0.0, (1 - EuclideanDistance::Evaluate(a, b) / bandwidth));
   }
 
   /**
@@ -70,12 +68,18 @@ class TriangularKernel
    *
    * @param distance The distance between the two points.
    */
-  double Gradient(const double distance) const {
-    if (distance < 1) {
+  double Gradient(const double distance) const
+  {
+    if (distance < 1)
+    {
       return -1.0 / bandwidth;
-    } else if (distance > 1) {
+    }
+    else if (distance > 1)
+    {
       return 0;
-    } else {
+    }
+    else
+    {
       return arma::datum::nan;
     }
   }
@@ -83,13 +87,13 @@ class TriangularKernel
   //! Get the bandwidth of the kernel.
   double Bandwidth() const { return bandwidth; }
   //! Modify the bandwidth of the kernel.
-  double& Bandwidth() { return bandwidth; }
+  void Bandwidth(const double bandwidth) { this->bandwidth = bandwidth; }
 
   //! Serialize the kernel.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    ar & data::CreateNVP(bandwidth, "bandwidth");
+    ar(CEREAL_NVP(bandwidth));
   }
 
  private:
@@ -108,7 +112,6 @@ class KernelTraits<TriangularKernel>
   static const bool UsesSquaredDistance = false;
 };
 
-} // namespace kernel
 } // namespace mlpack
 
 #endif

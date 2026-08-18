@@ -1,5 +1,5 @@
 /**
- * @file dtb.hpp
+ * @file methods/emst/dtb_stat.hpp
  * @author Bill March (march@gatech.edu)
  *
  * DTBStat is the StatisticType used by trees when performing EMST.
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace emst {
 
 /**
  * A statistic for use with mlpack trees, which stores the upper bound on
@@ -87,10 +86,8 @@ class DTBStat
   int ComponentMembership() const { return componentMembership; }
   //! Modify the component membership of this node.
   int& ComponentMembership() { return componentMembership; }
-
 }; // class DTBStat
 
-} // namespace emst
 } // namespace mlpack
 
 #endif // MLPACK_METHODS_EMST_DTB_STAT_HPP

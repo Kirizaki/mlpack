@@ -1,5 +1,5 @@
 /**
- * @file rp_tree_max_split.hpp
+ * @file core/tree/binary_space_tree/rp_tree_max_split.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of class (RPTreeMaxSplit) to split a binary space partition
@@ -17,7 +17,6 @@
 #include <mlpack/core/tree/perform_split.hpp>
 
 namespace mlpack {
-namespace tree /** Trees and tree-building procedures. */ {
 
 /**
  * This class splits a node by a random hyperplane. In order to choose the
@@ -33,7 +32,7 @@ class RPTreeMaxSplit
 {
  public:
   //! The element type held by the matrix type.
-  typedef typename MatType::elem_type ElemType;
+  using ElemType = typename MatType::elem_type;
   //! An information about the partition.
   struct SplitInfo
   {
@@ -46,7 +45,7 @@ class RPTreeMaxSplit
   /**
    * Split the node by a random hyperplane.
    *
-   * @param bound The bound used for this node.
+   * @param * (bound) The bound used for this node.
    * @param data The dataset used by the binary space tree.
    * @param begin Index of the starting point in the dataset that belongs to
    *    this node.
@@ -66,7 +65,6 @@ class RPTreeMaxSplit
    * subtree are on the left of the split column, and points from the right
    * subtree are on the right side of the split column.
    *
-   * @param bound The bound used for this node.
    * @param data The dataset used by the binary space tree.
    * @param begin Index of the starting point in the dataset that belongs to
    *    this node.
@@ -78,7 +76,7 @@ class RPTreeMaxSplit
                              const size_t count,
                              const SplitInfo& splitInfo)
   {
-    return split::PerformSplit<MatType, RPTreeMaxSplit>(data, begin, count,
+    return mlpack::PerformSplit<MatType, RPTreeMaxSplit>(data, begin, count,
         splitInfo);
   }
 
@@ -89,7 +87,6 @@ class RPTreeMaxSplit
    * and points from the right subtree are on the right side of the split
    * column.
    *
-   * @param bound The bound used for this node.
    * @param data The dataset used by the binary space tree.
    * @param begin Index of the starting point in the dataset that belongs to
    *    this node.
@@ -104,7 +101,7 @@ class RPTreeMaxSplit
                              const SplitInfo& splitInfo,
                              std::vector<size_t>& oldFromNew)
   {
-    return split::PerformSplit<MatType, RPTreeMaxSplit>(data, begin, count,
+    return mlpack::PerformSplit<MatType, RPTreeMaxSplit>(data, begin, count,
         splitInfo, oldFromNew);
   }
 
@@ -117,7 +114,7 @@ class RPTreeMaxSplit
   template<typename VecType>
   static bool AssignToLeftNode(const VecType& point, const SplitInfo& splitInfo)
   {
-    return (arma::dot(point, splitInfo.direction) <= splitInfo.splitVal);
+    return (dot(point, splitInfo.direction) <= splitInfo.splitVal);
   }
 
  private:
@@ -139,7 +136,6 @@ class RPTreeMaxSplit
                           ElemType& splitVal);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

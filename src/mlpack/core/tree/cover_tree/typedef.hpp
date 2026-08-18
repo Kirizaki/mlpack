@@ -1,5 +1,5 @@
 /**
- * @file typedef.hpp
+ * @file core/tree/cover_tree/typedef.hpp
  * @author Ryan Curtin
  *
  * Typedef of cover tree to match TreeType API.
@@ -15,7 +15,6 @@
 #include "cover_tree.hpp"
 
 namespace mlpack {
-namespace tree {
 
 /**
  * The standard cover tree, as detailed in the original cover tree paper:
@@ -35,13 +34,12 @@ namespace tree {
  *
  * @see @ref trees, CoverTree
  */
-template<typename MetricType, typename StatisticType, typename MatType>
-using StandardCoverTree = CoverTree<MetricType,
+template<typename DistanceType, typename StatisticType, typename MatType>
+using StandardCoverTree = CoverTree<DistanceType,
                                     StatisticType,
                                     MatType,
                                     FirstPointIsRoot>;
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

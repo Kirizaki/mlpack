@@ -1,5 +1,5 @@
 /**
- * @file complete_incremental_termination.hpp
+ * @file methods/amf/termination_policies/complete_incremental_termination.hpp
  * @author Sumedh Ghaisas
  *
  * Termination policy used in AMF (Alternating Matrix Factorization).
@@ -13,7 +13,6 @@
 #define MLPACK_METHODS_AMF_COMPLETE_INCREMENTAL_TERMINATION_HPP
 
 namespace mlpack {
-namespace amf {
 
 /**
  * This class acts as a wrapper for basic termination policies to be used by
@@ -36,7 +35,8 @@ class CompleteIncrementalTermination
    */
   CompleteIncrementalTermination(
       TerminationPolicy tPolicy = TerminationPolicy()) :
-      tPolicy(tPolicy) { }
+      tPolicy(tPolicy), incrementalIndex(0), iteration(0)
+  { /* Nothing to do here. */ }
 
   /**
    * Initializes the termination policy before stating the factorization.
@@ -49,7 +49,7 @@ class CompleteIncrementalTermination
     tPolicy.Initialize(V);
 
     // Get the number of non-zero entries.
-    incrementalIndex = arma::accu(V != 0);
+    incrementalIndex = accu(V != 0);
     iteration = 0;
   }
 
@@ -59,7 +59,8 @@ class CompleteIncrementalTermination
    *
    * @param V Input matrix to be factorized.
    */
-  void Initialize(const arma::sp_mat& V)
+  template<typename eT>
+  void Initialize(const arma::SpMat<eT>& V)
   {
     tPolicy.Initialize(V);
 
@@ -75,7 +76,8 @@ class CompleteIncrementalTermination
    * @param W Basis matrix of output.
    * @param H Encoding matrix of output.
    */
-  bool IsConverged(arma::mat& W, arma::mat& H)
+  template<typename MatType>
+  bool IsConverged(MatType& W, MatType& H)
   {
     // Increment iteration count.
     iteration++;
@@ -89,7 +91,7 @@ class CompleteIncrementalTermination
   }
 
   //! Get current value of residue
-  const double& Index() const { return tPolicy.Index(); }
+  double Index() const { return tPolicy.Index(); }
 
   //! Get current iteration count
   const size_t& Iteration() const { return iteration; }
@@ -115,8 +117,6 @@ class CompleteIncrementalTermination
   size_t iteration;
 }; // class CompleteIncrementalTermination
 
-} // namespace amf
 } // namespace mlpack
 
 #endif // MLPACK_METHODS_AMF_COMPLETE_INCREMENTAL_TERMINATION_HPP
-

@@ -1,5 +1,5 @@
 /**
- * @file randomized_svd_method.hpp
+ * @file methods/pca/decomposition_policies/randomized_svd_method.hpp
  * @author Marcus Edel
  *
  * Implementation of the randomized svd method for use in the Principal
@@ -16,17 +16,15 @@
 
 #include <mlpack/prereqs.hpp>
 #include <mlpack/methods/randomized_svd/randomized_svd.hpp>
-#include <mlpack/methods/ann/init_rules/random_init.hpp>
 
 namespace mlpack {
-namespace pca {
 
 /**
  * Implementation of the randomized SVD policy.
  */
-class RandomizedSVDPolicy
+class RandomizedSVDPCAPolicy
 {
-  public:
+ public:
   /**
    * Use randomized SVD method to perform the principal components analysis
    * (PCA).
@@ -36,8 +34,8 @@ class RandomizedSVDPolicy
    * @param maxIterations Number of iterations for the power method
    *        (Default: 2).
    */
-  RandomizedSVDPolicy(const size_t iteratedPower = 0,
-                      const size_t maxIterations = 2) :
+  RandomizedSVDPCAPolicy(const size_t iteratedPower = 0,
+                         const size_t maxIterations = 2) :
       iteratedPower(iteratedPower),
       maxIterations(maxIterations)
   {
@@ -55,27 +53,28 @@ class RandomizedSVDPolicy
    * @param eigvec Matrix to put eigenvectors (loadings) into.
    * @param rank Rank of the decomposition.
    */
-  void Apply(const arma::mat& data,
-             const arma::mat& centeredData,
-             arma::mat& transformedData,
-             arma::vec& eigVal,
-             arma::mat& eigvec,
+  template<typename InMatType, typename MatType, typename VecType>
+  void Apply(const InMatType& data,
+             const MatType& centeredData,
+             MatType& transformedData,
+             VecType& eigVal,
+             MatType& eigvec,
              const size_t rank)
   {
-    // This matrix will store the right singular values; we do not need them.
-    arma::mat v;
+    // This matrix will store the right singular vectors; we do not need them.
+    MatType v;
 
     // Do singular value decomposition using the randomized SVD algorithm.
-    svd::RandomizedSVD rsvd(iteratedPower, maxIterations);
+    RandomizedSVD rsvd(iteratedPower, maxIterations);
     rsvd.Apply(data, eigvec, eigVal, v, rank);
 
     // Now we must square the singular values to get the eigenvalues.
     // In addition we must divide by the number of points, because the
     // covariance matrix is X * X' / (N - 1).
-    eigVal %= eigVal / (data.n_cols - 1);
+    eigVal %= eigVal / (centeredData.n_cols - 1);
 
     // Project the samples to the principals.
-    transformedData = arma::trans(eigvec) * centeredData;
+    transformedData = trans(eigvec) * centeredData;
   }
 
   //! Get the size of the normalized power iterations.
@@ -88,15 +87,14 @@ class RandomizedSVDPolicy
   //! Modify the number of iterations for the power method.
   size_t& MaxIterations() { return maxIterations; }
 
-  private:
-    //! Locally stored size of the normalized power iterations.
-    size_t iteratedPower;
+ private:
+  //! Locally stored size of the normalized power iterations.
+  size_t iteratedPower;
 
-    //! Locally stored number of iterations for the power method.
-    size_t maxIterations;
+  //! Locally stored number of iterations for the power method.
+  size_t maxIterations;
 };
 
-} // namespace pca
 } // namespace mlpack
 
 #endif

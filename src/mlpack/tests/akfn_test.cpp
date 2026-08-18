@@ -1,5 +1,5 @@
 /**
- * @file akfn_test.cpp
+ * @file tests/akfn_test.cpp
  *
  * Tests for KFN (k-furthest-neighbors) with different values of epsilon.
  *
@@ -9,18 +9,11 @@
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #include <mlpack/core.hpp>
-#include <mlpack/methods/neighbor_search/neighbor_search.hpp>
-#include <mlpack/core/tree/cover_tree.hpp>
-#include <boost/test/unit_test.hpp>
-#include "test_tools.hpp"
+#include <mlpack/methods/neighbor_search.hpp>
+#include "test_catch_tools.hpp"
+#include "catch.hpp"
 
 using namespace mlpack;
-using namespace mlpack::neighbor;
-using namespace mlpack::tree;
-using namespace mlpack::metric;
-using namespace mlpack::bound;
-
-BOOST_AUTO_TEST_SUITE(AKFNTest);
 
 /**
  * Test the dual-tree furthest-neighbors method with different values for
@@ -28,12 +21,12 @@ BOOST_AUTO_TEST_SUITE(AKFNTest);
  *
  * Errors are produced if the results are not according to relative error.
  */
-BOOST_AUTO_TEST_CASE(ApproxVsExact1)
+TEST_CASE("AKFNApproxVsExact1", "[AKFNTest]")
 {
   arma::mat dataset;
 
-  if (!data::Load("test_data_3_1000.csv", dataset))
-    BOOST_FAIL("Cannot load test dataset test_data_3_1000.csv!");
+  if (!Load("test_data_3_1000.csv", dataset))
+    FAIL("Cannot load test dataset test_data_3_1000.csv!");
 
   KFN exact(dataset);
   arma::Mat<size_t> neighborsExact;
@@ -62,12 +55,12 @@ BOOST_AUTO_TEST_CASE(ApproxVsExact1)
     }
 
     // Now perform the actual calculation.
-    akfn = new KFN(dataset, DUAL_TREE_MODE, epsilon);
+    akfn = new KFN(dataset, DUAL_TREE, epsilon);
     arma::Mat<size_t> neighborsApprox;
     arma::mat distancesApprox;
     akfn->Search(dataset, 15, neighborsApprox, distancesApprox);
 
-    for (size_t i = 0; i < neighborsApprox.n_elem; i++)
+    for (size_t i = 0; i < neighborsApprox.n_elem; ++i)
       REQUIRE_RELATIVE_ERR(distancesApprox(i), distancesExact(i), epsilon);
 
     // Clean the memory.
@@ -81,24 +74,24 @@ BOOST_AUTO_TEST_CASE(ApproxVsExact1)
  *
  * Errors are produced if the results are not according to relative error.
  */
-BOOST_AUTO_TEST_CASE(ApproxVsExact2)
+TEST_CASE("AKFNApproxVsExact2", "[AKFNTest][tiny]")
 {
   arma::mat dataset;
 
-  if (!data::Load("test_data_3_1000.csv", dataset))
-    BOOST_FAIL("Cannot load test dataset test_data_3_1000.csv!");
+  if (!Load("test_data_3_1000.csv", dataset))
+    FAIL("Cannot load test dataset test_data_3_1000.csv!");
 
   KFN exact(dataset);
   arma::Mat<size_t> neighborsExact;
   arma::mat distancesExact;
   exact.Search(15, neighborsExact, distancesExact);
 
-  KFN akfn(dataset, DUAL_TREE_MODE, 0.05);
+  KFN akfn(dataset, DUAL_TREE, 0.05);
   arma::Mat<size_t> neighborsApprox;
   arma::mat distancesApprox;
   akfn.Search(15, neighborsApprox, distancesApprox);
 
-  for (size_t i = 0; i < neighborsApprox.n_elem; i++)
+  for (size_t i = 0; i < neighborsApprox.n_elem; ++i)
     REQUIRE_RELATIVE_ERR(distancesApprox[i], distancesExact[i], 0.05);
 }
 
@@ -108,24 +101,24 @@ BOOST_AUTO_TEST_CASE(ApproxVsExact2)
  *
  * Errors are produced if the results are not according to relative error.
  */
-BOOST_AUTO_TEST_CASE(SingleTreeVsExact)
+TEST_CASE("AKFNSingleTreeVsExact", "[AKFNTest]")
 {
   arma::mat dataset;
 
-  if (!data::Load("test_data_3_1000.csv", dataset))
-    BOOST_FAIL("Cannot load test dataset test_data_3_1000.csv!");
+  if (!Load("test_data_3_1000.csv", dataset))
+    FAIL("Cannot load test dataset test_data_3_1000.csv!");
 
   KFN exact(dataset);
   arma::Mat<size_t> neighborsExact;
   arma::mat distancesExact;
   exact.Search(15, neighborsExact, distancesExact);
 
-  KFN akfn(dataset, SINGLE_TREE_MODE, 0.05);
+  KFN akfn(dataset, SINGLE_TREE, 0.05);
   arma::Mat<size_t> neighborsApprox;
   arma::mat distancesApprox;
   akfn.Search(15, neighborsApprox, distancesApprox);
 
-  for (size_t i = 0; i < neighborsApprox.n_elem; i++)
+  for (size_t i = 0; i < neighborsApprox.n_elem; ++i)
     REQUIRE_RELATIVE_ERR(distancesApprox[i], distancesExact[i], 0.05);
 }
 
@@ -135,7 +128,7 @@ BOOST_AUTO_TEST_CASE(SingleTreeVsExact)
  *
  * Errors are produced if the results are not according to relative error.
  */
-BOOST_AUTO_TEST_CASE(SingleCoverTreeTest)
+TEST_CASE("AKFNSingleCoverTreeTest", "[AKFNTest]")
 {
   arma::mat dataset;
   dataset.randu(75, 1000); // 75 dimensional, 1000 points.
@@ -149,7 +142,7 @@ BOOST_AUTO_TEST_CASE(SingleCoverTreeTest)
       arma::mat> tree(dataset);
 
   NeighborSearch<FurthestNeighborSort, LMetric<2>, arma::mat, StandardCoverTree>
-      coverTreeSearch(std::move(tree), SINGLE_TREE_MODE, 0.05);
+      coverTreeSearch(std::move(tree), SINGLE_TREE, 0.05);
 
   arma::Mat<size_t> neighborsCoverTree;
   arma::mat distancesCoverTree;
@@ -165,10 +158,11 @@ BOOST_AUTO_TEST_CASE(SingleCoverTreeTest)
  *
  * Errors are produced if the results are not according to relative error.
  */
-BOOST_AUTO_TEST_CASE(DualCoverTreeTest)
+TEST_CASE("AKFNDualCoverTreeTest", "[AKFNTest]")
 {
   arma::mat dataset;
-  data::Load("test_data_3_1000.csv", dataset);
+  if (!Load("test_data_3_1000.csv", dataset))
+    FAIL("Cannot load test dataset test_data_3_1000.csv!");
 
   KFN exact(dataset);
   arma::Mat<size_t> neighborsExact;
@@ -179,7 +173,7 @@ BOOST_AUTO_TEST_CASE(DualCoverTreeTest)
       arma::mat> referenceTree(dataset);
 
   NeighborSearch<FurthestNeighborSort, LMetric<2>, arma::mat, StandardCoverTree>
-      coverTreeSearch(std::move(referenceTree), DUAL_TREE_MODE, 0.05);
+      coverTreeSearch(std::move(referenceTree), DUAL_TREE, 0.05);
 
   arma::Mat<size_t> neighborsCoverTree;
   arma::mat distancesCoverTree;
@@ -195,7 +189,7 @@ BOOST_AUTO_TEST_CASE(DualCoverTreeTest)
  *
  * Errors are produced if the results are not according to relative error.
  */
-BOOST_AUTO_TEST_CASE(SingleBallTreeTest)
+TEST_CASE("AKFNSingleBallTreeTest", "[AKFNTest]")
 {
   arma::mat dataset;
   dataset.randu(75, 1000); // 75 dimensional, 1000 points.
@@ -206,7 +200,7 @@ BOOST_AUTO_TEST_CASE(SingleBallTreeTest)
   exact.Search(dataset, 15, neighborsExact, distancesExact);
 
   NeighborSearch<FurthestNeighborSort, EuclideanDistance, arma::mat, BallTree>
-      ballTreeSearch(dataset, SINGLE_TREE_MODE, 0.05);
+      ballTreeSearch(dataset, SINGLE_TREE, 0.05);
 
   arma::Mat<size_t> neighborsBallTree;
   arma::mat distancesBallTree;
@@ -222,10 +216,11 @@ BOOST_AUTO_TEST_CASE(SingleBallTreeTest)
  *
  * Errors are produced if the results are not according to relative error.
  */
-BOOST_AUTO_TEST_CASE(DualBallTreeTest)
+TEST_CASE("AKFNDualBallTreeTest", "[AKFNTest]")
 {
   arma::mat dataset;
-  data::Load("test_data_3_1000.csv", dataset);
+  if (!Load("test_data_3_1000.csv", dataset))
+    FAIL("Cannot load test dataset test_data_3_1000.csv!");
 
   KFN exact(dataset);
   arma::Mat<size_t> neighborsExact;
@@ -233,7 +228,7 @@ BOOST_AUTO_TEST_CASE(DualBallTreeTest)
   exact.Search(15, neighborsExact, distancesExact);
 
   NeighborSearch<FurthestNeighborSort, EuclideanDistance, arma::mat, BallTree>
-      ballTreeSearch(dataset, DUAL_TREE_MODE, 0.05);
+      ballTreeSearch(dataset, DUAL_TREE, 0.05);
   arma::Mat<size_t> neighborsBallTree;
   arma::mat distancesBallTree;
   ballTreeSearch.Search(15, neighborsBallTree, distancesBallTree);
@@ -241,5 +236,3 @@ BOOST_AUTO_TEST_CASE(DualBallTreeTest)
   for (size_t i = 0; i < neighborsBallTree.n_elem; ++i)
     REQUIRE_RELATIVE_ERR(distancesBallTree(i), distancesExact(i), 0.05);
 }
-
-BOOST_AUTO_TEST_SUITE_END();

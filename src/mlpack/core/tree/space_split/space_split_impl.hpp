@@ -1,5 +1,5 @@
 /**
- * @file space_split_impl.hpp
+ * @file core/tree/space_split/space_split_impl.hpp
  * @author Marcos Pividori
  *
  * Implementation of SpaceSplit, to create a projection vector based on a given
@@ -14,25 +14,27 @@
 #define MLPACK_CORE_TREE_SPILL_TREE_SPACE_SPLIT_IMPL_HPP
 
 #include "space_split.hpp"
+#include <mlpack/core/math/random.hpp>
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType, typename MatType>
-bool SpaceSplit<MetricType, MatType>::GetProjVector(
-    const bound::HRectBound<MetricType>& bound,
+template<typename DistanceType, typename MatType>
+bool SpaceSplit<DistanceType, MatType>::GetProjVector(
+    const HRectBound<DistanceType, typename MatType::elem_type>& bound,
     const MatType& data,
     const arma::Col<size_t>& /* points */,
     AxisParallelProjVector& projVector,
-    double& midValue)
+    typename MatType::elem_type& midValue)
 {
+  using ElemType = typename MatType::elem_type;
+
   // Get the dimension that has the maximum width.
   size_t splitDim = data.n_rows; // Indicate invalid.
-  double maxWidth = -1;
+  ElemType maxWidth = -1;
 
   for (size_t d = 0; d < data.n_rows; d++)
   {
-    const double width = bound[d].Width();
+    const ElemType width = bound[d].Width();
 
     if (width > maxWidth)
     {
@@ -51,25 +53,28 @@ bool SpaceSplit<MetricType, MatType>::GetProjVector(
   return true;
 }
 
-template<typename MetricType, typename MatType>
+template<typename DistanceType, typename MatType>
 template<typename BoundType>
-bool SpaceSplit<MetricType, MatType>::GetProjVector(
+bool SpaceSplit<DistanceType, MatType>::GetProjVector(
     const BoundType& /* bound */,
     const MatType& data,
     const arma::Col<size_t>& points,
-    ProjVector& projVector,
-    double& midValue)
+    ProjVector<MatType>& projVector,
+    typename MatType::elem_type& midValue)
 {
-  MetricType metric;
+  using ElemType = typename MatType::elem_type;
+  using VecType = typename GetColType<MatType>::type;
+
+  DistanceType distance;
 
   // Efficiently estimate the farthest pair of points in the given set.
-  size_t fst = points[rand() % points.n_elem];
+  size_t fst = points[RandInt(points.n_elem)];
   size_t snd = points[0];
-  double max = metric.Evaluate(data.col(fst), data.col(snd));
+  ElemType max = distance.Evaluate(data.col(fst), data.col(snd));
 
-  for (size_t i = 1; i < points.n_elem; i++)
+  for (size_t i = 1; i < points.n_elem; ++i)
   {
-    double dist = metric.Evaluate(data.col(fst), data.col(points[i]));
+    ElemType dist = distance.Evaluate(data.col(fst), data.col(points[i]));
     if (dist > max)
     {
       max = dist;
@@ -79,9 +84,9 @@ bool SpaceSplit<MetricType, MatType>::GetProjVector(
 
   std::swap(fst, snd);
 
-  for (size_t i = 0; i < points.n_elem; i++)
+  for (size_t i = 0; i < points.n_elem; ++i)
   {
-    double dist = metric.Evaluate(data.col(fst), data.col(points[i]));
+    ElemType dist = distance.Evaluate(data.col(fst), data.col(points[i]));
     if (dist > max)
     {
       max = dist;
@@ -93,16 +98,15 @@ bool SpaceSplit<MetricType, MatType>::GetProjVector(
     return false;
 
   // Calculate the normalized projection vector.
-  projVector = ProjVector(data.col(snd) - data.col(fst));
+  projVector = ProjVector<MatType>(data.col(snd) - data.col(fst));
 
-  arma::vec midPoint = (data.col(snd) + data.col(fst)) / 2;
+  VecType midPoint = (data.col(snd) + data.col(fst)) / 2;
 
   midValue = projVector.Project(midPoint);
 
   return true;
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

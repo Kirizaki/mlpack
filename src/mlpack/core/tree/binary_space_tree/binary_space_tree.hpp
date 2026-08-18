@@ -1,5 +1,5 @@
 /**
- * @file binary_space_tree.hpp
+ * @file core/tree/binary_space_tree/binary_space_tree.hpp
  *
  * Definition of generalized binary space partitioning tree (BinarySpaceTree).
  *
@@ -17,7 +17,6 @@
 #include "midpoint_split.hpp"
 
 namespace mlpack {
-namespace tree /** Trees and tree-building procedures. */ {
 
 /**
  * A binary space partitioning tree, such as a KD-tree or a ball tree.  Once the
@@ -32,34 +31,35 @@ namespace tree /** Trees and tree-building procedures. */ {
  * This tree does take one runtime parameter in the constructor, which is the
  * max leaf size to be used.
  *
- * @tparam MetricType The metric used for tree-building.  The BoundType may
- *     place restrictions on the metrics that can be used.
+ * @tparam DistanceType The distance metric used for tree-building.  The
+ *     BoundType may place restrictions on the metrics that can be used.
  * @tparam StatisticType Extra data contained in the node.  See statistic.hpp
  *     for the necessary skeleton interface.
  * @tparam MatType The dataset class.
  * @tparam BoundType The bound used for each node.  HRectBound, the default,
- *     requires that an LMetric<> is used for MetricType (so, EuclideanDistance,
- *     ManhattanDistance, etc.).
+ *     requires that an LMetric<> is used for DistanceType (so,
+ *     EuclideanDistance, ManhattanDistance, etc.).
  * @tparam SplitType The class that partitions the dataset/points at a
  *     particular node into two parts. Its definition decides the way this split
  *     is done.
  */
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType = EmptyStatistic,
          typename MatType = arma::mat,
-         template<typename BoundMetricType, typename...> class BoundType =
-            bound::HRectBound,
-         template<typename SplitBoundType, typename SplitMatType>
-            class SplitType = MidpointSplit>
+         template<typename BoundDistanceType,
+                  typename BoundElemType,
+                  typename...> class BoundType = HRectBound,
+         template<typename SplitBoundType,
+                  typename SplitMatType> class SplitType = MidpointSplit>
 class BinarySpaceTree
 {
  public:
   //! So other classes can use TreeType::Mat.
-  typedef MatType Mat;
+  using Mat = MatType;
   //! The type of element held in MatType.
-  typedef typename MatType::elem_type ElemType;
+  using ElemType = typename MatType::elem_type;
 
-  typedef SplitType<BoundType<MetricType>, MatType> Split;
+  using Split = SplitType<BoundType<DistanceType, ElemType>, MatType>;
 
  private:
   //! The left child node.
@@ -75,7 +75,7 @@ class BinarySpaceTree
   //! children).
   size_t count;
   //! The bound object for this node.
-  BoundType<MetricType> bound;
+  BoundType<DistanceType, ElemType> bound;
   //! Any extra data contained in the node.
   StatisticType stat;
   //! The distance from the centroid of this node to the centroid of the parent.
@@ -101,6 +101,13 @@ class BinarySpaceTree
 
   template<typename RuleType>
   class BreadthFirstDualTreeTraverser;
+
+  /**
+   * A default constructor.  This returns an empty tree, which is not useful.
+   * In general this is only used for serialization or right before copying from
+   * a different object.
+   */
+  BinarySpaceTree();
 
   /**
    * Construct this as the root node of a binary space tree using the given
@@ -211,7 +218,8 @@ class BinarySpaceTree
   BinarySpaceTree(BinarySpaceTree* parent,
                   const size_t begin,
                   const size_t count,
-                  SplitType<BoundType<MetricType>, MatType>& splitter,
+                  SplitType<BoundType<DistanceType, ElemType>, MatType>&
+                      splitter,
                   const size_t maxLeafSize = 20);
 
   /**
@@ -237,7 +245,8 @@ class BinarySpaceTree
                   const size_t begin,
                   const size_t count,
                   std::vector<size_t>& oldFromNew,
-                  SplitType<BoundType<MetricType>, MatType>& splitter,
+                  SplitType<BoundType<DistanceType, ElemType>, MatType>&
+                      splitter,
                   const size_t maxLeafSize = 20);
 
   /**
@@ -259,6 +268,7 @@ class BinarySpaceTree
    *     each new point.
    * @param newFromOld Vector which will be filled with the new positions for
    *     each old point.
+   * @param splitter Splitter matrix to use.
    * @param maxLeafSize Size of each leaf in the tree.
    */
   BinarySpaceTree(BinarySpaceTree* parent,
@@ -266,14 +276,15 @@ class BinarySpaceTree
                   const size_t count,
                   std::vector<size_t>& oldFromNew,
                   std::vector<size_t>& newFromOld,
-                  SplitType<BoundType<MetricType>, MatType>& splitter,
+                  SplitType<BoundType<DistanceType, ElemType>, MatType>&
+                      splitter,
                   const size_t maxLeafSize = 20);
 
   /**
    * Create a binary space tree by copying the other tree.  Be careful!  This
    * can take a long time and use a lot of memory.
    *
-   * @param other Tree to be replicated.
+   * @param other Tree to be copied.
    */
   BinarySpaceTree(const BinarySpaceTree& other);
 
@@ -284,14 +295,28 @@ class BinarySpaceTree
   BinarySpaceTree(BinarySpaceTree&& other);
 
   /**
-   * Initialize the tree from a boost::serialization archive.
+   * Copy the given BinarySaceTree.
+   *
+   * @param other The tree to be copied.
+   */
+  BinarySpaceTree& operator=(const BinarySpaceTree& other);
+
+  /**
+   * Take ownership of the given BinarySpaceTree.
+   *
+   * @param other The tree to take ownership of.
+   */
+  BinarySpaceTree& operator=(BinarySpaceTree&& other);
+
+  /**
+   * Initialize the tree from a cereal archive.
    *
    * @param ar Archive to load tree from.  Must be an iarchive, not an oarchive.
    */
   template<typename Archive>
   BinarySpaceTree(
       Archive& ar,
-      const typename std::enable_if_t<Archive::is_loading::value>* = 0);
+      const typename std::enable_if_t<cereal::is_loading<Archive>()>* = 0);
 
   /**
    * Deletes this node, deallocating the memory for the children and calling
@@ -301,9 +326,9 @@ class BinarySpaceTree
   ~BinarySpaceTree();
 
   //! Return the bound object for this node.
-  const BoundType<MetricType>& Bound() const { return bound; }
+  const BoundType<DistanceType, ElemType>& Bound() const { return bound; }
   //! Return the bound object for this node.
-  BoundType<MetricType>& Bound() { return bound; }
+  BoundType<DistanceType, ElemType>& Bound() { return bound; }
 
   //! Return the statistic object for this node.
   const StatisticType& Stat() const { return stat; }
@@ -334,7 +359,11 @@ class BinarySpaceTree
   MatType& Dataset() { return *dataset; }
 
   //! Get the metric that the tree uses.
-  MetricType Metric() const { return MetricType(); }
+  [[deprecated("Will be removed in mlpack 5.0.0; use Distance()")]]
+  DistanceType Metric() const { return DistanceType(); }
+
+  //! Get the metric that the tree uses.
+  DistanceType Distance() const { return DistanceType(); }
 
   //! Return the number of children in this node.
   size_t NumChildren() const;
@@ -447,7 +476,7 @@ class BinarySpaceTree
   }
 
   //! Return the minimum and maximum distance to another node.
-  math::RangeType<ElemType> RangeDistance(const BinarySpaceTree& other) const
+  RangeType<ElemType> RangeDistance(const BinarySpaceTree& other) const
   {
     return bound.RangeDistance(other.Bound());
   }
@@ -472,7 +501,7 @@ class BinarySpaceTree
 
   //! Return the minimum and maximum distance to another point.
   template<typename VecType>
-  math::RangeType<ElemType>
+  RangeType<ElemType>
   RangeDistance(const VecType& point,
                 typename std::enable_if_t<IsVector<VecType>::value>* = 0) const
   {
@@ -490,7 +519,7 @@ class BinarySpaceTree
   size_t& Count() { return count; }
 
   //! Store the center of the bounding region in the given vector.
-  void Center(arma::vec& center) const { bound.Center(center); }
+  void Center(arma::Col<ElemType>& center) const { bound.Center(center); }
 
  private:
   /**
@@ -499,8 +528,9 @@ class BinarySpaceTree
    * @param maxLeafSize Maximum number of points held in a leaf.
    * @param splitter Instantiated SplitType object.
    */
-  void SplitNode(const size_t maxLeafSize,
-                 SplitType<BoundType<MetricType>, MatType>& splitter);
+  void SplitNode(
+      const size_t maxLeafSize,
+      SplitType<BoundType<DistanceType, ElemType>, MatType>& splitter);
 
   /**
    * Splits the current node, assigning its left and right children recursively.
@@ -510,9 +540,10 @@ class BinarySpaceTree
    * @param maxLeafSize Maximum number of points held in a leaf.
    * @param splitter Instantiated SplitType object.
    */
-  void SplitNode(std::vector<size_t>& oldFromNew,
-                 const size_t maxLeafSize,
-                 SplitType<BoundType<MetricType>, MatType>& splitter);
+  void SplitNode(
+      std::vector<size_t>& oldFromNew,
+      const size_t maxLeafSize,
+      SplitType<BoundType<DistanceType, ElemType>, MatType>& splitter);
 
   /**
    * Update the bound of the current node. This method does not take into
@@ -529,29 +560,16 @@ class BinarySpaceTree
    *
    * @param boundToUpdate The bound to update.
    */
-  void UpdateBound(bound::HollowBallBound<MetricType>& boundToUpdate);
-
- protected:
-  /**
-   * A default constructor.  This is meant to only be used with
-   * boost::serialization, which is allowed with the friend declaration below.
-   * This does not return a valid tree!  The method must be protected, so that
-   * the serialization shim can work with the default constructor.
-   */
-  BinarySpaceTree();
-
-  //! Friend access is given for the default constructor.
-  friend class boost::serialization::access;
+  void UpdateBound(HollowBallBound<DistanceType, ElemType>& boundToUpdate);
 
  public:
   /**
    * Serialize the tree.
    */
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int version);
+  void serialize(Archive& ar, const uint32_t version);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

@@ -1,5 +1,5 @@
 /**
- * @file rp_tree_mean_split.hpp
+ * @file core/tree/binary_space_tree/rp_tree_mean_split.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of class (RPTreeMaxSplit) to split a binary space partition
@@ -16,10 +16,8 @@
 #include <mlpack/prereqs.hpp>
 #include "rp_tree_max_split.hpp"
 #include <mlpack/core/tree/perform_split.hpp>
-#include <mlpack/core/math/lin_alg.hpp>
 
 namespace mlpack {
-namespace tree /** Trees and tree-building procedures. */ {
 
 /**
  * This class splits a binary space tree. This class provides two different
@@ -34,7 +32,7 @@ class RPTreeMeanSplit
 {
  public:
   //! The element type held by the matrix type.
-  typedef typename MatType::elem_type ElemType;
+  using ElemType = typename MatType::elem_type;
   //! An information about the partition.
   struct SplitInfo
   {
@@ -53,7 +51,7 @@ class RPTreeMeanSplit
    * Split the node according to the mean value in the dimension with maximum
    * width.
    *
-   * @param bound The bound used for this node.
+   * @param * (bound) The bound used for this node.
    * @param data The dataset used by the binary space tree.
    * @param begin Index of the starting point in the dataset that belongs to
    *    this node.
@@ -73,7 +71,6 @@ class RPTreeMeanSplit
    * subtree are on the left of the split column, and points from the right
    * subtree are on the right side of the split column.
    *
-   * @param bound The bound used for this node.
    * @param data The dataset used by the binary space tree.
    * @param begin Index of the starting point in the dataset that belongs to
    *    this node.
@@ -85,7 +82,7 @@ class RPTreeMeanSplit
                              const size_t count,
                              const SplitInfo& splitInfo)
   {
-    return split::PerformSplit<MatType, RPTreeMeanSplit>(data, begin, count,
+    return mlpack::PerformSplit<MatType, RPTreeMeanSplit>(data, begin, count,
         splitInfo);
   }
 
@@ -96,7 +93,6 @@ class RPTreeMeanSplit
    * and points from the right subtree are on the right side of the split
    * column.
    *
-   * @param bound The bound used for this node.
    * @param data The dataset used by the binary space tree.
    * @param begin Index of the starting point in the dataset that belongs to
    *    this node.
@@ -111,7 +107,7 @@ class RPTreeMeanSplit
                              const SplitInfo& splitInfo,
                              std::vector<size_t>& oldFromNew)
   {
-    return split::PerformSplit<MatType, RPTreeMeanSplit>(data, begin, count,
+    return mlpack::PerformSplit<MatType, RPTreeMeanSplit>(data, begin, count,
         splitInfo, oldFromNew);
   }
 
@@ -125,14 +121,13 @@ class RPTreeMeanSplit
   static bool AssignToLeftNode(const VecType& point, const SplitInfo& splitInfo)
   {
     if (splitInfo.meanSplit)
-      return arma::dot(point - splitInfo.mean, point - splitInfo.mean) <=
+      return dot(point - splitInfo.mean, point - splitInfo.mean) <=
           splitInfo.splitVal;
 
-    return (arma::dot(point, splitInfo.direction) <= splitInfo.splitVal);
+    return (dot(point, splitInfo.direction) <= splitInfo.splitVal);
   }
 
  private:
-
   /**
    * Get the average distance between points in the dataset.
    *
@@ -171,7 +166,6 @@ class RPTreeMeanSplit
                             ElemType& splitVal);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

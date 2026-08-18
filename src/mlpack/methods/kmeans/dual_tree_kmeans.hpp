@@ -1,5 +1,5 @@
 /**
- * @file dtnn_kmeans.hpp
+ * @file methods/kmeans/dual_tree_kmeans.hpp
  * @author Ryan Curtin
  *
  * An implementation of a Lloyd iteration which uses dual-tree nearest neighbor
@@ -22,7 +22,6 @@
 #include "dual_tree_kmeans_statistic.hpp"
 
 namespace mlpack {
-namespace kmeans {
 
 /**
  * An algorithm for an exact Lloyd iteration which simply uses dual-tree
@@ -32,29 +31,29 @@ namespace kmeans {
  * and the number of iterations of the k-means algorithm will be few.
  */
 template<
-    typename MetricType,
+    typename DistanceType,
     typename MatType,
-    template<typename TreeMetricType,
+    template<typename TreeDistanceType,
              typename TreeStatType,
              typename TreeMatType>
-        class TreeType = tree::KDTree>
+        class TreeType = KDTree>
 class DualTreeKMeans
 {
  public:
   //! Convenience typedef.
-  typedef TreeType<MetricType, DualTreeKMeansStatistic, MatType> Tree;
+  using Tree = TreeType<DistanceType, DualTreeKMeansStatistic, MatType>;
 
-  template<typename TreeMetricType,
+  template<typename TreeDistanceType,
            typename IgnoredStatType,
            typename TreeMatType>
   using NNSTreeType =
-      TreeType<TreeMetricType, DualTreeKMeansStatistic, TreeMatType>;
+      TreeType<TreeDistanceType, DualTreeKMeansStatistic, TreeMatType>;
 
   /**
    * Construct the DualTreeKMeans object, which will construct a tree on the
    * points.
    */
-  DualTreeKMeans(const MatType& dataset, MetricType& metric);
+  DualTreeKMeans(const MatType& dataset, DistanceType& distance);
 
   /**
    * Delete the tree constructed by the DualTreeKMeans object.
@@ -85,8 +84,8 @@ class DualTreeKMeans
   Tree* tree;
   //! The dataset we are using.
   const MatType& dataset;
-  //! The metric.
-  MetricType metric;
+  //! The distance metric.
+  DistanceType distance;
 
   //! Track distance calculations.
   size_t distanceCalculations;
@@ -135,7 +134,7 @@ template<typename TreeType>
 void HideChild(TreeType& node,
                const size_t child,
                const typename std::enable_if_t<
-                   !tree::TreeTraits<TreeType>::BinaryTree>* junk = 0);
+                   !TreeTraits<TreeType>::BinaryTree>* junk = 0);
 
 //! Utility function for hiding children.  This is called when the tree is a
 //! binary tree, and does nothing, because we don't hide binary children in this
@@ -144,32 +143,31 @@ template<typename TreeType>
 void HideChild(TreeType& node,
                const size_t child,
                const typename std::enable_if_t<
-                   tree::TreeTraits<TreeType>::BinaryTree>* junk = 0);
+                   TreeTraits<TreeType>::BinaryTree>* junk = 0);
 
 //! Utility function for restoring children to a non-binary tree.
 template<typename TreeType>
 void RestoreChildren(TreeType& node,
-                     const typename std::enable_if_t<!tree::TreeTraits<
+                     const typename std::enable_if_t<!TreeTraits<
                          TreeType>::BinaryTree>* junk = 0);
 
 //! Utility function for restoring children to a binary tree.
 template<typename TreeType>
 void RestoreChildren(TreeType& node,
-                     const typename std::enable_if_t<tree::TreeTraits<
+                     const typename std::enable_if_t<TreeTraits<
                          TreeType>::BinaryTree>* junk = 0);
 
 //! A template typedef for the DualTreeKMeans algorithm with the default tree
 //! type (a kd-tree).
-template<typename MetricType, typename MatType>
-using DefaultDualTreeKMeans = DualTreeKMeans<MetricType, MatType>;
+template<typename DistanceType, typename MatType>
+using DefaultDualTreeKMeans = DualTreeKMeans<DistanceType, MatType>;
 
 //! A template typedef for the DualTreeKMeans algorithm with the cover tree
 //! type.
-template<typename MetricType, typename MatType>
-using CoverTreeDualTreeKMeans = DualTreeKMeans<MetricType, MatType,
-    tree::StandardCoverTree>;
+template<typename DistanceType, typename MatType>
+using CoverTreeDualTreeKMeans = DualTreeKMeans<DistanceType, MatType,
+    StandardCoverTree>;
 
-} // namespace kmeans
 } // namespace mlpack
 
 #include "dual_tree_kmeans_impl.hpp"

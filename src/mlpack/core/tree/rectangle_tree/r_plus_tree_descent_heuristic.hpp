@@ -1,5 +1,5 @@
 /**
- * @file r_plus_tree_descent_heuristic.hpp
+ * @file core/tree/rectangle_tree/r_plus_tree_descent_heuristic.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of RPlusTreeDescentHeuristic, a class that chooses the best child
@@ -16,15 +16,12 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace tree {
 
 class RPlusTreeDescentHeuristic
 {
  public:
   /**
-   * Evaluate the node using a heuristic. Returns the number of the node
-   * with minimum largest Hilbert value is greater than the Hilbert value of
-   * the point being inserted.
+   * Evaluate the node using the R+-tree heuristic.
    *
    * @param node The node that is being evaluated.
    * @param point The number of the point that is being inserted.
@@ -33,19 +30,16 @@ class RPlusTreeDescentHeuristic
   static size_t ChooseDescentNode(TreeType* node, const size_t point);
 
   /**
-   * Evaluate the node using a heuristic. Returns the number of the node
-   * with minimum largest Hilbert value is greater than the largest
-   * Hilbert value of the point being inserted.
+   * Evaluate the node using the R+-tree heuristic.
    *
-   * @param node The node that is being evaluated.
-   * @param insertedNode The node that is being inserted.
+   * @param * (node) The node that is being evaluated.
+   * @param * (insertedNode) The node that is being inserted.
    */
   template<typename TreeType>
   static size_t ChooseDescentNode(const TreeType* /* node */,
-                                  const TreeType* /*insertedNode */);
+                                  const TreeType* /* insertedNode */);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #include "r_plus_tree_descent_heuristic_impl.hpp"

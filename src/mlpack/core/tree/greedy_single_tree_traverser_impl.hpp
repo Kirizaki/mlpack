@@ -1,5 +1,5 @@
 /**
- * @file greedy_single_tree_traverser_impl.hpp
+ * @file core/tree/greedy_single_tree_traverser_impl.hpp
  * @author Marcos Pividori
  *
  * A simple greedy traverser which always chooses the child with the best score
@@ -18,7 +18,6 @@
 #include "greedy_single_tree_traverser.hpp"
 
 namespace mlpack {
-namespace tree {
 
 template<typename TreeType, typename RuleType>
 GreedySingleTreeTraverser<TreeType, RuleType>::GreedySingleTreeTraverser(
@@ -36,17 +35,38 @@ void GreedySingleTreeTraverser<TreeType, RuleType>::Traverse(
   for (size_t i = 0; i < referenceNode.NumPoints(); ++i)
     rule.BaseCase(queryIndex, referenceNode.Point(i));
 
+  size_t bestChild = rule.GetBestChild(queryIndex, referenceNode);
+  size_t numDescendants;
+
+  // Check that referencenode is not a leaf node while calculating number of
+  // descendants of it's best child.
+  if (!referenceNode.IsLeaf())
+    numDescendants = referenceNode.Child(bestChild).NumDescendants();
+  else
+    numDescendants = referenceNode.NumPoints();
+
+  // If number of descendants are more than rule.MinimumBaseCases() than we can
+  // go along with best child otherwise we need to traverse for each descendant
+  // to ensure that we calculate at least rule.MinimumBaseCases() number of base
+  // cases.
   if (!referenceNode.IsLeaf())
   {
-    // We are prunning all but one child.
-    numPrunes += referenceNode.NumChildren() - 1;
-    // Recurse the best child.
-    size_t bestChild = rule.GetBestChild(queryIndex, referenceNode);
-    Traverse(queryIndex, referenceNode.Child(bestChild));
+    if (numDescendants > rule.MinimumBaseCases())
+    {
+      // We are pruning all but one child.
+      numPrunes += referenceNode.NumChildren() - 1;
+      // Recurse the best child.
+      Traverse(queryIndex, referenceNode.Child(bestChild));
+    }
+    else
+    {
+      // Run the base case over first minBaseCases number of descendants.
+      for (size_t i = 0; i <= rule.MinimumBaseCases(); ++i)
+        rule.BaseCase(queryIndex, referenceNode.Descendant(i));
+    }
   }
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

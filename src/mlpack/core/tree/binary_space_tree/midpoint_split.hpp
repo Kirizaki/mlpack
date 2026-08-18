@@ -1,5 +1,5 @@
 /**
- * @file midpoint_split.hpp
+ * @file core/tree/binary_space_tree/midpoint_split.hpp
  * @author Yash Vadalia
  * @author Ryan Curtin
  *
@@ -19,7 +19,6 @@
 #include <mlpack/core/tree/perform_split.hpp>
 
 namespace mlpack {
-namespace tree /** Trees and tree-building procedures. */ {
 
 /**
  * A binary space partitioning tree node is split into its left and right child.
@@ -38,6 +37,7 @@ class MidpointSplit
     //! The split in dimension splitDimension is based on this value.
     double splitVal;
   };
+
   /**
    * Find the partition of the node. This method fills up the dimension that
    * will be used to split the node and the value according which the split
@@ -63,7 +63,6 @@ class MidpointSplit
    * subtree are on the left of the split column, and points from the right
    * subtree are on the right side of the split column.
    *
-   * @param bound The bound used for this node.
    * @param data The dataset used by the binary space tree.
    * @param begin Index of the starting point in the dataset that belongs to
    *    this node.
@@ -75,7 +74,7 @@ class MidpointSplit
                              const size_t count,
                              const SplitInfo& splitInfo)
   {
-    return split::PerformSplit<MatType, MidpointSplit>(data, begin, count,
+    return mlpack::PerformSplit<MatType, MidpointSplit>(data, begin, count,
         splitInfo);
   }
 
@@ -86,7 +85,6 @@ class MidpointSplit
    * and points from the right subtree are on the right side of the split
    * column.
    *
-   * @param bound The bound used for this node.
    * @param data The dataset used by the binary space tree.
    * @param begin Index of the starting point in the dataset that belongs to
    *    this node.
@@ -101,7 +99,7 @@ class MidpointSplit
                              const SplitInfo& splitInfo,
                              std::vector<size_t>& oldFromNew)
   {
-    return split::PerformSplit<MatType, MidpointSplit>(data, begin, count,
+    return mlpack::PerformSplit<MatType, MidpointSplit>(data, begin, count,
         splitInfo, oldFromNew);
   }
 
@@ -119,7 +117,6 @@ class MidpointSplit
   }
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

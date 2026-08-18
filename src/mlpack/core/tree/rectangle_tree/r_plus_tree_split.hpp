@@ -1,5 +1,5 @@
 /**
- * @file r_plus_tree_split.hpp
+ * @file core/tree/rectangle_tree/r_plus_tree_split.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of the RPlusTreeSplit class, a class that splits the nodes of an
@@ -16,10 +16,11 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace tree /** Trees and tree-building procedures. */ {
 
 /**
- * The RPlusTreeSplit class performs the split process of a node on overflow.
+ * The RPlusTreeSplitType class performs the split process of a node on
+ * overflow.  This is used for both the RPlusTree and the RPlusPlusTree,
+ * depending on the SplitPolicyType and the SweepType.
  *
  * @tparam SplitPolicyType The class that helps to determine the subtree into
  *     which we should insert a child node.
@@ -29,14 +30,14 @@ namespace tree /** Trees and tree-building procedures. */ {
  */
 template<typename SplitPolicyType,
          template<typename> class SweepType>
-class RPlusTreeSplit
+class RPlusTreeSplitType
 {
  public:
-  typedef SplitPolicyType SplitPolicy;
+  using SplitPolicy = SplitPolicyType;
   /**
    * Split a leaf node using the "default" algorithm.  If necessary, this split
    * will propagate upwards through the tree.
-   * @param node. The node that is being split.
+   * @param tree The node that is being split.
    * @param relevels Not used.
    */
   template<typename TreeType>
@@ -45,7 +46,7 @@ class RPlusTreeSplit
   /**
    * Split a non-leaf node using the "default" algorithm.  If this is a root
    * node, the tree increases in depth.
-   * @param node. The node that is being split.
+   * @param tree The node that is being split.
    * @param relevels Not used.
    */
   template<typename TreeType>
@@ -125,7 +126,13 @@ class RPlusTreeSplit
   static void InsertNodeIntoTree(TreeType* destTree, TreeType* srcNode);
 };
 
-} // namespace tree
+// Convenience typedefs.
+using RPlusTreeSplit = RPlusTreeSplitType<RPlusTreeSplitPolicy,
+                                          MinimalCoverageSweep>;
+
+using RPlusPlusTreeSplit = RPlusTreeSplitType<RPlusPlusTreeSplitPolicy,
+                                              MinimalSplitsNumberSweep>;
+
 } // namespace mlpack
 
 // Include implementation

@@ -1,5 +1,5 @@
 /**
- * @file no_auxiliary_information.hpp
+ * @file core/tree/rectangle_tree/x_tree_auxiliary_information.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of the XTreeAuxiliaryInformation class, a class that provides
@@ -14,7 +14,6 @@
 #define MLPACK_CORE_TREE_RECTANGLE_TREE_X_TREE_AUXILIARY_INFORMATION_HPP
 
 namespace mlpack {
-namespace tree {
 
 /**
  * The XTreeAuxiliaryInformation class provides information specific to X trees
@@ -47,8 +46,8 @@ class XTreeAuxiliaryInformation
    *
    * @param other Another auxiliary information object from which the
    *    information will be copied.
-   * @param tree The node that holds the auxiliary information.
-   * @param deepCopy If false, the new object uses the same memory
+   * @param * (tree) The node that holds the auxiliary information.
+   * @param * (deepCopy) If false, the new object uses the same memory
    *    (not used here).
    */
   XTreeAuxiliaryInformation(const XTreeAuxiliaryInformation& other,
@@ -90,8 +89,8 @@ class XTreeAuxiliaryInformation
    * information does that, then the method should return true; if the method
    * returns false the RectangleTree performs its default behavior.
    *
-   * @param node The node in which the point is being inserted.
-   * @param point The global number of the point being inserted.
+   * @param * (node) The node in which the point is being inserted.
+   * @param * (point) The global number of the point being inserted.
    */
   bool HandlePointInsertion(TreeType* /* node */, const size_t /* point */)
   {
@@ -105,9 +104,9 @@ class XTreeAuxiliaryInformation
    * information does that, then the method should return true; if the method
    * returns false the RectangleTree performs its default behavior.
    *
-   * @param node The node in which the nodeToInsert is being inserted.
-   * @param nodeToInsert The node being inserted.
-   * @param insertionLevel The level of the tree at which the nodeToInsert
+   * @param * (node) The node in which the nodeToInsert is being inserted.
+   * @param * (nodeToInsert) The node being inserted.
+   * @param * (insertionLevel) The level of the tree at which the nodeToInsert
    *        should be inserted.
    */
   bool HandleNodeInsertion(TreeType* /* node */,
@@ -123,10 +122,10 @@ class XTreeAuxiliaryInformation
    * the tree in order to perform the deletion process. If the auxiliary
    * information does that, then the method should return true; if the method
    * returns false the RectangleTree performs its default behavior.
-   * @param node The node from which the point is being deleted.
-   * @param localIndex The local index of the point being deleted.
+   * @param * (node) The node from which the point is being deleted.
+   * @param * (localIndex) The local index of the point being deleted.
    */
-  bool HandlePointDeletion(TreeType* , const size_t)
+  bool HandlePointDeletion(TreeType* /* node */ , const size_t /* localIndex */)
   {
     return false;
   }
@@ -137,10 +136,10 @@ class XTreeAuxiliaryInformation
    * the tree in order to perform the deletion process. If the auxiliary
    * information does that, then the method should return true; if the method
    * returns false the RectangleTree performs its default behavior.
-   * @param node The node from which the node is being deleted.
-   * @param nodeIndex The local index of the node being deleted.
+   * @param * (node) The node from which the node is being deleted.
+   * @param * (nodeIndex) The local index of the node being deleted.
    */
-  bool HandleNodeRemoval(TreeType* , const size_t)
+  bool HandleNodeRemoval(TreeType* /* node */ , const size_t /* nodeIndex */)
   {
     return false;
   }
@@ -149,9 +148,9 @@ class XTreeAuxiliaryInformation
    * Some tree types require to propagate the information upward.
    * This method should return false if this is not the case. If true is
    * returned, the update will be propagated upward.
-   * @param node The node in which the auxiliary information being update.
+   * @param * (node) The node in which the auxiliary information being update.
    */
-  bool UpdateAuxiliaryInfo(TreeType* )
+  bool UpdateAuxiliaryInfo(TreeType* /* node */)
   {
     return false;
   }
@@ -166,14 +165,14 @@ class XTreeAuxiliaryInformation
    * The X tree requires that the tree records it's "split history".  To make
    * this easy, we use the following structure.
    */
-  typedef struct SplitHistoryStruct
+  struct SplitHistoryStruct
   {
     int lastDimension;
     std::vector<bool> history;
 
     SplitHistoryStruct(int dim) : lastDimension(0), history(dim)
     {
-      for (int i = 0; i < dim; i++)
+      for (int i = 0; i < dim; ++i)
         history[i] = false;
     }
 
@@ -197,12 +196,12 @@ class XTreeAuxiliaryInformation
     }
 
     template<typename Archive>
-    void Serialize(Archive& ar, const unsigned int /* version */)
+    void serialize(Archive& ar, const uint32_t /* version */)
     {
-      ar & data::CreateNVP(lastDimension, "lastDimension");
-      ar & data::CreateNVP(history, "history");
+      ar(CEREAL_NVP(lastDimension));
+      ar(CEREAL_NVP(history));
     }
-  } SplitHistoryStruct;
+  };
 
  private:
     //! The max number of child nodes a non-leaf normal node can have.
@@ -224,17 +223,13 @@ class XTreeAuxiliaryInformation
    * Serialize the information.
    */
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    using data::CreateNVP;
-
-    ar & CreateNVP(normalNodeMaxNumChildren, "normalNodeMaxNumChildren");
-    ar & CreateNVP(splitHistory, "splitHistory");
+    ar(CEREAL_NVP(normalNodeMaxNumChildren));
+    ar(CEREAL_NVP(splitHistory));
   }
-
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #endif  //  MLPACK_CORE_TREE_RECTANGLE_TREE_X_TREE_AUXILIARY_INFORMATION_HPP

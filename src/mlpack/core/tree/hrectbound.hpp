@@ -1,5 +1,5 @@
 /**
- * @file hrectbound.hpp
+ * @file core/tree/hrectbound.hpp
  *
  * Bounds that are useful for binary space partitioning trees.
  *
@@ -16,17 +16,14 @@
 
 #include <mlpack/prereqs.hpp>
 #include <mlpack/core/math/range.hpp>
-#include <mlpack/core/metrics/lmetric.hpp>
+#include <mlpack/core/distances/lmetric.hpp>
 #include "bound_traits.hpp"
 
 namespace mlpack {
-namespace bound {
-
-namespace meta /** Metaprogramming utilities. */ {
 
 //! Utility struct where Value is true if and only if the argument is of type
 //! LMetric.
-template<typename MetricType>
+template<typename DistanceType>
 struct IsLMetric
 {
   static const bool Value = false;
@@ -34,27 +31,25 @@ struct IsLMetric
 
 //! Specialization for IsLMetric when the argument is of type LMetric.
 template<int Power, bool TakeRoot>
-struct IsLMetric<metric::LMetric<Power, TakeRoot>>
+struct IsLMetric<LMetric<Power, TakeRoot>>
 {
   static const bool Value = true;
 };
-
-} // namespace util
 
 /**
  * Hyper-rectangle bound for an L-metric.  This should be used in conjunction
  * with the LMetric class.  Be sure to use the same template parameters for
  * LMetric as you do for HRectBound -- otherwise odd results may occur.
  *
- * @tparam MetricType Type of metric to use; must be of type LMetric.
+ * @tparam DistanceType Type of distance metric to use; must be of type LMetric.
  * @tparam ElemType Element type (double/float/int/etc.).
  */
-template<typename MetricType = metric::LMetric<2, true>,
+template<typename DistanceType = LMetric<2, true>,
          typename ElemType = double>
 class HRectBound
 {
-  // It is required that HRectBound have an LMetric as the given MetricType.
-  static_assert(meta::IsLMetric<MetricType>::Value == true,
+  // It is required that HRectBound have an LMetric as the given DistanceType.
+  static_assert(IsLMetric<DistanceType>::Value == true,
       "HRectBound can only be used with the LMetric<> metric type.");
 
  public:
@@ -66,16 +61,22 @@ class HRectBound
   /**
    * Initializes to specified dimensionality with each dimension the empty
    * set.
+   *
+   * @param dimension Dimensionality of bound.
    */
   HRectBound(const size_t dimension);
 
   //! Copy constructor; necessary to prevent memory leaks.
   HRectBound(const HRectBound& other);
+
   //! Same as copy constructor; necessary to prevent memory leaks.
   HRectBound& operator=(const HRectBound& other);
 
   //! Move constructor: take possession of another bound's information.
   HRectBound(HRectBound&& other);
+
+  //! Move assignment operator.
+  HRectBound& operator=(HRectBound&& other);
 
   //! Destructor: clean up memory.
   ~HRectBound();
@@ -91,15 +92,30 @@ class HRectBound
 
   //! Get the range for a particular dimension.  No bounds checking.  Be
   //! careful: this may make MinWidth() invalid.
-  math::RangeType<ElemType>& operator[](const size_t i) { return bounds[i]; }
+  RangeType<ElemType>& operator[](const size_t i) { return bounds[i]; }
   //! Modify the range for a particular dimension.  No bounds checking.
-  const math::RangeType<ElemType>& operator[](const size_t i) const
+  const RangeType<ElemType>& operator[](const size_t i) const
   { return bounds[i]; }
 
   //! Get the minimum width of the bound.
   ElemType MinWidth() const { return minWidth; }
   //! Modify the minimum width of the bound.
   ElemType& MinWidth() { return minWidth; }
+
+  //! Recompute the minimum width of the bound.
+  void RecomputeMinWidth();
+
+  //! Get the instantiated distance metric associated with the bound.
+  [[deprecated("Will be removed in mlpack 5.0.0; use Distance()")]]
+  const DistanceType& Metric() const { return distance; }
+  //! Modify the instantiated distance metric associated with the bound.
+  [[deprecated("Will be removed in mlpack 5.0.0; use Distance()")]]
+  DistanceType& Metric() { return distance; }
+
+  //! Get the instantiated distance metric associated with the bound.
+  const DistanceType& Distance() const { return distance; }
+  //! Modify the instantiated distance metric associated with the bound.
+  DistanceType& Distance() { return distance; }
 
   /**
    * Calculates the center of the range, placing it into the given vector.
@@ -155,7 +171,7 @@ class HRectBound
    * @param other Bound to which the minimum and maximum distances are
    *     requested.
    */
-  math::RangeType<ElemType> RangeDistance(const HRectBound& other) const;
+  RangeType<ElemType> RangeDistance(const HRectBound& other) const;
 
   /**
    * Calculates minimum and maximum bound-to-point distance.
@@ -164,7 +180,7 @@ class HRectBound
    *     requested.
    */
   template<typename VecType>
-  math::RangeType<ElemType> RangeDistance(
+  RangeType<ElemType> RangeDistance(
       const VecType& point,
       typename std::enable_if_t<IsVector<VecType>::value>* = 0) const;
 
@@ -185,12 +201,16 @@ class HRectBound
 
   /**
    * Determines if a point is within this bound.
+   *
+   * @param point Point to check the condition.
    */
   template<typename VecType>
   bool Contains(const VecType& point) const;
 
   /**
    * Determines if this bound partially contains a bound.
+   *
+   * @param bound Bound to check the condition.
    */
   bool Contains(const HRectBound& bound) const;
 
@@ -218,26 +238,27 @@ class HRectBound
    * Serialize the bound object.
    */
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int version);
+  void serialize(Archive& ar, const uint32_t version);
 
  private:
   //! The dimensionality of the bound.
   size_t dim;
   //! The bounds for each dimension.
-  math::RangeType<ElemType>* bounds;
+  RangeType<ElemType>* bounds;
   //! Cached minimum width of bound.
   ElemType minWidth;
+  //! Instantiated distance metric (likely has size 0).
+  DistanceType distance;
 };
 
 // A specialization of BoundTraits for this class.
-template<typename MetricType, typename ElemType>
-struct BoundTraits<HRectBound<MetricType, ElemType>>
+template<typename DistanceType, typename ElemType>
+struct BoundTraits<HRectBound<DistanceType, ElemType>>
 {
   //! These bounds are always tight for each dimension.
-  const static bool HasTightBounds = true;
+  static const bool HasTightBounds = true;
 };
 
-} // namespace bound
 } // namespace mlpack
 
 #include "hrectbound_impl.hpp"

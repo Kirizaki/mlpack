@@ -1,5 +1,5 @@
 /**
- * @file max_iteration_termination.hpp
+ * @file methods/amf/termination_policies/max_iteration_termination.hpp
  * @author Ryan Curtin
  *
  * A termination policy which only terminates when the maximum number of
@@ -14,7 +14,6 @@
 #define MLPACK_METHODS_AMF_TERMINATION_POLICIES_MAX_ITERATION_TERMINATION_HPP
 
 namespace mlpack {
-namespace amf {
 
 /**
  * This termination policy only terminates when the maximum number of iterations
@@ -30,7 +29,7 @@ class MaxIterationTermination
    *
    * @param maxIterations Maximum number of allowed iterations.
    */
-  MaxIterationTermination(const size_t maxIterations) :
+  MaxIterationTermination(const size_t maxIterations = 1000) :
       maxIterations(maxIterations),
       iteration(0)
   {
@@ -49,7 +48,8 @@ class MaxIterationTermination
   /**
    * Check if convergence has occurred.
    */
-  bool IsConverged(const arma::mat& /* H */, const arma::mat& /* W */)
+  template<typename MatType>
+  bool IsConverged(const MatType& /* H */, const MatType& /* W */)
   {
     // Return true if we have performed the correct number of iterations.
     return (++iteration >= maxIterations);
@@ -57,7 +57,7 @@ class MaxIterationTermination
 
   //! Return something similar to the residue, which in this case is just the
   //! number of iterations left, since we don't have access to anything else.
-  size_t Index()
+  size_t Index() const
   {
     return (iteration > maxIterations) ? 0 : maxIterations - iteration;
   }
@@ -79,7 +79,6 @@ class MaxIterationTermination
   size_t iteration;
 };
 
-} // namespace amf
 } // namespace mlpack
 
 #endif

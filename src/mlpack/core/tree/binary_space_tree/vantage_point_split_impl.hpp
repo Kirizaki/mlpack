@@ -1,5 +1,5 @@
 /**
- * @file vantage_point_split_impl.hpp
+ * @file core/tree/binary_space_tree/vantage_point_split_impl.hpp
  * @author Mikhail Lozhnikov
  *
  * Implementation of class (VantagePointSplit) to split a vantage point
@@ -17,7 +17,6 @@
 #include <mlpack/core/tree/bounds.hpp>
 
 namespace mlpack {
-namespace tree {
 
 template<typename BoundType, typename MatType, size_t MaxNumSamples>
 bool VantagePointSplit<BoundType, MatType, MaxNumSamples>::
@@ -25,50 +24,61 @@ SplitNode(const BoundType& bound, MatType& data, const size_t begin,
     const size_t count, SplitInfo& splitInfo)
 {
   ElemType mu = 0;
-  size_t vantagePointIndex;
+  size_t vantagePointIndex = 0;
 
   // Find the best vantage point.
-  SelectVantagePoint(bound.Metric(), data, begin, count, vantagePointIndex, mu);
+  SelectVantagePoint(bound.Distance(), data, begin, count, vantagePointIndex,
+      mu);
 
   // If all points are equal, we can't split.
   if (mu == 0)
     return false;
 
-  splitInfo = SplitInfo(bound.Metric(), data.col(vantagePointIndex), mu);
+  splitInfo = SplitInfo(bound.Distance(), data.col(vantagePointIndex), mu);
 
   return true;
 }
 
 template<typename BoundType, typename MatType, size_t MaxNumSamples>
 void VantagePointSplit<BoundType, MatType, MaxNumSamples>::
-SelectVantagePoint(const MetricType& metric, const MatType& data,
+SelectVantagePoint(const DistanceType& distance, const MatType& data,
     const size_t begin, const size_t count, size_t& vantagePoint, ElemType& mu)
 {
-  arma::uvec vantagePointCandidates;
   arma::Col<ElemType> distances(MaxNumSamples);
 
   // Get no more than max(MaxNumSamples, count) vantage point candidates
-  math::ObtainDistinctSamples(begin, begin + count, MaxNumSamples,
-      vantagePointCandidates);
+  arma::uvec vantagePointCandidates;
+  if (MaxNumSamples > count)
+  {
+    vantagePointCandidates = begin + arma::linspace<arma::uvec>(0, count - 1,
+        count);
+  }
+  else
+  {
+    vantagePointCandidates = begin + arma::randperm(count, MaxNumSamples);
+  }
 
   ElemType bestSpread = 0;
 
   arma::uvec samples;
   //  Evaluate each candidate
-  for (size_t i = 0; i < vantagePointCandidates.n_elem; i++)
+  for (size_t i = 0; i < vantagePointCandidates.n_elem; ++i)
   {
     // Get no more than min(MaxNumSamples, count) random samples
-    math::ObtainDistinctSamples(begin, begin + count, MaxNumSamples, samples);
+    if (MaxNumSamples > count)
+      samples = begin + arma::linspace<arma::uvec>(0, count - 1, count);
+    else
+      samples = begin + arma::randperm(count, MaxNumSamples);
 
     // Calculate the second moment of the distance to the vantage point
     // candidate using these random samples.
     distances.set_size(samples.n_elem);
 
-    for (size_t j = 0; j < samples.n_elem; j++)
-      distances[j] = metric.Evaluate(data.col(vantagePointCandidates[i]),
+    for (size_t j = 0; j < samples.n_elem; ++j)
+      distances[j] = distance.Evaluate(data.col(vantagePointCandidates[i]),
           data.col(samples[j]));
 
-    const ElemType spread = arma::sum(distances % distances) / samples.n_elem;
+    const ElemType spread = sum(distances % distances) / samples.n_elem;
 
     if (spread > bestSpread)
     {
@@ -79,10 +89,8 @@ SelectVantagePoint(const MetricType& metric, const MatType& data,
       mu = arma::median(distances);
     }
   }
-  assert(bestSpread > 0);
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif  // MLPACK_CORE_TREE_BINARY_SPACE_TREE_VANTAGE_POINT_SPLIT_IMPL_HPP

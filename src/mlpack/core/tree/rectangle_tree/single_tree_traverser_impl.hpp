@@ -1,5 +1,5 @@
 /**
- * @file single_tree_traverser_impl.hpp
+ * @file core/tree/rectangle_tree/single_tree_traverser_impl.hpp
  * @author Andrew Wells
  *
  * A class for traversing rectangle type trees with a given set of rules
@@ -20,40 +20,38 @@
 #include <stack>
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
          typename SplitType,
          typename DescentType,
          template<typename> class AuxiliaryInformationType>
 template<typename RuleType>
-RectangleTree<MetricType, StatisticType, MatType, SplitType, DescentType,
+RectangleTree<DistanceType, StatisticType, MatType, SplitType, DescentType,
               AuxiliaryInformationType>::
 SingleTreeTraverser<RuleType>::SingleTreeTraverser(RuleType& rule) :
     rule(rule),
     numPrunes(0)
 { /* Nothing to do */ }
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
          typename SplitType,
          typename DescentType,
          template<typename> class AuxiliaryInformationType>
 template<typename RuleType>
-void RectangleTree<MetricType, StatisticType, MatType, SplitType, DescentType,
+void RectangleTree<DistanceType, StatisticType, MatType, SplitType, DescentType,
                    AuxiliaryInformationType>::
 SingleTreeTraverser<RuleType>::Traverse(
     const size_t queryIndex,
     const RectangleTree& referenceNode)
 {
-
   // If we reach a leaf node, we need to run the base case.
   if (referenceNode.IsLeaf())
   {
-    for (size_t i = 0; i < referenceNode.Count(); i++)
+    for (size_t i = 0; i < referenceNode.Count(); ++i)
       rule.BaseCase(queryIndex, referenceNode.Point(i));
 
     return;
@@ -62,7 +60,7 @@ SingleTreeTraverser<RuleType>::Traverse(
   // This is not a leaf node so we sort the children of this node by their
   // scores.
   std::vector<NodeAndScore> nodesAndScores(referenceNode.NumChildren());
-  for (size_t i = 0; i < referenceNode.NumChildren(); i++)
+  for (size_t i = 0; i < referenceNode.NumChildren(); ++i)
   {
     nodesAndScores[i].node = &(referenceNode.Child(i));
     nodesAndScores[i].score = rule.Score(queryIndex, *nodesAndScores[i].node);
@@ -72,7 +70,7 @@ SingleTreeTraverser<RuleType>::Traverse(
 
   // Now iterate through them starting with the best and stopping when we reach
   // one that isn't good enough.
-  for (size_t i = 0; i < referenceNode.NumChildren(); i++)
+  for (size_t i = 0; i < referenceNode.NumChildren(); ++i)
   {
     if (rule.Rescore(queryIndex, *nodesAndScores[i].node,
         nodesAndScores[i].score) != DBL_MAX)
@@ -87,7 +85,6 @@ SingleTreeTraverser<RuleType>::Traverse(
   }
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

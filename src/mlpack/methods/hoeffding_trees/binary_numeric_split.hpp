@@ -1,5 +1,5 @@
 /**
- * @file binary_numeric_split.hpp
+ * @file methods/hoeffding_trees/binary_numeric_split.hpp
  * @author Ryan Curtin
  *
  * An implementation of the binary-tree-based numeric splitting procedure
@@ -16,7 +16,6 @@
 #include "binary_numeric_split_info.hpp"
 
 namespace mlpack {
-namespace tree {
 
 /**
  * The BinaryNumericSplit class implements the numeric feature splitting
@@ -48,14 +47,14 @@ class BinaryNumericSplit
 {
  public:
   //! The splitting information required by the BinaryNumericSplit.
-  typedef BinaryNumericSplitInfo<ObservationType> SplitInfo;
+  using SplitInfo = BinaryNumericSplitInfo<ObservationType>;
 
   /**
    * Create the BinaryNumericSplit object with the given number of classes.
    *
    * @param numClasses Number of classes in dataset.
    */
-  BinaryNumericSplit(const size_t numClasses);
+  BinaryNumericSplit(const size_t numClasses = 0);
 
   /**
    * Create the BinaryNumericSplit object with the given number of classes,
@@ -108,7 +107,7 @@ class BinaryNumericSplit
 
   //! Serialize the object.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */);
+  void serialize(Archive& ar, const uint32_t /* version */);
 
  private:
   //! The elements seen so far, in sorted order.
@@ -127,7 +126,6 @@ class BinaryNumericSplit
 template<typename FitnessFunction>
 using BinaryDoubleNumericSplit = BinaryNumericSplit<FitnessFunction, double>;
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

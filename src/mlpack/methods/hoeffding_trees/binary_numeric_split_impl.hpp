@@ -1,5 +1,5 @@
 /**
- * @file binary_numeric_split_impl.hpp
+ * @file methods/hoeffding_trees/binary_numeric_split_impl.hpp
  * @author Ryan Curtin
  *
  * Implementation of the BinaryNumericSplit class.
@@ -16,7 +16,6 @@
 #include "binary_numeric_split.hpp"
 
 namespace mlpack {
-namespace tree {
 
 template<typename FitnessFunction, typename ObservationType>
 BinaryNumericSplit<FitnessFunction, ObservationType>::BinaryNumericSplit(
@@ -126,7 +125,7 @@ void BinaryNumericSplit<FitnessFunction, ObservationType>::Split(
   double min = DBL_MAX;
   double max = -DBL_MAX;
   for (typename std::multimap<ObservationType, size_t>::const_iterator it =
-      sortedElements.begin();// (*it).first < bestSplit; ++it)
+      sortedElements.begin(); // (*it).first < bestSplit; ++it)
       it != sortedElements.end(); ++it)
   {
     // Move the point to the correct side of the split.
@@ -142,10 +141,9 @@ void BinaryNumericSplit<FitnessFunction, ObservationType>::Split(
   }
 
   // Calculate the majority classes of the children.
-  arma::uword maxIndex;
-  counts.unsafe_col(0).max(maxIndex);
+  arma::uword maxIndex = counts.unsafe_col(0).index_max();
   childMajorities[0] = size_t(maxIndex);
-  counts.unsafe_col(1).max(maxIndex);
+  maxIndex = counts.unsafe_col(1).index_max();
   childMajorities[1] = size_t(maxIndex);
 
   // Create the according SplitInfo object.
@@ -156,8 +154,7 @@ template<typename FitnessFunction, typename ObservationType>
 size_t BinaryNumericSplit<FitnessFunction, ObservationType>::MajorityClass()
     const
 {
-  arma::uword maxIndex;
-  classCounts.max(maxIndex);
+  arma::uword maxIndex = classCounts.index_max();
   return size_t(maxIndex);
 }
 
@@ -165,22 +162,21 @@ template<typename FitnessFunction, typename ObservationType>
 double BinaryNumericSplit<FitnessFunction, ObservationType>::
     MajorityProbability() const
 {
-  return double(arma::max(classCounts)) / double(arma::accu(classCounts));
+  return double(max(classCounts)) / double(accu(classCounts));
 }
 
 template<typename FitnessFunction, typename ObservationType>
 template<typename Archive>
-void BinaryNumericSplit<FitnessFunction, ObservationType>::Serialize(
+void BinaryNumericSplit<FitnessFunction, ObservationType>::serialize(
     Archive& ar,
-    const unsigned int /* version */)
+    const uint32_t /* version */)
 {
   // Serialize.
-  ar & data::CreateNVP(sortedElements, "sortedElements");
-  ar & data::CreateNVP(classCounts, "classCounts");
+  ar(CEREAL_NVP(sortedElements));
+  ar(CEREAL_NVP(classCounts));
 }
 
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

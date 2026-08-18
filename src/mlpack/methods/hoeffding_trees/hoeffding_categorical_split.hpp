@@ -1,5 +1,5 @@
 /**
- * @file hoeffding_categorical_split.hpp
+ * @file methods/hoeffding_trees/hoeffding_categorical_split.hpp
  * @author Ryan Curtin
  *
  * A class that contains the information necessary to perform a categorical
@@ -17,7 +17,6 @@
 #include "categorical_split_info.hpp"
 
 namespace mlpack {
-namespace tree {
 
 /**
  * This is the standard Hoeffding-bound categorical feature proposed in the
@@ -45,7 +44,7 @@ class HoeffdingCategoricalSplit
 {
  public:
   //! The type of split information required by the HoeffdingCategoricalSplit.
-  typedef CategoricalSplitInfo SplitInfo;
+  using SplitInfo = CategoricalSplitInfo;
 
   /**
    * Create the HoeffdingCategoricalSplit given a number of categories for this
@@ -54,8 +53,8 @@ class HoeffdingCategoricalSplit
    * @param numCategories Number of categories in this dimension.
    * @param numClasses Number of classes in this dimension.
    */
-  HoeffdingCategoricalSplit(const size_t numCategories,
-                            const size_t numClasses);
+  HoeffdingCategoricalSplit(const size_t numCategories = 0,
+                            const size_t numClasses = 0);
 
   /**
    * Create the HoeffdingCategoricalSplit given a number of categories for this
@@ -108,9 +107,9 @@ class HoeffdingCategoricalSplit
 
   //! Serialize the categorical split.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    ar & data::CreateNVP(sufficientStatistics, "sufficientStatistics");
+    ar(CEREAL_NVP(sufficientStatistics));
   }
 
  private:
@@ -120,7 +119,6 @@ class HoeffdingCategoricalSplit
   arma::Mat<size_t> sufficientStatistics;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

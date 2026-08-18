@@ -1,5 +1,5 @@
 /**
- * @file range.hpp
+ * @file core/math/range.hpp
  *
  * Definition of the Range class, which represents a simple range with a lower
  * and upper bound.
@@ -13,20 +13,14 @@
 #define MLPACK_CORE_MATH_RANGE_HPP
 
 namespace mlpack {
-namespace math {
 
 template<typename T>
 class RangeType;
 
-//! 3.0.0 TODO: break reverse-compatibility by changing RangeType to Range.
-typedef RangeType<double> Range;
+using Range = RangeType<double>;
 
 /**
  * Simple real-valued range.  It contains an upper and lower bound.
- *
- * Note that until mlpack 3.0.0, this class is named RangeType<> and for the
- * specification where T is double, you can use math::Range.  As of mlpack
- * 3.0.0, this class will be renamed math::Range<>.
  *
  * @tparam T type of element held by this range.
  */
@@ -125,6 +119,7 @@ class RangeType
    * Scale the bounds by the given double.
    *
    * @param d Scaling factor.
+   * @param r Bounds range.
    */
   template<typename TT>
   friend inline RangeType<TT> operator*(const TT d, const RangeType<TT>& r);
@@ -179,10 +174,9 @@ class RangeType
    * Serialize the range object.
    */
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int version);
+  void serialize(Archive& ar, const uint32_t version);
 };
 
-} // namespace math
 } // namespace mlpack
 
 // Include inlined implementation.

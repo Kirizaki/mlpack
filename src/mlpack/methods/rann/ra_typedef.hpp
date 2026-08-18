@@ -1,5 +1,5 @@
 /**
- * @file ra_typedef.hpp
+ * @file methods/rann/ra_typedef.hpp
  * @author Parikshit Ram
  *
  * Simple typedefs describing template instantiations of the RASearch
@@ -16,13 +16,12 @@
 // In case someone included this directly.
 #include "ra_search.hpp"
 
-#include <mlpack/core/metrics/lmetric.hpp>
+#include <mlpack/core/distances/lmetric.hpp>
 
 #include <mlpack/methods/neighbor_search/sort_policies/nearest_neighbor_sort.hpp>
 #include <mlpack/methods/neighbor_search/sort_policies/furthest_neighbor_sort.hpp>
 
 namespace mlpack {
-namespace neighbor {
 
 /**
  * The KRANN class is the k-rank-approximate-nearest-neighbors method.  It
@@ -33,7 +32,7 @@ namespace neighbor {
  * while the search can be performed multiple times with different approximation
  * levels.
  */
-typedef RASearch<> KRANN;
+using KRANN = RASearch<>;
 
 /**
  * The KRAFN class is the k-rank-approximate-farthest-neighbors method.  It
@@ -44,38 +43,8 @@ typedef RASearch<> KRANN;
  * while the search can be performed multiple times with different approximation
  * levels.
  */
-typedef RASearch<FurthestNeighborSort> KRAFN;
+using KRAFN = RASearch<FurthestNeighborSort>;
 
-/**
- * @deprecated
- * The AllkRANN class is the all-k-rank-approximate-nearest-neighbors method.  It
- * returns L2 distances for each of the k rank-approximate nearest-neighbors.
- *
- * The approximation is controlled with two parameters (see allkrann_main.cpp)
- * which can be specified at search time. So the tree building is done only once
- * while the search can be performed multiple times with different approximation
- * levels.
- *
- * This typedef will be removed in mlpack 3.0.0; use the KRANN typedef instead.
- */
-typedef RASearch<> AllkRANN;
-
-/**
- * @deprecated
- * The AllkRAFN class is the all-k-rank-approximate-farthest-neighbors method.
- * It returns L2 distances for each of the k rank-approximate
- * farthest-neighbors.
- *
- * The approximation is controlled with two parameters (see allkrann_main.cpp)
- * which can be specified at search time. So the tree building is done only once
- * while the search can be performed multiple times with different approximation
- * levels.
- *
- * This typedef will be removed in mlpack 3.0.0; use the KRANN typedef instead.
- */
-typedef RASearch<> AllkRAFN;
-
-} // namespace neighbor
 } // namespace mlpack
 
 #endif

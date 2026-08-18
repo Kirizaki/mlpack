@@ -1,5 +1,5 @@
 /**
- * @file minimal_splits_number_sweep_impl.hpp
+ * @file core/tree/rectangle_tree/minimal_splits_number_sweep_impl.hpp
  * @author Mikhail Lozhnikov
  *
  * Implementation of the MinimalSplitsNumberSweep class, a class that finds a
@@ -16,7 +16,6 @@
 #include "minimal_splits_number_sweep.hpp"
 
 namespace mlpack {
-namespace tree {
 
 template<typename SplitPolicy>
 template<typename TreeType>
@@ -25,11 +24,11 @@ size_t MinimalSplitsNumberSweep<SplitPolicy>::SweepNonLeafNode(
     const TreeType* node,
     typename TreeType::ElemType& axisCut)
 {
-  typedef typename TreeType::ElemType ElemType;
+  using ElemType = typename TreeType::ElemType;
 
   std::vector<std::pair<ElemType, size_t>> sorted(node->NumChildren());
 
-  for (size_t i = 0; i < node->NumChildren(); i++)
+  for (size_t i = 0; i < node->NumChildren(); ++i)
   {
     sorted[i].first = SplitPolicy::Bound(node->Child(i))[axis].Hi();
     sorted[i].second = i;
@@ -46,14 +45,14 @@ size_t MinimalSplitsNumberSweep<SplitPolicy>::SweepNonLeafNode(
   size_t minCost = SIZE_MAX;
 
   // Find a split with the minimal cost.
-  for (size_t i = 0; i < sorted.size(); i++)
+  for (size_t i = 0; i < sorted.size(); ++i)
   {
     size_t numTreeOneChildren = 0;
     size_t numTreeTwoChildren = 0;
     size_t numSplits = 0;
 
     // Calculate the number of splits.
-    for (size_t j = 0; j < node->NumChildren(); j++)
+    for (size_t j = 0; j < node->NumChildren(); ++j)
     {
       const TreeType& child = node->Child(j);
       int policy = SplitPolicy::GetSplitPolicy(child, axis, sorted[i].first);
@@ -70,8 +69,9 @@ size_t MinimalSplitsNumberSweep<SplitPolicy>::SweepNonLeafNode(
     }
 
     // Check if the split is possible.
-    if (numTreeOneChildren <= node->MaxNumChildren() && numTreeOneChildren > 0 &&
-        numTreeTwoChildren <= node->MaxNumChildren() && numTreeTwoChildren > 0)
+    if (numTreeOneChildren <= node->MaxNumChildren() &&
+        numTreeOneChildren > 0 && numTreeTwoChildren <= node->MaxNumChildren()
+        && numTreeTwoChildren > 0)
     {
       // Evaluate the cost using the number of splits and balancing.
       size_t balance;
@@ -109,7 +109,6 @@ size_t MinimalSplitsNumberSweep<SplitPolicy>::SweepLeafNode(
 }
 
 
-} // namespace tree
 } // namespace mlpack
 
 #endif  //  MLPACK_CORE_TREE_RECTANGLE_TREE_MINIMAL_SPLITS_NUMBER_SWEEP_IMPL_HPP

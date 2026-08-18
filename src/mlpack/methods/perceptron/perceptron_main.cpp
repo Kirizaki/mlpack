@@ -1,5 +1,5 @@
 /**
- * @file perceptron_main.cpp
+ * @file methods/perceptron/perceptron_main.cpp
  * @author Udit Saxena
  *
  * This program runs the Simple Perceptron Classifier.
@@ -12,257 +12,284 @@
  * 3-clause BSD license along with mlpack.  If not, see
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
+#include <mlpack/core.hpp>
 
-#include <mlpack/prereqs.hpp>
-#include <mlpack/core/util/param.hpp>
-#include <mlpack/core/data/normalize_labels.hpp>
+#undef BINDING_NAME
+#define BINDING_NAME perceptron
+
+#include <mlpack/core/util/mlpack_main.hpp>
+
 #include "perceptron.hpp"
+#include "perceptron_model.hpp"
 
 using namespace mlpack;
-using namespace mlpack::perceptron;
+using namespace mlpack::util;
 using namespace std;
 using namespace arma;
 
-PROGRAM_INFO("Perceptron",
+// Program Name.
+BINDING_USER_NAME("Perceptron");
+
+// Short description.
+BINDING_SHORT_DESC(
+    "An implementation of a perceptron---a single level neural network---for "
+    "classification.  Given labeled data, a perceptron can be trained and saved"
+    " for future use; or, a pre-trained perceptron can be used for "
+    "classification on new points.");
+
+// Long description.
+BINDING_LONG_DESC(
     "This program implements a perceptron, which is a single level neural "
     "network. The perceptron makes its predictions based on a linear predictor "
     "function combining a set of weights with the feature vector.  The "
     "perceptron learning rule is able to converge, given enough iterations "
-    "using the --max_iterations (-n) parameter, if the data supplied is "
-    "linearly separable.  The perceptron is parameterized by a matrix of weight"
-    " vectors that denote the numerical weights of the neural network."
+    "(specified using the " + PRINT_PARAM_STRING("max_iterations") +
+    " parameter), if the data supplied is linearly separable.  The perceptron "
+    "is parameterized by a matrix of weight vectors that denote the numerical "
+    "weights of the neural network."
     "\n\n"
-    "This program allows loading a perceptron from a model (-m) or training a "
-    "perceptron given training data (-t), or both those things at once.  In "
-    "addition, this program allows classification on a test dataset (-T) and "
-    "will save the classification results to the given output file (-o).  The "
-    "perceptron model itself may be saved with a file specified using the -M "
-    "option."
-    "\n\n"
-    "The training data given with the -t option should have class labels as its"
-    " last dimension (so, if the training data is in CSV format, labels should "
-    "be the last column).  Alternately, the -l (--labels_file) option may be "
-    "used to specify a separate file of labels."
+    "This program allows loading a perceptron from a model (via the " +
+    PRINT_PARAM_STRING("input_model") + " parameter) or training a perceptron "
+    "given training data (via the " + PRINT_PARAM_STRING("training") +
+    " parameter), or both those things at once.  In addition, this program "
+    "allows classification on a test dataset (via the " +
+    PRINT_PARAM_STRING("test") + " parameter) and the classification results "
+    "on the test set may be saved with the " +
+    PRINT_PARAM_STRING("predictions") +
+    " output parameter.  The perceptron model may be saved with the " +
+    PRINT_PARAM_STRING("output_model") + " output parameter.");
+
+// Example.
+BINDING_EXAMPLE(
+    "The training data given with the " + PRINT_PARAM_STRING("training") +
+    " option may have class labels as its last dimension (so, if the training "
+    "data is in CSV format, labels should be the last column).  Alternately, "
+    "the " + PRINT_PARAM_STRING("labels") + " parameter may be used to specify "
+    "a separate matrix of labels."
     "\n\n"
     "All these options make it easy to train a perceptron, and then re-use that"
     " perceptron for later classification.  The invocation below trains a "
-    "perceptron on 'training_data.csv' (and 'training_labels.csv)' and saves "
-    "the model to 'perceptron.xml'."
+    "perceptron on " + PRINT_DATASET("training_data") + " with labels " +
+    PRINT_DATASET("training_labels") + ", and saves the model to " +
+    PRINT_MODEL("perceptron_model") + "."
+    "\n\n" +
+    PRINT_CALL("perceptron", "training", "training_data", "labels",
+        "training_labels", "output_model", "perceptron_model") +
     "\n\n"
-    "$ perceptron -t training_data.csv -l training_labels.csv -M perceptron.xml"
-    "\n\n"
-    "Then, this model can be re-used for classification on 'test_data.csv'.  "
-    "The example below does precisely that, saving the predicted classes to "
-    "'predictions.csv'."
-    "\n\n"
-    "$ perceptron -m perceptron.xml -T test_data.csv -o predictions.csv"
+    "Then, this model can be re-used for classification on the test data " +
+    PRINT_DATASET("test_data") + ".  The example below does precisely that, "
+    "saving the predicted classes to " + PRINT_DATASET("predictions") + "."
+    "\n\n" +
+    PRINT_CALL("perceptron", "input_model", "perceptron_model", "test",
+        "test_data", "predictions", "predictions") +
     "\n\n"
     "Note that all of the options may be specified at once: predictions may be "
     "calculated right after training a model, and model training can occur even"
-    " if an existing perceptron model is passed with -m (--input_model_file).  "
-    "However, note that the number of classes and the dimensionality of all "
-    "data must match.  So you cannot pass a perceptron model trained on 2 "
-    "classes and then re-train with a 4-class dataset.  Similarly, attempting "
-    "classification on a 3-dimensional dataset with a perceptron that has been "
-    "trained on 8 dimensions will cause an error."
-    );
+    " if an existing perceptron model is passed with the " +
+    PRINT_PARAM_STRING("input_model") + " parameter.  However, note that the "
+    "number of classes and the dimensionality of all data must match.  So you "
+    "cannot pass a perceptron model trained on 2 classes and then re-train with"
+    " a 4-class dataset.  Similarly, attempting classification on a "
+    "3-dimensional dataset with a perceptron that has been trained on 8 "
+    "dimensions will cause an error.");
+
+// See also...
+BINDING_SEE_ALSO("@adaboost", "#adaboost");
+BINDING_SEE_ALSO("Perceptron on Wikipedia",
+    "https://en.wikipedia.org/wiki/Perceptron");
+BINDING_SEE_ALSO("Perceptron C++ class documentation",
+    "@doc/user/methods/perceptron.md");
 
 // Training parameters.
 PARAM_MATRIX_IN("training", "A matrix containing the training set.", "t");
-PARAM_UMATRIX_IN("labels", "A matrix containing labels for the training set.",
+PARAM_UROW_IN("labels", "A matrix containing labels for the training set.",
     "l");
-PARAM_INT_IN("max_iterations","The maximum number of iterations the perceptron "
-    "is to be run", "n", 1000);
+PARAM_INT_IN("max_iterations", "The maximum number of iterations the "
+    "perceptron is to be run", "n", 1000);
 
 // Model loading/saving.
-PARAM_STRING_IN("input_model_file", "File containing input perceptron model.",
-    "m", "");
-PARAM_STRING_OUT("output_model_file", "File to save trained perceptron model "
-    "to.", "M");
+PARAM_MODEL_IN(PerceptronModel, "input_model", "Input perceptron model.", "m");
+PARAM_MODEL_OUT(PerceptronModel, "output_model", "Output for trained perceptron"
+    " model.", "M");
 
 // Testing/classification parameters.
 PARAM_MATRIX_IN("test", "A matrix containing the test set.", "T");
-PARAM_UMATRIX_OUT("output", "The matrix in which the predicted labels for the"
-    " test set will be written.", "o");
+PARAM_UROW_OUT("predictions", "The matrix in which the predicted labels for the"
+    " test set will be written.", "P");
 
-// When we save a model, we must also save the class mappings.  So we use this
-// auxiliary structure to store both the perceptron and the mapping, and we'll
-// save this.
-class PerceptronModel
+void BINDING_FUNCTION(util::Params& params, util::Timers& timers)
 {
- private:
-  Perceptron<>& p;
-  Col<size_t>& map;
-
- public:
-  PerceptronModel(Perceptron<>& p, Col<size_t>& map) : p(p), map(map) { }
-
-  template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
-  {
-    ar & data::CreateNVP(p, "perceptron");
-    ar & data::CreateNVP(map, "mappings");
-  }
-};
-
-int main(int argc, char** argv)
-{
-  CLI::ParseCommandLine(argc, argv);
-
   // First, get all parameters and validate them.
-  const string inputModelFile = CLI::GetParam<string>("input_model_file");
-  const string outputModelFile = CLI::GetParam<string>("output_model_file");
-  const size_t maxIterations = (size_t) CLI::GetParam<int>("max_iterations");
+  const size_t maxIterations = (size_t) params.Get<int>("max_iterations");
 
   // We must either load a model or train a model.
-  if (!CLI::HasParam("input_model_file") && !CLI::HasParam("training"))
-    Log::Fatal << "Either an input model must be specified with "
-        << "--input_model_file or training data must be given "
-        << "(--training_file)!" << endl;
+  RequireAtLeastOnePassed(params, { "input_model", "training" }, true);
 
   // If the user isn't going to save the output model or any predictions, we
   // should issue a warning.
-  if (!CLI::HasParam("output_model_file") && !CLI::HasParam("test"))
-    Log::Warn << "Output will not be saved!  (Neither --test_file nor "
-        << "--output_model_file are specified.)" << endl;
+  RequireAtLeastOnePassed(params, { "output_model", "predictions" }, false,
+      "no output will be saved");
+  ReportIgnoredParam(params, {{ "test", false }}, "predictions");
 
-  if (!CLI::HasParam("test") && CLI::HasParam("output"))
-    Log::Warn << "--output_file will be ignored because --test_file is not "
-        << "specified." << endl;
-
-  if (CLI::HasParam("test") && !CLI::HasParam("output"))
-    Log::Warn << "--output_file not specified, so the predictions for "
-        << "--test_file will not be saved." << endl;
+  // Check parameter validity.
+  RequireParamValue<int>(params, "max_iterations", [](int x) { return x >= 0; },
+      true, "maximum number of iterations must be nonnegative");
 
   // Now, load our model, if there is one.
-  Perceptron<>* p = NULL;
-  Col<size_t> mappings;
-  if (CLI::HasParam("input_model_file"))
+  PerceptronModel* p;
+  if (params.Has("input_model"))
   {
-    Log::Info << "Loading saved perceptron from model file '" << inputModelFile
-        << "'." << endl;
+    Log::Info << "Using saved perceptron from "
+        << params.GetPrintable<PerceptronModel*>("input_model") << "."
+        << endl;
 
-    // The parameters here are invalid, but we are about to load the model
-    // anyway...
-    p = new Perceptron<>(0, 0);
-    PerceptronModel pm(*p, mappings); // Also load class mappings.
-    data::Load(inputModelFile, "perceptron_model", pm, true);
+    p = params.Get<PerceptronModel*>("input_model");
+  }
+  else
+  {
+    p = new PerceptronModel();
   }
 
   // Next, load the training data and labels (if they have been given).
-  if (CLI::HasParam("training"))
+  if (params.Has("training"))
   {
-    Log::Info << "Training perceptron on dataset '"
-        << CLI::GetUnmappedParam<mat>("training");
-    if (CLI::HasParam("labels"))
+    // Get and cache the value of GetPrintableParam<mat>("training").
+    std::ostringstream oss;
+    oss << params.GetPrintable<mat>("training");
+    std::string trainingOutput = oss.str();
+
+    Log::Info << "Training perceptron on dataset '" << trainingOutput;
+    if (params.Has("labels"))
+    {
       Log::Info << "' with labels in '"
-          << CLI::GetUnmappedParam<Mat<size_t>>("labels") << "'";
+          << params.GetPrintable<Row<size_t>>("labels") << "'";
+    }
     else
+    {
       Log::Info << "'";
+    }
     Log::Info << " for a maximum of " << maxIterations << " iterations."
         << endl;
 
-    mat trainingData = std::move(CLI::GetParam<mat>("training"));
+    mat trainingData = std::move(params.Get<mat>("training"));
 
     // Load labels.
-    Mat<size_t> labelsIn;
+    Row<size_t> labelsIn;
 
     // Did the user pass in labels?
-    if (CLI::HasParam("labels"))
+    if (params.Has("labels"))
     {
-      labelsIn = std::move(CLI::GetParam<arma::Mat<size_t>>("labels"));
+      labelsIn = std::move(params.Get<Row<size_t>>("labels"));
+
+      // Checking the size of the responses and training data.
+      if (labelsIn.n_cols != trainingData.n_cols)
+      {
+        // Clean memory if needed.
+        if (!params.Has("input_model"))
+          delete p;
+
+        Log::Fatal << "The responses must have the same number of columns "
+            "as the training set." << endl;
+      }
     }
     else
     {
+      // Checking the size of training data if no labels are passed.
+      if (trainingData.n_rows < 2)
+      {
+        // Clean memory if needed.
+        if (!params.Has("input_model"))
+          delete p;
+
+        Log::Fatal << "Can't get responses from training data "
+            "since it has less than 2 rows." << endl;
+      }
+
       // Use the last row of the training data as the labels.
       Log::Info << "Using the last dimension of training set as labels."
           << endl;
-      labelsIn = arma::conv_to<arma::Mat<size_t>>::from(
-          trainingData.row(trainingData.n_rows - 1).t());
+      labelsIn = ConvTo<Row<size_t>>::From(
+          trainingData.row(trainingData.n_rows - 1));
       trainingData.shed_row(trainingData.n_rows - 1);
     }
 
-    // Do the labels need to be transposed?
-    if (labelsIn.n_cols == 1)
-      labelsIn = labelsIn.t();
-
     // Normalize the labels.
     Row<size_t> labels;
-    data::NormalizeLabels(labelsIn.row(0), labels, mappings);
+    NormalizeLabels(labelsIn, labels, p->Map());
+    const size_t numClasses = p->Map().n_elem;
 
     // Now, if we haven't already created a perceptron, do it.  Otherwise, make
     // sure the dimensions are right, then continue training.
-    if (p == NULL)
+    if (!params.Has("input_model"))
     {
       // Create and train the classifier.
-      Timer::Start("training");
-      p = new Perceptron<>(trainingData, labels, max(labels) + 1,
-          maxIterations);
-      Timer::Stop("training");
+      timers.Start("training");
+      p->P() = Perceptron<>(trainingData, labels, numClasses, maxIterations);
+      timers.Stop("training");
     }
     else
     {
       // Check dimensionality.
-      if (p->Weights().n_rows != trainingData.n_rows)
+      if (p->P().Weights().n_rows != trainingData.n_rows)
       {
-        Log::Fatal << "Perceptron from '" << inputModelFile << "' is built on "
-            << "data with " << p->Weights().n_rows << " dimensions, but data in"
-            << " '" << CLI::GetUnmappedParam<arma::mat>("training") << "' has "
+        Log::Fatal << "Perceptron from '"
+            << params.GetPrintable<PerceptronModel*>("input_model")
+            << "' is built on data with " << p->P().Weights().n_rows
+            << " dimensions, but data in '" << trainingOutput << "' has "
             << trainingData.n_rows << "dimensions!" << endl;
       }
 
       // Check the number of labels.
-      if (max(labels) + 1 > p->Weights().n_cols)
+      if (numClasses > p->P().Weights().n_cols)
       {
-        Log::Fatal << "Perceptron from '" << inputModelFile << "' has "
-            << p->Weights().n_cols << " classes, but the training data has "
-            << max(labels) + 1 << " classes!" << endl;
+        Log::Fatal << "Perceptron from '"
+            << params.GetPrintable<PerceptronModel*>("input_model") << "' "
+            << "has " << p->P().Weights().n_cols << " classes, but the training"
+            << " data has " << numClasses + 1 << " classes!" << endl;
       }
 
       // Now train.
-      Timer::Start("training");
-      p->MaxIterations() = maxIterations;
-      p->Train(trainingData, labels.t());
-      Timer::Stop("training");
+      timers.Start("training");
+      p->P().MaxIterations() = maxIterations;
+      p->P().Train(trainingData, labels.t(), numClasses);
+      timers.Stop("training");
     }
   }
 
   // Now, the training procedure is complete.  Do we have any test data?
-  if (CLI::HasParam("test"))
+  if (params.Has("test"))
   {
+    mat& testData = params.Get<arma::mat>("test");
     Log::Info << "Classifying dataset '"
-        << CLI::GetUnmappedParam<arma::mat>("test") << "'." << endl;
-    mat testData = std::move(CLI::GetParam<arma::mat>("test"));
+        << params.GetPrintable<arma::mat>("test") << "'." << endl;
 
-    if (testData.n_rows != p->Weights().n_rows)
+    if (testData.n_rows != p->P().Weights().n_rows)
     {
+      // Clean memory if needed.
+      const size_t perceptronDimensionality = p->P().Weights().n_rows;
+      if (!params.Has("input_model"))
+        delete p;
+
       Log::Fatal << "Test data dimensionality (" << testData.n_rows << ") must "
           << "be the same as the dimensionality of the perceptron ("
-          << p->Weights().n_rows << ")!" << endl;
+          << perceptronDimensionality << ")!" << endl;
     }
 
     // Time the running of the perceptron classifier.
     Row<size_t> predictedLabels(testData.n_cols);
-    Timer::Start("testing");
-    p->Classify(testData, predictedLabels);
-    Timer::Stop("testing");
+    timers.Start("testing");
+    p->P().Classify(testData, predictedLabels);
+    timers.Stop("testing");
 
     // Un-normalize labels to prepare output.
     Row<size_t> results;
-    data::RevertLabels(predictedLabels, mappings, results);
+    RevertLabels(predictedLabels, p->Map(), results);
 
     // Save the predicted labels.
-    if (CLI::HasParam("output"))
-      CLI::GetParam<arma::Mat<size_t>>("output") = std::move(results);
+    if (params.Has("predictions"))
+      params.Get<arma::Row<size_t>>("predictions") = std::move(results);
   }
 
-  // Lastly, do we need to save the output model?
-  if (CLI::HasParam("output_model_file"))
-  {
-    PerceptronModel pm(*p, mappings);
-    data::Save(outputModelFile, "perceptron_model", pm);
-  }
-
-  // Clean up memory.
-  delete p;
+  // Lastly, save the output model.
+  params.Get<PerceptronModel*>("output_model") = p;
 }

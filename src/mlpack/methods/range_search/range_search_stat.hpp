@@ -1,5 +1,5 @@
 /**
- * @file range_search_stat.hpp
+ * @file methods/range_search/range_search_stat.hpp
  * @author Ryan Curtin
  *
  * Statistic class for RangeSearch, which just holds the last visited node and
@@ -16,7 +16,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace range {
 
 /**
  * Statistic class for RangeSearch, to be set to the StatisticType of the tree
@@ -46,9 +45,9 @@ class RangeSearchStat
 
   //! Serialize the statistic.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    ar & data::CreateNVP(lastDistance, "lastDistance");
+    ar(CEREAL_NVP(lastDistance));
   }
 
  private:
@@ -56,7 +55,6 @@ class RangeSearchStat
   double lastDistance;
 };
 
-} // namespace neighbor
 } // namespace mlpack
 
 #endif

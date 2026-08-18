@@ -1,5 +1,5 @@
 /**
- * @file single_tree_traverser.hpp
+ * @file core/tree/rectangle_tree/single_tree_traverser.hpp
  * @author Andrew Wells
  *
  * A nested class of Rectangle Tree for traversing rectangle type trees
@@ -19,16 +19,15 @@
 #include "rectangle_tree.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
          typename SplitType,
          typename DescentType,
          template<typename> class AuxiliaryInformationType>
 template<typename RuleType>
-class RectangleTree<MetricType, StatisticType, MatType, SplitType,
+class RectangleTree<DistanceType, StatisticType, MatType, SplitType,
                     DescentType, AuxiliaryInformationType>::SingleTreeTraverser
 {
  public:
@@ -52,7 +51,6 @@ class RectangleTree<MetricType, StatisticType, MatType, SplitType,
   size_t& NumPrunes() { return numPrunes; }
 
  private:
-
   // We use this class and this function to make the sorting and scoring easy
   // and efficient:
   struct NodeAndScore
@@ -73,7 +71,6 @@ class RectangleTree<MetricType, StatisticType, MatType, SplitType,
   size_t numPrunes;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

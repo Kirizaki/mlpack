@@ -1,5 +1,5 @@
 /**
- * @file greedy_single_tree_traverser_impl.hpp
+ * @file core/tree/greedy_single_tree_traverser.hpp
  * @author Marcos Pividori
  *
  * A simple greedy traverser which always chooses the child with the best score
@@ -17,7 +17,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace tree {
 
 template<typename TreeType, typename RuleType>
 class GreedySingleTreeTraverser
@@ -48,7 +47,6 @@ class GreedySingleTreeTraverser
   size_t numPrunes;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

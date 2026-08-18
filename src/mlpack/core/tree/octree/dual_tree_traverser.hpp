@@ -1,5 +1,5 @@
 /**
- * @file dual_tree_traverser.hpp
+ * @file core/tree/octree/dual_tree_traverser.hpp
  * @author Ryan Curtin
  *
  * Define the dual-tree traverser for the Octree.
@@ -16,13 +16,12 @@
 #include "octree.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType>
 template<typename RuleType>
-class Octree<MetricType, StatisticType, MatType>::DualTreeTraverser
+class Octree<DistanceType, StatisticType, MatType>::DualTreeTraverser
 {
  public:
   /**
@@ -74,7 +73,6 @@ class Octree<MetricType, StatisticType, MatType>::DualTreeTraverser
   typename RuleType::TraversalInfoType traversalInfo;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

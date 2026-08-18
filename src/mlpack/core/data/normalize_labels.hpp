@@ -1,5 +1,5 @@
 /**
- * @file normalize_labels.hpp
+ * @file core/data/normalize_labels.hpp
  * @author Ryan Curtin
  *
  * Often labels are not given as {0, 1, 2, ...} but instead {1, 2, ...} or even
@@ -17,7 +17,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace data {
 
 /**
  * Given a set of labels of a particular datatype, convert them to unsigned
@@ -47,7 +46,6 @@ void RevertLabels(const arma::Row<size_t>& labels,
                   const arma::Col<eT>& mapping,
                   arma::Row<eT>& labelsOut);
 
-} // namespace data
 } // namespace mlpack
 
 // Include implementation.

@@ -1,5 +1,5 @@
 /**
- * @file pelleg_moore_kmeans.hpp
+ * @file methods/kmeans/pelleg_moore_kmeans.hpp
  * @author Ryan Curtin
  *
  * An implementation of Pelleg-Moore's 'blacklist' algorithm for k-means
@@ -17,7 +17,6 @@
 #include "pelleg_moore_kmeans_statistic.hpp"
 
 namespace mlpack {
-namespace kmeans {
 
 /**
  * An implementation of Pelleg-Moore's 'blacklist' algorithm for k-means
@@ -38,14 +37,14 @@ namespace kmeans {
  * }
  * @endcode
  */
-template<typename MetricType, typename MatType>
+template<typename DistanceType, typename MatType>
 class PellegMooreKMeans
 {
  public:
   /**
    * Construct the PellegMooreKMeans object, which must construct a tree.
    */
-  PellegMooreKMeans(const MatType& dataset, MetricType& metric);
+  PellegMooreKMeans(const MatType& dataset, DistanceType& distance);
 
   /**
    * Delete the tree constructed by the PellegMooreKMeans object.
@@ -70,8 +69,7 @@ class PellegMooreKMeans
   size_t& DistanceCalculations() { return distanceCalculations; }
 
   //! Convenience typedef for the tree.
-  typedef tree::KDTree<MetricType, PellegMooreKMeansStatistic, MatType>
-      TreeType;
+  using TreeType = KDTree<DistanceType, PellegMooreKMeansStatistic, MatType>;
 
  private:
   //! The original dataset reference.
@@ -80,14 +78,13 @@ class PellegMooreKMeans
   TreeType* tree;
   //! The dataset we are using.
   const MatType& dataset;
-  //! The metric.
-  MetricType& metric;
+  //! The distance metric.
+  DistanceType& distance;
 
   //! Track distance calculations.
   size_t distanceCalculations;
 };
 
-} // namespace kmeans
 } // namespace mlpack
 
 #include "pelleg_moore_kmeans_impl.hpp"

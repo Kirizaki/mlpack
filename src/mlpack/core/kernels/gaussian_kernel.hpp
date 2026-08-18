@@ -1,5 +1,5 @@
 /**
- * @file gaussian_kernel.hpp
+ * @file core/kernels/gaussian_kernel.hpp
  * @author Wei Guan
  * @author James Cline
  * @author Ryan Curtin
@@ -15,11 +15,10 @@
 #define MLPACK_CORE_KERNELS_GAUSSIAN_KERNEL_HPP
 
 #include <mlpack/prereqs.hpp>
-#include <mlpack/core/metrics/lmetric.hpp>
+#include <mlpack/core/distances/lmetric.hpp>
 #include <mlpack/core/kernels/kernel_traits.hpp>
 
 namespace mlpack {
-namespace kernel {
 
 /**
  * The standard Gaussian kernel.  Given two vectors @f$ x @f$, @f$ y @f$, and a
@@ -47,7 +46,7 @@ class GaussianKernel
    */
   GaussianKernel(const double bandwidth) :
       bandwidth(bandwidth),
-      gamma(-0.5 * pow(bandwidth, -2.0))
+      gamma(-0.5 * std::pow(bandwidth, -2.0))
   { }
 
   /**
@@ -65,7 +64,7 @@ class GaussianKernel
   double Evaluate(const VecTypeA& a, const VecTypeB& b) const
   {
     // The precalculation of gamma saves us a little computation time.
-    return exp(gamma * metric::SquaredEuclideanDistance::Evaluate(a, b));
+    return std::exp(gamma * SquaredEuclideanDistance::Evaluate(a, b));
   }
 
   /**
@@ -78,7 +77,7 @@ class GaussianKernel
   double Evaluate(const double t) const
   {
     // The precalculation of gamma saves us a little computation time.
-    return exp(gamma * std::pow(t, 2.0));
+    return std::exp(gamma * std::pow(t, 2.0));
   }
 
   /**
@@ -90,19 +89,7 @@ class GaussianKernel
    *     constructor.
    */
   double Gradient(const double t) const {
-    return 2 * t * gamma * exp(gamma * std::pow(t, 2.0));
-  }
-
-  /**
-   * Evaluation of the gradient of Gaussian kernel
-   * given the squared distance between two points.
-   *
-   * @param t The squared distance between the two points
-   * @return K(t) using the bandwidth (@f$\mu@f$) specified in the
-   *     constructor.
-   */
-  double GradientForSquaredDistance(const double t) const {
-    return gamma * exp(gamma * t);
+    return 2 * t * gamma * std::exp(gamma * std::pow(t, 2.0));
   }
 
   /**
@@ -113,23 +100,8 @@ class GaussianKernel
    */
   double Normalizer(const size_t dimension)
   {
-    return pow(sqrt(2.0 * M_PI) * bandwidth, (double) dimension);
+    return std::pow(std::sqrt(2.0 * M_PI) * bandwidth, (double) dimension);
   }
-
-  /**
-   * Obtain a convolution integral of the Gaussian kernel.
-   *
-   * @param a First vector.
-   * @param b Second vector.
-   * @return The convolution integral.
-   */
-  template<typename VecTypeA, typename VecTypeB>
-  double ConvolutionIntegral(const VecTypeA& a, const VecTypeB& b)
-  {
-    return Evaluate(sqrt(metric::SquaredEuclideanDistance::Evaluate(a, b) / 2.0)) /
-        (Normalizer(a.n_rows) * pow(2.0, (double) a.n_rows / 2.0));
-  }
-
 
   //! Get the bandwidth.
   double Bandwidth() const { return bandwidth; }
@@ -139,7 +111,7 @@ class GaussianKernel
   void Bandwidth(const double bandwidth)
   {
     this->bandwidth = bandwidth;
-    this->gamma = -0.5 * pow(bandwidth, -2.0);
+    this->gamma = -0.5 * std::pow(bandwidth, -2.0);
   }
 
   //! Get the precalculated constant.
@@ -147,10 +119,10 @@ class GaussianKernel
 
   //! Serialize the kernel.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    ar & data::CreateNVP(bandwidth, "bandwidth");
-    ar & data::CreateNVP(gamma, "gamma");
+    ar(CEREAL_NVP(bandwidth));
+    ar(CEREAL_NVP(gamma));
   }
 
  private:
@@ -173,7 +145,6 @@ class KernelTraits<GaussianKernel>
   static const bool UsesSquaredDistance = true;
 };
 
-} // namespace kernel
 } // namespace mlpack
 
 #endif

@@ -1,5 +1,5 @@
 /**
- * @file sample_initialization.hpp
+ * @file methods/kmeans/sample_initialization.hpp
  * @author Ryan Curtin
  *
  * In order to construct initial centroids, randomly sample points from the
@@ -18,7 +18,6 @@
 #include <mlpack/core/math/random.hpp>
 
 namespace mlpack {
-namespace kmeans {
 
 class SampleInitialization
 {
@@ -43,13 +42,12 @@ class SampleInitialization
     for (size_t i = 0; i < clusters; ++i)
     {
       // Randomly sample a point.
-      const size_t index = math::RandInt(0, data.n_cols);
+      const size_t index = RandInt(0, data.n_cols);
       centroids.col(i) = data.col(index);
     }
   }
 };
 
-} // namespace kmeans
 } // namespace mlpack
 
 #endif

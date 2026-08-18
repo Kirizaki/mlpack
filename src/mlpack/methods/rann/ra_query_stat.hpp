@@ -1,5 +1,5 @@
 /**
- * @file ra_query_stat.hpp
+ * @file methods/rann/ra_query_stat.hpp
  * @author Parikshit Ram
  *
  * Defines the RAQueryStat class, which is the statistic used for
@@ -17,11 +17,10 @@
 
 #include <mlpack/core/tree/binary_space_tree.hpp>
 
-#include <mlpack/core/metrics/lmetric.hpp>
+#include <mlpack/core/distances/lmetric.hpp>
 #include <mlpack/methods/neighbor_search/sort_policies/nearest_neighbor_sort.hpp>
 
 namespace mlpack {
-namespace neighbor {
 
 /**
  * Extra data for each node in the tree.  For neighbor searches, each node only
@@ -62,10 +61,10 @@ class RAQueryStat
 
   //! Serialize the statistic.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    ar & data::CreateNVP(bound, "bound");
-    ar & data::CreateNVP(numSamplesMade, "numSamplesMade");
+    ar(CEREAL_NVP(bound));
+    ar(CEREAL_NVP(numSamplesMade));
   }
 
  private:
@@ -75,7 +74,6 @@ class RAQueryStat
   size_t numSamplesMade;
 };
 
-} // namespace neighbor
 } // namespace mlpack
 
 #endif

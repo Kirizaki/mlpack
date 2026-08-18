@@ -1,5 +1,5 @@
 /**
- * @file dtree.hpp
+ * @file methods/det/dtree.hpp
  * @author Parikshit Ram (pram@cc.gatech.edu)
  *
  * Density Estimation Tree class
@@ -13,10 +13,9 @@
 #ifndef MLPACK_METHODS_DET_DTREE_HPP
 #define MLPACK_METHODS_DET_DTREE_HPP
 
-#include <mlpack/prereqs.hpp>
+#include <mlpack/core.hpp>
 
 namespace mlpack {
-namespace det /** Density Estimation Trees */ {
 
 /**
  * A density estimation tree is similar to both a decision tree and a space
@@ -41,22 +40,50 @@ namespace det /** Density Estimation Trees */ {
  * }
  * @endcode
  */
-template <typename MatType,
-          typename TagType = int>
+template<typename MatType = arma::mat,
+         typename TagType = int>
 class DTree
 {
  public:
-  /**
-   * The actual, underlying type we're working with
-   */
-  typedef typename MatType::elem_type     ElemType;
-  typedef typename MatType::vec_type      VecType;
-  typedef typename arma::Col<ElemType>    StatType;
-  
+  //! The actual, underlying type we're working with.
+  using ElemType = typename MatType::elem_type;
+  //! The type of vector we are using.
+  using VecType = typename GetColType<MatType>::type;
+  //! The statistic type we are holding.
+  using StatType = arma::Col<ElemType>;
+
   /**
    * Create an empty density estimation tree.
    */
   DTree();
+
+  /**
+   * Create a tree that is the copy of the given tree.
+   *
+   * @param obj Tree to copy.
+   */
+  DTree(const DTree& obj);
+
+  /**
+   * Copy the given tree.
+   *
+   * @param obj Tree to copy.
+   */
+  DTree& operator=(const DTree& obj);
+
+  /**
+   * Create a tree by taking ownership of another tree (move constructor).
+   *
+   * @param obj Tree to take ownership of.
+   */
+  DTree(DTree&& obj);
+
+  /**
+   * Take ownership of the given tree (move operator).
+   *
+   * @param obj Tree to take ownership of.
+   */
+  DTree& operator=(DTree&& obj);
 
   /**
    * Create a density estimation tree with the given bounds and the given number
@@ -79,7 +106,7 @@ class DTree
    * @param data Dataset to build tree on.
    */
   DTree(MatType& data);
-  
+
   /**
    * Create a child node of a density estimation tree given the bounding box
    * specified by maxVals and minVals, using the size given in start and end and
@@ -90,7 +117,7 @@ class DTree
    * @param minVals Lower bound of bounding box.
    * @param start Start of points represented by this node in the data matrix.
    * @param end End of points represented by this node in the data matrix.
-   * @param error log-negative error of this node.
+   * @param logNegError log-negative error of this node.
    */
   DTree(const StatType& maxVals,
         const StatType& minVals,
@@ -106,6 +133,7 @@ class DTree
    *
    * @param maxVals Upper bound of bounding box.
    * @param minVals Lower bound of bounding box.
+   * @param totalPoints Total number of points.
    * @param start Start of points represented by this node in the data matrix.
    * @param end End of points represented by this node in the data matrix.
    */
@@ -156,11 +184,14 @@ class DTree
   /**
    * Index the buckets for possible usage later; this results in every leaf in
    * the tree having a specific tag (accessible with BucketTag()).  This
-   * function calls itself recursively.
+   * function calls itself recursively. The tag is incremented with
+   * `operator++()`, so any `TagType` overriding it will do.
    *
    * @param tag Tag for the next leaf; leave at 0 for the initial call.
+   * @param everyNode Whether to increment on every node, not just leaves.
    */
-  TagType TagTree(const TagType& tag = 0);
+  TagType TagTree(const TagType& tag = 0, bool everyNode = false);
+
 
   /**
    * Return the tag of the leaf containing the query.  This is useful for
@@ -169,6 +200,7 @@ class DTree
    * @param query Query to search for.
    */
   TagType FindBucket(const VecType& query) const;
+
 
   /**
    * Compute the variable importance of each dimension in the learned tree.
@@ -190,7 +222,7 @@ class DTree
    */
   bool WithinRange(const VecType& query) const;
 
- private:
+ protected: /* these are checked in the tests */
   // The indices in the complete set of points
   // (after all forms of swapping in the original data
   // matrix to align all the points in a node
@@ -273,7 +305,19 @@ class DTree
   //! Return the upper part of the alpha sum.
   double AlphaUpper() const { return alphaUpper; }
   //! Return the current bucket's ID, if leaf, or -1 otherwise
-  TagType BucketTag() const { return subtreeLeaves == 1 ? bucketTag : -1; }
+  TagType BucketTag() const { return bucketTag; }
+  //! Return the number of children in this node.
+  size_t NumChildren() const { return !left ? 0 : 2; }
+
+  /**
+   * Return the specified child (0 will be left, 1 will be right).  If the index
+   * is greater than 1, this will return the right child.
+   *
+   * @param child Index of child to return.
+   */
+  DTree& Child(const size_t child) const { return !child ? *left : *right; }
+
+  DTree*& ChildPtr(const size_t child) { return (!child) ? left : right; }
 
   //! Return the maximum values.
   const StatType& MaxVals() const { return maxVals; }
@@ -285,10 +329,9 @@ class DTree
    * Serialize the density estimation tree.
    */
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */);
+  void serialize(Archive& ar, const uint32_t /* version */);
 
- private:
-
+ protected: /* these are checked in the tests */
   // Utility methods.
 
   /**
@@ -309,9 +352,10 @@ class DTree
                    const ElemType splitValue,
                    arma::Col<size_t>& oldFromNew) const;
 
+  void  FillMinMax(const StatType& mins,
+                   const StatType& maxs);
 };
 
-} // namespace det
 } // namespace mlpack
 
 #include "dtree_impl.hpp"

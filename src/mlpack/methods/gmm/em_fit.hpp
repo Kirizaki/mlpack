@@ -1,5 +1,5 @@
 /**
- * @file em_fit.hpp
+ * @file methods/gmm/em_fit.hpp
  * @author Ryan Curtin
  * @author Michael Fox
  *
@@ -15,7 +15,7 @@
 #define MLPACK_METHODS_GMM_EM_FIT_HPP
 
 #include <mlpack/prereqs.hpp>
-#include <mlpack/core/dists/gaussian_distribution.hpp>
+#include <mlpack/core/distributions/distributions.hpp>
 
 // Default clustering mechanism.
 #include <mlpack/methods/kmeans/kmeans.hpp>
@@ -23,7 +23,6 @@
 #include "positive_definite_constraint.hpp"
 
 namespace mlpack {
-namespace gmm {
 
 /**
  * This class contains methods which can fit a GMM to observations using the EM
@@ -38,8 +37,9 @@ namespace gmm {
  * This method should create 'clusters' clusters, and return the assignment of
  * each point to a cluster.
  */
-template<typename InitialClusteringType = kmeans::KMeans<>,
-         typename CovarianceConstraintPolicy = PositiveDefiniteConstraint>
+template<typename InitialClusteringType = KMeans<>,
+         typename CovarianceConstraintPolicy = PositiveDefiniteConstraint,
+         typename Distribution = GaussianDistribution<>>
 class EMFit
 {
  public:
@@ -56,9 +56,8 @@ class EMFit
    *
    * @param maxIterations Maximum number of iterations for EM.
    * @param tolerance Log-likelihood tolerance required for convergence.
-   * @param forcePositive Check for positive-definiteness of each covariance
-   *     matrix at each iteration.
    * @param clusterer Object which will perform the initial clustering.
+   * @param constraint Constraint policy of covariance.
    */
   EMFit(const size_t maxIterations = 300,
         const double tolerance = 1e-10,
@@ -74,14 +73,13 @@ class EMFit
    * option.
    *
    * @param observations List of observations to train on.
-   * @param means Vector to store trained means in.
-   * @param covariances Vector to store trained covariances in.
+   * @param dists Distributions to store model in.
    * @param weights Vector to store a priori weights in.
    * @param useInitialModel If true, the given model is used for the initial
    *      clustering.
    */
   void Estimate(const arma::mat& observations,
-                std::vector<distribution::GaussianDistribution>& dists,
+                std::vector<Distribution>& dists,
                 arma::vec& weights,
                 const bool useInitialModel = false);
 
@@ -96,15 +94,14 @@ class EMFit
    *
    * @param observations List of observations to train on.
    * @param probabilities Probability of each point being from this model.
-   * @param means Vector to store trained means in.
-   * @param covariances Vector to store trained covariances in.
+   * @param dists Distributions to store model in.
    * @param weights Vector to store a priori weights in.
    * @param useInitialModel If true, the given model is used for the initial
    *      clustering.
    */
   void Estimate(const arma::mat& observations,
                 const arma::vec& probabilities,
-                std::vector<distribution::GaussianDistribution>& dists,
+                std::vector<Distribution>& dists,
                 arma::vec& weights,
                 const bool useInitialModel = false);
 
@@ -130,7 +127,7 @@ class EMFit
 
   //! Serialize the fitter.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int version);
+  void serialize(Archive& ar, const uint32_t version);
 
  private:
   /**
@@ -140,12 +137,13 @@ class EMFit
    *
    * @param observations List of observations.
    * @param means Vector to store means in.
-   * @param covariances Vector to store covariances in.
+   * @param dists Distributions to store model in.
    * @param weights Vector to store a priori weights in.
    */
-  void InitialClustering(const arma::mat& observations,
-                         std::vector<distribution::GaussianDistribution>& dists,
-                         arma::vec& weights);
+  void InitialClustering(
+      const arma::mat& observations,
+      std::vector<Distribution>& dists,
+      arma::vec& weights);
 
   /**
    * Calculate the log-likelihood of a model.  Yes, this is reimplemented in the
@@ -154,13 +152,29 @@ class EMFit
    *
    * @param data Data matrix.
    * @param means Vector of means.
-   * @param covariances Vector of covariance matrices.
+   * @param dists Distributions to store model in.
    * @param weights Vector of a priori weights.
    */
-  double LogLikelihood(const arma::mat& data,
-                       const std::vector<distribution::GaussianDistribution>&
-                           dists,
-                       const arma::vec& weights) const;
+  double LogLikelihood(
+      const arma::mat& data,
+      const std::vector<Distribution>& dists,
+      const arma::vec& weights) const;
+
+  /**
+   * Use the Armadillo gmm_diag clusterer to train a GMM with diagonal
+   * covariance.  If InitialClusteringType == KMeans<>, this will use
+   * Armadillo's initialization also.
+   *
+   * @param observations Data to train on.
+   * @param dists Distributions to store model in.
+   * @param weights Prior weights.
+   * @param useInitialModel If true, the existing model will be used.
+   */
+  void ArmadilloGMMWrapper(
+      const arma::mat& observations,
+      std::vector<Distribution>& dists,
+      arma::vec& weights,
+      const bool useInitialModel);
 
   //! Maximum iterations of EM algorithm.
   size_t maxIterations;
@@ -172,7 +186,6 @@ class EMFit
   CovarianceConstraintPolicy constraint;
 };
 
-} // namespace gmm
 } // namespace mlpack
 
 // Include implementation.

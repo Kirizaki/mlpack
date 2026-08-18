@@ -1,5 +1,5 @@
 /**
- * @file octree_impl.hpp
+ * @file core/tree/octree/octree_impl.hpp
  * @author Ryan Curtin
  *
  * Implementation of generalized octree (Octree).
@@ -17,12 +17,11 @@
 #include <stack>
 
 namespace mlpack {
-namespace tree {
 
 //! Construct the tree.
-template<typename MetricType, typename StatisticType, typename MatType>
-Octree<MetricType, StatisticType, MatType>::Octree(const MatType& dataset,
-                                                   const size_t maxLeafSize) :
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>::Octree(const MatType& dataset,
+                                                     const size_t maxLeafSize) :
     begin(0),
     count(dataset.n_cols),
     bound(dataset.n_rows),
@@ -34,10 +33,10 @@ Octree<MetricType, StatisticType, MatType>::Octree(const MatType& dataset,
   {
     // Calculate empirical center of data.
     bound |= *this->dataset;
-    arma::vec center;
+    arma::Col<ElemType> center;
     bound.Center(center);
 
-    double maxWidth = 0.0;
+    ElemType maxWidth = 0.0;
     for (size_t i = 0; i < bound.Dim(); ++i)
       if (bound[i].Hi() - bound[i].Lo() > maxWidth)
         maxWidth = bound[i].Hi() - bound[i].Lo();
@@ -56,8 +55,8 @@ Octree<MetricType, StatisticType, MatType>::Octree(const MatType& dataset,
 }
 
 //! Construct the tree.
-template<typename MetricType, typename StatisticType, typename MatType>
-Octree<MetricType, StatisticType, MatType>::Octree(
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>::Octree(
     const MatType& dataset,
     std::vector<size_t>& oldFromNew,
     const size_t maxLeafSize) :
@@ -76,10 +75,10 @@ Octree<MetricType, StatisticType, MatType>::Octree(
   {
     // Calculate empirical center of data.
     bound |= *this->dataset;
-    arma::vec center;
+    arma::Col<ElemType> center;
     bound.Center(center);
 
-    double maxWidth = 0.0;
+    ElemType maxWidth = 0.0;
     for (size_t i = 0; i < bound.Dim(); ++i)
       if (bound[i].Hi() - bound[i].Lo() > maxWidth)
         maxWidth = bound[i].Hi() - bound[i].Lo();
@@ -98,8 +97,8 @@ Octree<MetricType, StatisticType, MatType>::Octree(
 }
 
 //! Construct the tree.
-template<typename MetricType, typename StatisticType, typename MatType>
-Octree<MetricType, StatisticType, MatType>::Octree(
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>::Octree(
     const MatType& dataset,
     std::vector<size_t>& oldFromNew,
     std::vector<size_t>& newFromOld,
@@ -119,10 +118,10 @@ Octree<MetricType, StatisticType, MatType>::Octree(
   {
     // Calculate empirical center of data.
     bound |= *this->dataset;
-    arma::vec center;
+    arma::Col<ElemType> center;
     bound.Center(center);
 
-    double maxWidth = 0.0;
+    ElemType maxWidth = 0.0;
     for (size_t i = 0; i < bound.Dim(); ++i)
       if (bound[i].Hi() - bound[i].Lo() > maxWidth)
         maxWidth = bound[i].Hi() - bound[i].Lo();
@@ -141,14 +140,14 @@ Octree<MetricType, StatisticType, MatType>::Octree(
 
   // Map the newFromOld indices correctly.
   newFromOld.resize(this->dataset->n_cols);
-  for (size_t i = 0; i < this->dataset->n_cols; i++)
+  for (size_t i = 0; i < this->dataset->n_cols; ++i)
     newFromOld[oldFromNew[i]] = i;
 }
 
 //! Construct the tree.
-template<typename MetricType, typename StatisticType, typename MatType>
-Octree<MetricType, StatisticType, MatType>::Octree(MatType&& dataset,
-                                                   const size_t maxLeafSize) :
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>::Octree(MatType&& dataset,
+                                                     const size_t maxLeafSize) :
     begin(0),
     count(dataset.n_cols),
     bound(dataset.n_rows),
@@ -160,10 +159,10 @@ Octree<MetricType, StatisticType, MatType>::Octree(MatType&& dataset,
   {
     // Calculate empirical center of data.
     bound |= *this->dataset;
-    arma::vec center;
+    arma::Col<ElemType> center;
     bound.Center(center);
 
-    double maxWidth = 0.0;
+    ElemType maxWidth = 0.0;
     for (size_t i = 0; i < bound.Dim(); ++i)
       if (bound[i].Hi() - bound[i].Lo() > maxWidth)
         maxWidth = bound[i].Hi() - bound[i].Lo();
@@ -182,8 +181,8 @@ Octree<MetricType, StatisticType, MatType>::Octree(MatType&& dataset,
 }
 
 //! Construct the tree.
-template<typename MetricType, typename StatisticType, typename MatType>
-Octree<MetricType, StatisticType, MatType>::Octree(
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>::Octree(
     MatType&& dataset,
     std::vector<size_t>& oldFromNew,
     const size_t maxLeafSize) :
@@ -202,10 +201,10 @@ Octree<MetricType, StatisticType, MatType>::Octree(
   {
     // Calculate empirical center of data.
     bound |= *this->dataset;
-    arma::vec center;
+    arma::Col<ElemType> center;
     bound.Center(center);
 
-    double maxWidth = 0.0;
+    ElemType maxWidth = 0.0;
     for (size_t i = 0; i < bound.Dim(); ++i)
       if (bound[i].Hi() - bound[i].Lo() > maxWidth)
         maxWidth = bound[i].Hi() - bound[i].Lo();
@@ -224,8 +223,8 @@ Octree<MetricType, StatisticType, MatType>::Octree(
 }
 
 //! Construct the tree.
-template<typename MetricType, typename StatisticType, typename MatType>
-Octree<MetricType, StatisticType, MatType>::Octree(
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>::Octree(
     MatType&& dataset,
     std::vector<size_t>& oldFromNew,
     std::vector<size_t>& newFromOld,
@@ -245,10 +244,10 @@ Octree<MetricType, StatisticType, MatType>::Octree(
   {
     // Calculate empirical center of data.
     bound |= *this->dataset;
-    arma::vec center;
+    arma::Col<ElemType> center;
     bound.Center(center);
 
-    double maxWidth = 0.0;
+    ElemType maxWidth = 0.0;
     for (size_t i = 0; i < bound.Dim(); ++i)
       if (bound[i].Hi() - bound[i].Lo() > maxWidth)
         maxWidth = bound[i].Hi() - bound[i].Lo();
@@ -267,18 +266,18 @@ Octree<MetricType, StatisticType, MatType>::Octree(
 
   // Map the newFromOld indices correctly.
   newFromOld.resize(this->dataset->n_cols);
-  for (size_t i = 0; i < this->dataset->n_cols; i++)
+  for (size_t i = 0; i < this->dataset->n_cols; ++i)
     newFromOld[oldFromNew[i]] = i;
 }
 
 //! Construct a child node.
-template<typename MetricType, typename StatisticType, typename MatType>
-Octree<MetricType, StatisticType, MatType>::Octree(
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>::Octree(
     Octree* parent,
     const size_t begin,
     const size_t count,
-    const arma::vec& center,
-    const double width,
+    const arma::Col<ElemType>& center,
+    const ElemType width,
     const size_t maxLeafSize) :
     begin(begin),
     count(count),
@@ -289,15 +288,20 @@ Octree<MetricType, StatisticType, MatType>::Octree(
   // Calculate empirical center of data.
   bound |= dataset->cols(begin, begin + count - 1);
 
-  // Now split the node.
-  SplitNode(center, width, maxLeafSize);
+  ElemType maxWidth = 0.0;
+  for (size_t i = 0; i < bound.Dim(); ++i)
+    if (bound[i].Hi() - bound[i].Lo() > maxWidth)
+      maxWidth = bound[i].Hi() - bound[i].Lo();
+
+  if (maxWidth != 0.0)
+    SplitNode(center, width, maxLeafSize);
 
   // Calculate the distance from the empirical center of this node to the
   // empirical center of the parent.
-  arma::vec trueCenter, parentCenter;
+  arma::Col<ElemType> trueCenter, parentCenter;
   bound.Center(trueCenter);
   parent->Bound().Center(parentCenter);
-  parentDistance = metric.Evaluate(trueCenter, parentCenter);
+  parentDistance = distance.Evaluate(trueCenter, parentCenter);
 
   furthestDescendantDistance = 0.5 * bound.Diameter();
 
@@ -306,14 +310,14 @@ Octree<MetricType, StatisticType, MatType>::Octree(
 }
 
 //! Construct a child node.
-template<typename MetricType, typename StatisticType, typename MatType>
-Octree<MetricType, StatisticType, MatType>::Octree(
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>::Octree(
     Octree* parent,
     const size_t begin,
     const size_t count,
     std::vector<size_t>& oldFromNew,
-    const arma::vec& center,
-    const double width,
+    const arma::Col<ElemType>& center,
+    const ElemType width,
     const size_t maxLeafSize) :
     begin(begin),
     count(count),
@@ -324,15 +328,20 @@ Octree<MetricType, StatisticType, MatType>::Octree(
   // Calculate empirical center of data.
   bound |= dataset->cols(begin, begin + count - 1);
 
-  // Now split the node.
-  SplitNode(center, width, oldFromNew, maxLeafSize);
+  ElemType maxWidth = 0.0;
+  for (size_t i = 0; i < bound.Dim(); ++i)
+    if (bound[i].Hi() - bound[i].Lo() > maxWidth)
+      maxWidth = bound[i].Hi() - bound[i].Lo();
+
+  if (maxWidth != 0.0)
+    SplitNode(center, width, oldFromNew, maxLeafSize);
 
   // Calculate the distance from the empirical center of this node to the
   // empirical center of the parent.
-  arma::vec trueCenter, parentCenter;
+  arma::Col<ElemType> trueCenter, parentCenter;
   bound.Center(trueCenter);
   parent->Bound().Center(parentCenter);
-  parentDistance = metric.Evaluate(trueCenter, parentCenter);
+  parentDistance = distance.Evaluate(trueCenter, parentCenter);
 
   furthestDescendantDistance = 0.5 * bound.Diameter();
 
@@ -341,8 +350,8 @@ Octree<MetricType, StatisticType, MatType>::Octree(
 }
 
 //! Copy the given tree.
-template<typename MetricType, typename StatisticType, typename MatType>
-Octree<MetricType, StatisticType, MatType>::Octree(const Octree& other) :
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>::Octree(const Octree& other) :
     begin(other.begin),
     count(other.count),
     bound(other.bound),
@@ -351,7 +360,7 @@ Octree<MetricType, StatisticType, MatType>::Octree(const Octree& other) :
     stat(other.stat),
     parentDistance(other.parentDistance),
     furthestDescendantDistance(other.furthestDescendantDistance),
-    metric(other.metric)
+    distance(other.distance)
 {
   // If we have any children, we need to create them, and then ensure that their
   // parent links are set right.
@@ -363,9 +372,46 @@ Octree<MetricType, StatisticType, MatType>::Octree(const Octree& other) :
   }
 }
 
+//! Copy assignment operator: copy the given other tree.
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>&
+Octree<DistanceType, StatisticType, MatType>::
+operator=(const Octree& other)
+{
+  // Return if it's the same tree.
+  if (this == &other)
+    return *this;
+
+  // Freeing memory that will not be used anymore.
+  delete dataset;
+  for (size_t i = 0; i < children.size(); ++i)
+    delete children[i];
+  children.clear();
+
+  begin = other.begin;
+  count = other.count;
+  bound = other.bound;
+  dataset = ((other.parent == NULL) ? new MatType(*other.dataset) : NULL);
+  parent = NULL;
+  stat = other.stat;
+  parentDistance = other.ParentDistance();
+  furthestDescendantDistance = other.FurthestDescendantDistance();
+  distance = other.distance;
+
+  // If we have any children, we need to create them, and then ensure that their
+  // parent links are set right.
+  for (size_t i = 0; i < other.NumChildren(); ++i)
+  {
+    children.push_back(new Octree(other.Child(i)));
+    children[i]->parent = this;
+    children[i]->dataset = this->dataset;
+  }
+  return *this;
+}
+
 //! Move the given tree.
-template<typename MetricType, typename StatisticType, typename MatType>
-Octree<MetricType, StatisticType, MatType>::Octree(Octree&& other) :
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>::Octree(Octree&& other) :
     children(std::move(other.children)),
     begin(other.begin),
     count(other.count),
@@ -375,7 +421,7 @@ Octree<MetricType, StatisticType, MatType>::Octree(Octree&& other) :
     stat(std::move(other.stat)),
     parentDistance(other.parentDistance),
     furthestDescendantDistance(other.furthestDescendantDistance),
-    metric(std::move(other.metric))
+    distance(std::move(other.distance))
 {
   // Update the parent pointers of the direct children.
   for (size_t i = 0; i < children.size(); ++i)
@@ -389,8 +435,49 @@ Octree<MetricType, StatisticType, MatType>::Octree(Octree&& other) :
   other.parent = NULL;
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-Octree<MetricType, StatisticType, MatType>::Octree() :
+//! Move assignment operator: take ownership of the given tree.
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>&
+Octree<DistanceType, StatisticType, MatType>::
+operator=(Octree&& other)
+{
+  // Return if it's the same tree.
+  if (this == &other)
+    return *this;
+
+  // Freeing memory that will not be used anymore.
+  delete dataset;
+  for (size_t i = 0; i < children.size(); ++i)
+    delete children[i];
+  children.clear();
+
+  children = std::move(other.children);
+  begin = other.begin;
+  count = other.count;
+  bound = std::move(other.bound);
+  dataset = other.dataset;
+  parent = other.Parent();
+  stat = std::move(other.stat);
+  parentDistance = other.ParentDistance();
+  furthestDescendantDistance = other.furthestDescendantDistance();
+  distance = std::move(other.distance);
+
+  // Update the parent pointers of the direct children.
+  for (size_t i = 0; i < children.size(); ++i)
+    children[i]->parent = this;
+
+  other.begin = 0;
+  other.count = 0;
+  other.dataset = new MatType();
+  other.parentDistance = 0.0;
+  other.furthestDescendantDistance = 0.0;
+  other.parent = NULL;
+
+  return *this;
+}
+
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>::Octree() :
     begin(0),
     count(0),
     bound(0),
@@ -402,19 +489,19 @@ Octree<MetricType, StatisticType, MatType>::Octree() :
   // Nothing to do.
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
+template<typename DistanceType, typename StatisticType, typename MatType>
 template<typename Archive>
-Octree<MetricType, StatisticType, MatType>::Octree(
+Octree<DistanceType, StatisticType, MatType>::Octree(
     Archive& ar,
-    const typename std::enable_if_t<Archive::is_loading::value>*) :
+    const typename std::enable_if_t<cereal::is_loading<Archive>()>*) :
     Octree() // Create an empty tree.
 {
   // De-serialize the tree into this object.
-  ar >> data::CreateNVP(*this, "tree");
+  ar(CEREAL_NVP(*this));
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-Octree<MetricType, StatisticType, MatType>::~Octree()
+template<typename DistanceType, typename StatisticType, typename MatType>
+Octree<DistanceType, StatisticType, MatType>::~Octree()
 {
   // Delete the dataset if we aren't the parent.
   if (!parent)
@@ -426,15 +513,15 @@ Octree<MetricType, StatisticType, MatType>::~Octree()
   children.clear();
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-size_t Octree<MetricType, StatisticType, MatType>::NumChildren() const
+template<typename DistanceType, typename StatisticType, typename MatType>
+size_t Octree<DistanceType, StatisticType, MatType>::NumChildren() const
 {
   return children.size();
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
+template<typename DistanceType, typename StatisticType, typename MatType>
 template<typename VecType>
-size_t Octree<MetricType, StatisticType, MatType>::GetNearestChild(
+size_t Octree<DistanceType, StatisticType, MatType>::GetNearestChild(
     const VecType& point,
     typename std::enable_if_t<IsVector<VecType>::value>*) const
 {
@@ -444,7 +531,7 @@ size_t Octree<MetricType, StatisticType, MatType>::GetNearestChild(
   size_t bestIndex = NumChildren();
   for (size_t i = 0; i < NumChildren(); ++i)
   {
-    const double dist = children[i]->MinDistance(point);
+    const ElemType dist = children[i]->MinDistance(point);
     if (dist < bestDistance)
     {
       bestDistance = dist;
@@ -455,9 +542,9 @@ size_t Octree<MetricType, StatisticType, MatType>::GetNearestChild(
   return bestIndex;
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
+template<typename DistanceType, typename StatisticType, typename MatType>
 template<typename VecType>
-size_t Octree<MetricType, StatisticType, MatType>::GetFurthestChild(
+size_t Octree<DistanceType, StatisticType, MatType>::GetFurthestChild(
     const VecType& point,
     typename std::enable_if_t<IsVector<VecType>::value>*) const
 {
@@ -467,7 +554,7 @@ size_t Octree<MetricType, StatisticType, MatType>::GetFurthestChild(
   size_t bestIndex = NumChildren();
   for (size_t i = 0; i < NumChildren(); ++i)
   {
-    const double dist = children[i]->MaxDistance(point);
+    const ElemType dist = children[i]->MaxDistance(point);
     if (dist > bestDistance)
     {
       bestDistance = dist;
@@ -478,8 +565,8 @@ size_t Octree<MetricType, StatisticType, MatType>::GetFurthestChild(
   return bestIndex;
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-size_t Octree<MetricType, StatisticType, MatType>::GetNearestChild(
+template<typename DistanceType, typename StatisticType, typename MatType>
+size_t Octree<DistanceType, StatisticType, MatType>::GetNearestChild(
     const Octree& queryNode) const
 {
   // It's possible that this could be improved by caching which children we have
@@ -488,7 +575,7 @@ size_t Octree<MetricType, StatisticType, MatType>::GetNearestChild(
   size_t bestIndex = NumChildren();
   for (size_t i = 0; i < NumChildren(); ++i)
   {
-    const double dist = children[i]->MinDistance(queryNode);
+    const ElemType dist = children[i]->MinDistance(queryNode);
     if (dist < bestDistance)
     {
       bestDistance = dist;
@@ -499,8 +586,8 @@ size_t Octree<MetricType, StatisticType, MatType>::GetNearestChild(
   return bestIndex;
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-size_t Octree<MetricType, StatisticType, MatType>::GetFurthestChild(
+template<typename DistanceType, typename StatisticType, typename MatType>
+size_t Octree<DistanceType, StatisticType, MatType>::GetFurthestChild(
     const Octree& queryNode) const
 {
   // It's possible that this could be improved by caching which children we have
@@ -509,7 +596,7 @@ size_t Octree<MetricType, StatisticType, MatType>::GetFurthestChild(
   size_t bestIndex = NumChildren();
   for (size_t i = 0; i < NumChildren(); ++i)
   {
-    const double dist = children[i]->MaxDistance(queryNode);
+    const ElemType dist = children[i]->MaxDistance(queryNode);
     if (dist > bestDistance)
     {
       bestDistance = dist;
@@ -520,9 +607,9 @@ size_t Octree<MetricType, StatisticType, MatType>::GetFurthestChild(
   return bestIndex;
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-typename Octree<MetricType, StatisticType, MatType>::ElemType
-Octree<MetricType, StatisticType, MatType>::FurthestPointDistance()
+template<typename DistanceType, typename StatisticType, typename MatType>
+typename Octree<DistanceType, StatisticType, MatType>::ElemType
+Octree<DistanceType, StatisticType, MatType>::FurthestPointDistance()
     const
 {
   // If we are not a leaf, then this distance is 0.  Otherwise, return the
@@ -530,85 +617,85 @@ Octree<MetricType, StatisticType, MatType>::FurthestPointDistance()
   return (children.size() > 0) ? 0.0 : furthestDescendantDistance;
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-typename Octree<MetricType, StatisticType, MatType>::ElemType
-Octree<MetricType, StatisticType, MatType>::FurthestDescendantDistance() const
+template<typename DistanceType, typename StatisticType, typename MatType>
+typename Octree<DistanceType, StatisticType, MatType>::ElemType
+Octree<DistanceType, StatisticType, MatType>::FurthestDescendantDistance() const
 {
   return furthestDescendantDistance;
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-typename Octree<MetricType, StatisticType, MatType>::ElemType
-Octree<MetricType, StatisticType, MatType>::MinimumBoundDistance() const
+template<typename DistanceType, typename StatisticType, typename MatType>
+typename Octree<DistanceType, StatisticType, MatType>::ElemType
+Octree<DistanceType, StatisticType, MatType>::MinimumBoundDistance() const
 {
   return bound.MinWidth() / 2.0;
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-size_t Octree<MetricType, StatisticType, MatType>::NumPoints() const
+template<typename DistanceType, typename StatisticType, typename MatType>
+size_t Octree<DistanceType, StatisticType, MatType>::NumPoints() const
 {
   // We have no points unless we are a leaf;
   return (children.size() > 0) ? 0 : count;
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-size_t Octree<MetricType, StatisticType, MatType>::NumDescendants() const
+template<typename DistanceType, typename StatisticType, typename MatType>
+size_t Octree<DistanceType, StatisticType, MatType>::NumDescendants() const
 {
   return count;
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-size_t Octree<MetricType, StatisticType, MatType>::Descendant(
+template<typename DistanceType, typename StatisticType, typename MatType>
+size_t Octree<DistanceType, StatisticType, MatType>::Descendant(
     const size_t index) const
 {
   return begin + index;
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-size_t Octree<MetricType, StatisticType, MatType>::Point(const size_t index)
+template<typename DistanceType, typename StatisticType, typename MatType>
+size_t Octree<DistanceType, StatisticType, MatType>::Point(const size_t index)
     const
 {
   return begin + index;
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-typename Octree<MetricType, StatisticType, MatType>::ElemType
-Octree<MetricType, StatisticType, MatType>::MinDistance(const Octree& other)
+template<typename DistanceType, typename StatisticType, typename MatType>
+typename Octree<DistanceType, StatisticType, MatType>::ElemType
+Octree<DistanceType, StatisticType, MatType>::MinDistance(const Octree& other)
     const
 {
   return bound.MinDistance(other.Bound());
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-typename Octree<MetricType, StatisticType, MatType>::ElemType
-Octree<MetricType, StatisticType, MatType>::MaxDistance(const Octree& other)
+template<typename DistanceType, typename StatisticType, typename MatType>
+typename Octree<DistanceType, StatisticType, MatType>::ElemType
+Octree<DistanceType, StatisticType, MatType>::MaxDistance(const Octree& other)
     const
 {
   return bound.MaxDistance(other.Bound());
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
-math::RangeType<typename Octree<MetricType, StatisticType, MatType>::ElemType>
-Octree<MetricType, StatisticType, MatType>::RangeDistance(const Octree& other)
+template<typename DistanceType, typename StatisticType, typename MatType>
+RangeType<typename Octree<DistanceType, StatisticType, MatType>::ElemType>
+Octree<DistanceType, StatisticType, MatType>::RangeDistance(const Octree& other)
     const
 {
   return bound.RangeDistance(other.Bound());
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
+template<typename DistanceType, typename StatisticType, typename MatType>
 template<typename VecType>
-typename Octree<MetricType, StatisticType, MatType>::ElemType
-Octree<MetricType, StatisticType, MatType>::MinDistance(
+typename Octree<DistanceType, StatisticType, MatType>::ElemType
+Octree<DistanceType, StatisticType, MatType>::MinDistance(
     const VecType& point,
     typename std::enable_if_t<IsVector<VecType>::value>*) const
 {
   return bound.MinDistance(point);
 }
 
-template<typename MetricType, typename StatisticType, typename MatType>
+template<typename DistanceType, typename StatisticType, typename MatType>
 template<typename VecType>
-typename Octree<MetricType, StatisticType, MatType>::ElemType
-Octree<MetricType, StatisticType, MatType>::MaxDistance(
+typename Octree<DistanceType, StatisticType, MatType>::ElemType
+Octree<DistanceType, StatisticType, MatType>::MaxDistance(
     const VecType& point,
     typename std::enable_if_t<IsVector<VecType>::value>*) const
 {
@@ -616,10 +703,10 @@ Octree<MetricType, StatisticType, MatType>::MaxDistance(
 }
 
 
-template<typename MetricType, typename StatisticType, typename MatType>
+template<typename DistanceType, typename StatisticType, typename MatType>
 template<typename VecType>
-math::RangeType<typename Octree<MetricType, StatisticType, MatType>::ElemType>
-Octree<MetricType, StatisticType, MatType>::RangeDistance(
+RangeType<typename Octree<DistanceType, StatisticType, MatType>::ElemType>
+Octree<DistanceType, StatisticType, MatType>::RangeDistance(
     const VecType& point,
     typename std::enable_if_t<IsVector<VecType>::value>*) const
 {
@@ -627,16 +714,14 @@ Octree<MetricType, StatisticType, MatType>::RangeDistance(
 }
 
 //! Serialize the tree.
-template<typename MetricType, typename StatisticType, typename MatType>
+template<typename DistanceType, typename StatisticType, typename MatType>
 template<typename Archive>
-void Octree<MetricType, StatisticType, MatType>::Serialize(
+void Octree<DistanceType, StatisticType, MatType>::serialize(
     Archive& ar,
-    const unsigned int /* version */)
+    const uint32_t /* version */)
 {
-  using data::CreateNVP;
-
   // If we're loading and we have children, they need to be deleted.
-  if (Archive::is_loading::value)
+  if (cereal::is_loading<Archive>())
   {
     for (size_t i = 0; i < children.size(); ++i)
       delete children[i];
@@ -644,70 +729,60 @@ void Octree<MetricType, StatisticType, MatType>::Serialize(
 
     if (!parent)
       delete dataset;
+
+    parent = NULL;
   }
 
-  ar & CreateNVP(begin, "begin");
-  ar & CreateNVP(count, "count");
-  ar & CreateNVP(bound, "bound");
-  ar & CreateNVP(stat, "stat");
-  ar & CreateNVP(parentDistance, "parentDistance");
-  ar & CreateNVP(furthestDescendantDistance, "furthestDescendantDistance");
-  ar & CreateNVP(metric, "metric");
+  bool hasParent = (parent != NULL);
 
-  // Due to quirks of boost::serialization, depending on how the user
-  // serializes the tree, it's possible that the root of the tree will
-  // accidentally be serialized twice.  So if we are a first-level child, we
-  // avoid serializing the parent.  The true (non-duplicated) parent will fix
-  // the parent link.
-  bool hasFakeParent = false;
-  if (Archive::is_saving::value && parent != NULL && parent->parent == NULL)
+  ar(CEREAL_NVP(begin));
+  ar(CEREAL_NVP(count));
+  ar(CEREAL_NVP(bound));
+  ar(CEREAL_NVP(stat));
+  ar(CEREAL_NVP(parentDistance));
+  ar(CEREAL_NVP(furthestDescendantDistance));
+  ar(CEREAL_NVP(distance));
+  ar(CEREAL_NVP(hasParent));
+  if (!hasParent)
   {
-    Octree* fakeParent = NULL;
-    hasFakeParent = true;
-    ar & CreateNVP(fakeParent, "parent");
-    ar & CreateNVP(hasFakeParent, "hasFakeParent");
-  }
-  else
-  {
-    ar & CreateNVP(parent, "parent");
-    ar & CreateNVP(hasFakeParent, "hasFakeParent");
+    MatType*& datasetTemp = const_cast<MatType*&>(dataset);
+    ar(CEREAL_POINTER(datasetTemp));
   }
 
-  // Only serialize the dataset if we don't have a fake parent.  Otherwise, the
-  // real parent will come and set it later.
-  if (!hasFakeParent)
-    ar & CreateNVP(dataset, "dataset");
+  ar(CEREAL_VECTOR_POINTER(children));
 
-  size_t numChildren = 0;
-  if (Archive::is_saving::value)
-    numChildren = children.size();
-  ar & CreateNVP(numChildren, "numChildren");
-  if (Archive::is_loading::value)
-    children.resize(numChildren);
-
-  for (size_t i = 0; i < numChildren; ++i)
-  {
-    std::ostringstream oss;
-    oss << "child" << i;
-    ar & CreateNVP(children[i], oss.str());
-  }
-
-  // Fix the child pointers, if they were set to a fake parent.
-  if (Archive::is_loading::value && parent == NULL)
+  if (cereal::is_loading<Archive>())
   {
     for (size_t i = 0; i < children.size(); ++i)
-    {
-      children[i]->dataset = this->dataset;
       children[i]->parent = this;
+  }
+
+  // We have to correct the dataset pointers in all of the children.
+  if (!hasParent)
+  {
+    std::stack<Octree*> stack;
+    for (size_t i = 0; i < children.size(); ++i)
+    {
+      stack.push(children[i]);
+    }
+    while (!stack.empty())
+    {
+      Octree* node = stack.top();
+      stack.pop();
+      node->dataset = dataset;
+      for (size_t i = 0; i < node->children.size(); ++i)
+      {
+        stack.push(node->children[i]);
+      }
     }
   }
 }
 
 //! Split the node.
-template<typename MetricType, typename StatisticType, typename MatType>
-void Octree<MetricType, StatisticType, MatType>::SplitNode(
-    const arma::vec& center,
-    const double width,
+template<typename DistanceType, typename StatisticType, typename MatType>
+void Octree<DistanceType, StatisticType, MatType>::SplitNode(
+    const arma::Col<ElemType>& center,
+    const ElemType width,
     const size_t maxLeafSize)
 {
   // No need to split if we have fewer than the maximum number of points in this
@@ -740,8 +815,8 @@ void Octree<MetricType, StatisticType, MatType>::SplitNode(
     // children of index 2^(d - 1) - 1 and less will be on the left side, and
     // all points belonging to children of index 2^(d - 1) and above will be on
     // the right side.
-    SplitInfo s(d, center);
-    const size_t firstRight = split::PerformSplit<MatType, SplitInfo>(*dataset,
+    typename SplitType::SplitInfo s(d, center);
+    const size_t firstRight = PerformSplit<MatType, SplitType>(*dataset,
         childBegin, childCount, s);
 
     // We can set the first index of the right child.  The first index of the
@@ -780,8 +855,8 @@ void Octree<MetricType, StatisticType, MatType>::SplitNode(
   }
 
   // Now that the dataset is reordered, we can create the children.
-  arma::vec childCenter(center.n_elem);
-  const double childWidth = width / 2.0;
+  arma::Col<ElemType> childCenter(center.n_elem);
+  const ElemType childWidth = width / 2.0;
   for (size_t i = 0; i < childBegins.n_elem - 1; ++i)
   {
     // If the child has no points, don't create it.
@@ -805,10 +880,10 @@ void Octree<MetricType, StatisticType, MatType>::SplitNode(
 }
 
 //! Split the node, and store mappings.
-template<typename MetricType, typename StatisticType, typename MatType>
-void Octree<MetricType, StatisticType, MatType>::SplitNode(
-    const arma::vec& center,
-    const double width,
+template<typename DistanceType, typename StatisticType, typename MatType>
+void Octree<DistanceType, StatisticType, MatType>::SplitNode(
+    const arma::Col<ElemType>& center,
+    const ElemType width,
     std::vector<size_t>& oldFromNew,
     const size_t maxLeafSize)
 {
@@ -842,8 +917,8 @@ void Octree<MetricType, StatisticType, MatType>::SplitNode(
     // children of index 2^(d - 1) - 1 and less will be on the left side, and
     // all points belonging to children of index 2^(d - 1) and above will be on
     // the right side.
-    SplitInfo s(d, center);
-    const size_t firstRight = split::PerformSplit<MatType, SplitInfo>(*dataset,
+    typename SplitType::SplitInfo s(d, center);
+    const size_t firstRight = PerformSplit<MatType, SplitType>(*dataset,
         childBegin, childCount, s, oldFromNew);
 
     // We can set the first index of the right child.  The first index of the
@@ -882,8 +957,8 @@ void Octree<MetricType, StatisticType, MatType>::SplitNode(
   }
 
   // Now that the dataset is reordered, we can create the children.
-  arma::vec childCenter(center.n_elem);
-  const double childWidth = width / 2.0;
+  arma::Col<ElemType> childCenter(center.n_elem);
+  const ElemType childWidth = width / 2.0;
   for (size_t i = 0; i < childBegins.n_elem - 1; ++i)
   {
     // If the child has no points, don't create it.
@@ -906,7 +981,6 @@ void Octree<MetricType, StatisticType, MatType>::SplitNode(
   }
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

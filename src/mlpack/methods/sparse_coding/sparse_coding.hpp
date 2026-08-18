@@ -1,5 +1,5 @@
 /**
- * @file sparse_coding.hpp
+ * @file methods/sparse_coding/sparse_coding.hpp
  * @author Nishant Mehta
  *
  * Definition of the SparseCoding class, which performs L1 (LASSO) or
@@ -13,7 +13,7 @@
 #ifndef MLPACK_METHODS_SPARSE_CODING_SPARSE_CODING_HPP
 #define MLPACK_METHODS_SPARSE_CODING_SPARSE_CODING_HPP
 
-#include <mlpack/prereqs.hpp>
+#include <mlpack/core.hpp>
 #include <mlpack/methods/lars/lars.hpp>
 
 // Include our three simple dictionary initializers.
@@ -22,7 +22,6 @@
 #include "random_initializer.hpp"
 
 namespace mlpack {
-namespace sparse_coding {
 
 /**
  * An implementation of Sparse Coding with Dictionary Learning that achieves
@@ -109,12 +108,16 @@ namespace sparse_coding {
  * the Encode() function.
  *
  * @tparam DictionaryInitializationPolicy The class to use to initialize the
- *     dictionary; must have 'void Initialize(const arma::mat& data, arma::mat&
+ *     dictionary; must have 'void Initialize(const MatType& data, MatType&
  *     dictionary)' function.
  */
+template<typename MatType = arma::mat>
 class SparseCoding
 {
  public:
+  using ColType = typename GetColType<MatType>::type;
+  using RowType = typename GetRowType<MatType>::type;
+
   /**
    * Set the parameters to SparseCoding.  lambda2 defaults to 0.  This
    * constructor will train the model.  If that is not desired, call the other
@@ -124,7 +127,7 @@ class SparseCoding
    *
    * If you want to initialize the dictionary to a custom matrix, consider
    * either writing your own DictionaryInitializer class (with void
-   * Initialize(const arma::mat& data, arma::mat& dictionary) function), or call
+   * Initialize(const MatType& data, MatType& dictionary) function), or call
    * the constructor that does not take a data matrix, then call Dictionary() to
    * set the dictionary matrix to a matrix of your choosing, and then call
    * Train() with NothingInitializer (i.e. Train<NothingInitializer>(data)).
@@ -140,9 +143,10 @@ class SparseCoding
    *     will terminate.
    * @param newtonTolerance Tolerance for the Newton's method dictionary
    *     optimization step.
+   * @param initializer The initializer to use.
    */
   template<typename DictionaryInitializer = DataDependentRandomInitializer>
-  SparseCoding(const arma::mat& data,
+  SparseCoding(const MatType& data,
                const size_t atoms,
                const double lambda1,
                const double lambda2 = 0,
@@ -168,8 +172,8 @@ class SparseCoding
    * @param newtonTolerance Tolerance for the Newton's method dictionary
    *     optimization step.
    */
-  SparseCoding(const size_t atoms,
-               const double lambda1,
+  SparseCoding(const size_t atoms = 0,
+               const double lambda1 = 0,
                const double lambda2 = 0,
                const size_t maxIterations = 0,
                const double objTolerance = 0.01,
@@ -177,11 +181,12 @@ class SparseCoding
 
   /**
    * Train the sparse coding model on the given dataset.
+   * @return The final objective value.
    */
   template<typename DictionaryInitializer = DataDependentRandomInitializer>
-  void Train(const arma::mat& data,
-             const DictionaryInitializer& initializer =
-                 DictionaryInitializer());
+  double Train(const MatType& data,
+               const DictionaryInitializer& initializer =
+                   DictionaryInitializer());
 
   /**
    * Sparse code each point in the given dataset via LARS, using the current
@@ -190,7 +195,7 @@ class SparseCoding
    * @param data Input data matrix to be encoded.
    * @param codes Output codes matrix.
    */
-  void Encode(const arma::mat& data, arma::mat& codes);
+  void Encode(const MatType& data, MatType& codes);
 
   /**
    * Learn dictionary via Newton method based on Lagrange dual.
@@ -203,8 +208,8 @@ class SparseCoding
    * @return the norm of the gradient of the Lagrange dual with respect to
    *    the dual variables
    */
-  double OptimizeDictionary(const arma::mat& data,
-                            const arma::mat& codes,
+  double OptimizeDictionary(const MatType& data,
+                            const MatType& codes,
                             const arma::uvec& adjacencies);
 
   /**
@@ -215,12 +220,12 @@ class SparseCoding
   /**
    * Compute the objective function.
    */
-  double Objective(const arma::mat& data, const arma::mat& codes) const;
+  double Objective(const MatType& data, const MatType& codes) const;
 
   //! Access the dictionary.
-  const arma::mat& Dictionary() const { return dictionary; }
+  const MatType& Dictionary() const { return dictionary; }
   //! Modify the dictionary.
-  arma::mat& Dictionary() { return dictionary; }
+  MatType& Dictionary() { return dictionary; }
 
   //! Access the number of atoms.
   size_t Atoms() const { return atoms; }
@@ -254,14 +259,14 @@ class SparseCoding
 
   //! Serialize the sparse coding model.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */);
+  void serialize(Archive& ar, const uint32_t /* version */);
 
  private:
   //! Number of atoms.
   size_t atoms;
 
   //! Dictionary (columns are atoms).
-  arma::mat dictionary;
+  MatType dictionary;
 
   //! l1 regularization term.
   double lambda1;
@@ -276,8 +281,10 @@ class SparseCoding
   double newtonTolerance;
 };
 
-} // namespace sparse_coding
 } // namespace mlpack
+
+CEREAL_TEMPLATE_CLASS_VERSION((typename MatType),
+    (mlpack::SparseCoding<MatType>), (1));
 
 // Include implementation.
 #include "sparse_coding_impl.hpp"

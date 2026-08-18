@@ -1,5 +1,5 @@
 /**
- * @file breadth_first_dual_tree_traverser_impl.hpp
+ * @file core/tree/binary_space_tree/breadth_first_dual_tree_traverser_impl.hpp
  * @author Ryan Curtin
  *
  * Implementation of the BreadthFirstDualTreeTraverser for BinarySpaceTree.
@@ -11,23 +11,24 @@
  * 3-clause BSD license along with mlpack.  If not, see
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
-#ifndef MLPACK_CORE_TREE_BINARY_SPACE_TREE_BREADTH_FIRST_DUAL_TREE_TRAVERSER_IMPL_HPP
-#define MLPACK_CORE_TREE_BINARY_SPACE_TREE_BREADTH_FIRST_DUAL_TREE_TRAVERSER_IMPL_HPP
+#ifndef MLPACK_CORE_TREE_BINARY_SPACE_TREE_BF_DUAL_TREE_TRAVERSER_IMPL_HPP
+#define MLPACK_CORE_TREE_BINARY_SPACE_TREE_BF_DUAL_TREE_TRAVERSER_IMPL_HPP
 
 // In case it hasn't been included yet.
 #include "breadth_first_dual_tree_traverser.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename BoundMetricType, typename...> class BoundType,
-         template<typename SplitBoundType, typename SplitMatType>
-             class SplitType>
+         template<typename BoundDistanceType,
+                  typename BoundElemType,
+                  typename...> class BoundType,
+         template<typename SplitBoundType,
+                  typename SplitMatType> class SplitType>
 template<typename RuleType>
-BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>::
+BinarySpaceTree<DistanceType, StatisticType, MatType, BoundType, SplitType>::
 BreadthFirstDualTreeTraverser<RuleType>::BreadthFirstDualTreeTraverser(
     RuleType& rule) :
     rule(rule),
@@ -48,18 +49,21 @@ bool operator<(const QueueFrame<TreeType, TraversalInfoType>& a,
   return false;
 }
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename BoundMetricType, typename...> class BoundType,
-         template<typename SplitBoundType, typename SplitMatType>
-             class SplitType>
+         template<typename BoundDistanceType,
+                  typename BoundElemType,
+                  typename...> class BoundType,
+         template<typename SplitBoundType,
+                  typename SplitMatType> class SplitType>
 template<typename RuleType>
-void BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>::
+void
+BinarySpaceTree<DistanceType, StatisticType, MatType, BoundType, SplitType>::
 BreadthFirstDualTreeTraverser<RuleType>::Traverse(
-    BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>&
+    BinarySpaceTree<DistanceType, StatisticType, MatType, BoundType, SplitType>&
         queryRoot,
-    BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>&
+    BinarySpaceTree<DistanceType, StatisticType, MatType, BoundType, SplitType>&
         referenceRoot)
 {
   // Increment the visit counter.
@@ -88,16 +92,19 @@ BreadthFirstDualTreeTraverser<RuleType>::Traverse(
   Traverse(queryRoot, queue);
 }
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename BoundMetricType, typename...> class BoundType,
-         template<typename SplitBoundType, typename SplitMatType>
-             class SplitType>
+         template<typename BoundDistanceType,
+                  typename BoundElemType,
+                  typename...> class BoundType,
+         template<typename SplitBoundType,
+                  typename SplitMatType> class SplitType>
 template<typename RuleType>
-void BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>::
-BreadthFirstDualTreeTraverser<RuleType>::Traverse(
-    BinarySpaceTree<MetricType, StatisticType, MatType, BoundType, SplitType>&
+void BinarySpaceTree<
+    DistanceType, StatisticType, MatType, BoundType, SplitType
+>::BreadthFirstDualTreeTraverser<RuleType>::Traverse(
+    BinarySpaceTree<DistanceType, StatisticType, MatType, BoundType, SplitType>&
         queryNode,
     std::priority_queue<QueueFrameType>& referenceQueue)
 {
@@ -204,7 +211,6 @@ BreadthFirstDualTreeTraverser<RuleType>::Traverse(
     Traverse(*queryNode.Right(), rightChildQueue);
 }
 
-} // namespace tree
 } // namespace mlpack
 
-#endif // MLPACK_CORE_TREE_BINARY_SPACE_TREE_BREADTH_FIRST_DUAL_TREE_TRAVERSER_IMPL_HPP
+#endif // MLPACK_CORE_TREE_BINARY_SPACE_TREE_BF_DUAL_TREE_TRAVERSER_IMPL_HPP

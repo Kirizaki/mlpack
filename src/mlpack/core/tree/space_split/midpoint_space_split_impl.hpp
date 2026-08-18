@@ -1,5 +1,5 @@
 /**
- * @file midpoint_space_split_impl.hpp
+ * @file core/tree/space_split/midpoint_space_split_impl.hpp
  * @author Marcos Pividori
  *
  * Implementation of MidpointSpaceSplit, to create a splitting hyperplane
@@ -17,20 +17,19 @@
 #include "space_split.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType, typename MatType>
+template<typename DistanceType, typename MatType>
 template<typename HyperplaneType>
-bool MidpointSpaceSplit<MetricType, MatType>::SplitSpace(
+bool MidpointSpaceSplit<DistanceType, MatType>::SplitSpace(
     const typename HyperplaneType::BoundType& bound,
     const MatType& data,
     const arma::Col<size_t>& points,
     HyperplaneType& hyp)
 {
   typename HyperplaneType::ProjVectorType projVector;
-  double midValue;
+  typename MatType::elem_type midValue;
 
-  if (!SpaceSplit<MetricType, MatType>::GetProjVector(bound, data, points,
+  if (!SpaceSplit<DistanceType, MatType>::GetProjVector(bound, data, points,
       projVector, midValue))
     return false;
 
@@ -39,7 +38,6 @@ bool MidpointSpaceSplit<MetricType, MatType>::SplitSpace(
   return true;
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

@@ -1,5 +1,5 @@
 /**
- * @file kmeans_selection.hpp
+ * @file methods/nystroem_method/kmeans_selection.hpp
  * @author Marcus Edel
  *
  * Use the centroids of the K-Means clustering method for use in the Nystroem
@@ -17,7 +17,6 @@
 #include <mlpack/methods/kmeans/kmeans.hpp>
 
 namespace mlpack {
-namespace kernel {
 
 /**
  * Implementation of the kmeans sampling scheme.
@@ -25,7 +24,7 @@ namespace kernel {
  * @tparam ClusteringType Type of clustering.
  * @tparam maxIterations Maximum number of iterations allowed before giving up.
  */
-template<typename ClusteringType = kmeans::KMeans<>, size_t maxIterations = 5>
+template<typename ClusteringType = KMeans<>, size_t maxIterations = 5>
 class KMeansSelection
 {
  public:
@@ -37,7 +36,7 @@ class KMeansSelection
    * @param m Number of points to select.
    * @return Matrix pointer in which centroids are stored.
    */
-  const static arma::mat* Select(const arma::mat& data, const size_t m)
+  static const arma::mat* Select(const arma::mat& data, const size_t m)
   {
     arma::Row<size_t> assignments;
     arma::mat* centroids = new arma::mat;
@@ -50,7 +49,6 @@ class KMeansSelection
   }
 };
 
-} // namespace kernel
 } // namespace mlpack
 
 #endif

@@ -1,5 +1,5 @@
 /**
- * @file ra_search_rules.hpp
+ * @file methods/rann/ra_search_rules.hpp
  * @author Parikshit Ram
  *
  * Defines the pruning rules and base case rules necessary to perform a
@@ -16,18 +16,19 @@
 
 #include <mlpack/core/tree/traversal_info.hpp>
 
+#include <queue>
+
 namespace mlpack {
-namespace neighbor {
 
 /**
  * The RASearchRules class is a template helper class used by RASearch class
  * when performing rank-approximate search via random-sampling.
  *
  * @tparam SortPolicy The sort policy for distances.
- * @tparam MetricType The metric to use for computation.
+ * @tparam DistanceType The distance metric to use for computation.
  * @tparam TreeType The tree type to use; must adhere to the TreeType API.
  */
-template<typename SortPolicy, typename MetricType, typename TreeType>
+template<typename SortPolicy, typename DistanceType, typename TreeType>
 class RASearchRules
 {
  public:
@@ -38,7 +39,7 @@ class RASearchRules
    * @param referenceSet Set of reference data.
    * @param querySet Set of query data.
    * @param k Number of neighbors to search for.
-   * @param metric Instantiated metric.
+   * @param distance Instantiated distance metric.
    * @param tau The rank-approximation in percentile of the data.
    * @param alpha The desired success probability.
    * @param naive If true, the rank-approximate search will be performed by
@@ -55,7 +56,7 @@ class RASearchRules
   RASearchRules(const arma::mat& referenceSet,
                 const arma::mat& querySet,
                 const size_t k,
-                MetricType& metric,
+                DistanceType& distance,
                 const double tau = 5,
                 const double alpha = 0.95,
                 const bool naive = false,
@@ -231,13 +232,18 @@ class RASearchRules
     if (numSamplesMade.n_elem == 0)
       return 0;
     else
-      return arma::sum(numSamplesMade);
+      return sum(numSamplesMade);
   }
 
-  typedef typename tree::TraversalInfo<TreeType> TraversalInfoType;
+  using TraversalInfoType = mlpack::TraversalInfo<TreeType>;
 
   const TraversalInfoType& TraversalInfo() const { return traversalInfo; }
   TraversalInfoType& TraversalInfo() { return traversalInfo; }
+
+  //! Get the minimum number of base cases that must be performed for each query
+  //! point for an acceptable result.  This is only needed in defeatist search
+  //! mode.
+  size_t MinimumBaseCases() const { return k; }
 
  private:
   //! The reference set.
@@ -247,7 +253,7 @@ class RASearchRules
   const arma::mat& querySet;
 
   //! Candidate represents a possible candidate neighbor (distance, index).
-  typedef std::pair<double, size_t> Candidate;
+  using Candidate = std::pair<double, size_t>;
 
   //! Compare two candidates based on the distance.
   struct CandidateCmp {
@@ -258,8 +264,8 @@ class RASearchRules
   };
 
   //! Use a priority queue to represent the list of candidate neighbors.
-  typedef std::priority_queue<Candidate, std::vector<Candidate>, CandidateCmp>
-      CandidateList;
+  using CandidateList = std::priority_queue<Candidate, std::vector<Candidate>,
+      CandidateCmp>;
 
   //! Set of candidate neighbors for each point.
   std::vector<CandidateList> candidates;
@@ -267,28 +273,28 @@ class RASearchRules
   //! Number of neighbors to search for.
   const size_t k;
 
-  //! The instantiated metric.
-  MetricType& metric;
+  //! The instantiated distance metric.
+  DistanceType& distance;
 
-  //! Whether to sample at leaves or just use all of it
+  //! Whether to sample at leaves or just use all of it.
   bool sampleAtLeaves;
 
-  //! Whether to do exact computation on the first leaf before any sampling
+  //! Whether to do exact computation on the first leaf before any sampling.
   bool firstLeafExact;
 
-  //! The limit on the largest node that can be approximated by sampling
+  //! The limit on the largest node that can be approximated by sampling.
   size_t singleSampleLimit;
 
-  //! The minimum number of samples required per query
+  //! The minimum number of samples required per query.
   size_t numSamplesReqd;
 
-  //! The number of samples made for every query
+  //! The number of samples made for every query.
   arma::Col<size_t> numSamplesMade;
 
-  //! The sampling ratio
+  //! The sampling ratio.
   double samplingRatio;
 
-  // TO REMOVE: just for testing
+  //! The number of distance calculations performed during search.
   size_t numDistComputations;
 
   //! If the query and reference set are identical, this is true.
@@ -323,11 +329,10 @@ class RASearchRules
                const double distance,
                const double bestDistance);
 
-  static_assert(tree::TreeTraits<TreeType>::UniqueNumDescendants, "TreeType "
-      "must provide a unique number of descendants points.");
+  static_assert(TreeTraits<TreeType>::UniqueNumDescendants, "TreeType must "
+      "provide a unique number of descendants points.");
 }; // class RASearchRules
 
-} // namespace neighbor
 } // namespace mlpack
 
 // Include implementation.

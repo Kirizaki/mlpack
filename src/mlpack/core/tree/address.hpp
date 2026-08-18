@@ -1,5 +1,5 @@
 /**
- * @file address.hpp
+ * @file core/tree/address.hpp
  * @author Mikhail Lozhnikov
  *
  * This file contains a series of functions for translating points to addresses
@@ -27,8 +27,6 @@
 #define MLPACK_CORE_TREE_ADDRESS_HPP
 
 namespace mlpack {
-namespace bound {
-namespace addr {
 
 /**
  * Calculate the address of a point. Be careful, the point and the address
@@ -56,14 +54,13 @@ namespace addr {
 template<typename AddressType, typename VecType>
 void PointToAddress(AddressType& address, const VecType& point)
 {
-  typedef typename VecType::elem_type VecElemType;
+  using VecElemType = typename VecType::elem_type;
   // Check that the arguments are compatible.
-  typedef typename std::conditional<sizeof(VecElemType) * CHAR_BIT <= 32,
-                                    uint32_t,
-                                    uint64_t>::type AddressElemType;
+  using AddressElemType = std::conditional_t<
+      (sizeof(VecElemType) * CHAR_BIT <= 32), uint32_t, uint64_t>;
 
-  static_assert(std::is_same<typename AddressType::elem_type,
-      AddressElemType>::value == true, "The vector element type does not "
+  static_assert(std::is_same_v<typename AddressType::elem_type,
+      AddressElemType> == true, "The vector element type does not "
       "correspond to the address element type.");
   arma::Col<AddressElemType> result(point.n_elem);
 
@@ -79,10 +76,10 @@ void PointToAddress(AddressType& address, const VecType& point)
   assert(point.n_elem == address.n_elem);
   assert(address.n_elem > 0);
 
-  for (size_t i = 0; i < point.n_elem; i++)
+  for (size_t i = 0; i < point.n_elem; ++i)
   {
     int e;
-    VecElemType normalizedVal = std::frexp(point(i),&e);
+    VecElemType normalizedVal = std::frexp(point(i), &e);
     bool sgn = std::signbit(normalizedVal);
 
     if (point(i) == 0)
@@ -128,8 +125,8 @@ void PointToAddress(AddressType& address, const VecType& point)
 
   // Interleave the bits of the new representation across all the elements
   // in the address vector.
-  for (size_t i = 0; i < order; i++)
-    for (size_t j = 0; j < point.n_elem; j++)
+  for (size_t i = 0; i < order; ++i)
+    for (size_t j = 0; j < point.n_elem; ++j)
     {
       size_t bit = (i * point.n_elem + j) % order;
       size_t row = (i * point.n_elem + j) / order;
@@ -152,14 +149,13 @@ void PointToAddress(AddressType& address, const VecType& point)
 template<typename AddressType, typename VecType>
 void AddressToPoint(VecType& point, const AddressType& address)
 {
-  typedef typename VecType::elem_type VecElemType;
+  using VecElemType = typename VecType::elem_type;
   // Check that the arguments are compatible.
-  typedef typename std::conditional<sizeof(VecElemType) * CHAR_BIT <= 32,
-                                    uint32_t,
-                                    uint64_t>::type AddressElemType;
+  using AddressElemType = std::conditional_t<
+      (sizeof(VecElemType) * CHAR_BIT <= 32), uint32_t, uint64_t>;
 
-  static_assert(std::is_same<typename AddressType::elem_type,
-      AddressElemType>::value == true, "The vector element type does not "
+  static_assert(std::is_same_v<typename AddressType::elem_type,
+      AddressElemType> == true, "The vector element type does not "
       "correspond to the address element type.");
 
   constexpr size_t order = sizeof(AddressElemType) * CHAR_BIT;
@@ -176,8 +172,8 @@ void AddressToPoint(VecType& point, const AddressType& address)
   // Calculate the number of bits for the mantissa.
   const int numMantBits = order - numExpBits - 1;
 
-  for (size_t i = 0; i < order; i++)
-    for (size_t j = 0; j < address.n_elem; j++)
+  for (size_t i = 0; i < order; ++i)
+    for (size_t j = 0; j < address.n_elem; ++j)
     {
       size_t bit = (i * address.n_elem + j) % order;
       size_t row = (i * address.n_elem + j) / order;
@@ -186,7 +182,7 @@ void AddressToPoint(VecType& point, const AddressType& address)
           (order - 1 - i));
     }
 
-  for (size_t i = 0; i < rearrangedAddress.n_elem; i++)
+  for (size_t i = 0; i < rearrangedAddress.n_elem; ++i)
   {
     bool sgn = rearrangedAddress(i) & ((AddressElemType) 1 << (order - 1));
 
@@ -232,13 +228,13 @@ void AddressToPoint(VecType& point, const AddressType& address)
 template<typename AddressType1, typename AddressType2>
 int CompareAddresses(const AddressType1& addr1, const AddressType2& addr2)
 {
-  static_assert(std::is_same<typename AddressType1::elem_type,
-      typename AddressType2::elem_type>::value == true, "Can't compare "
+  static_assert(std::is_same_v<typename AddressType1::elem_type,
+      typename AddressType2::elem_type> == true, "Can't compare "
       "addresses of distinct types");
 
   assert(addr1.n_elem == addr2.n_elem);
 
-  for (size_t i = 0; i < addr1.n_elem; i++)
+  for (size_t i = 0; i < addr1.n_elem; ++i)
   {
     if (addr1[i] < addr2[i])
       return -1;
@@ -253,15 +249,14 @@ int CompareAddresses(const AddressType1& addr1, const AddressType2& addr2)
  * Returns true if an address is contained between two other addresses.
  */
 template<typename AddressType1, typename AddressType2, typename AddressType3>
-bool Contains(const AddressType1& address, const AddressType2& loBound,
+bool ContainsAddress(const AddressType1& address,
+                     const AddressType2& loBound,
                      const AddressType3& hiBound)
 {
   return ((CompareAddresses(loBound, address) <= 0) &&
           (CompareAddresses(hiBound, address) >= 0));
 }
 
-} // namespace addr
-} // namespace bound
-} // namespave mlpack
+} // namespace mlpack
 
 #endif // MLPACK_CORE_TREE_ADDRESS_HPP

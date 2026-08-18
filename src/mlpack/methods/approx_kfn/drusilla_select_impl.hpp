@@ -1,5 +1,5 @@
 /**
- * @file drusilla_select_impl.hpp
+ * @file methods/approx_kfn/drusilla_select_impl.hpp
  * @author Ryan Curtin
  *
  * Implementation of DrusillaSelect class methods.
@@ -22,7 +22,6 @@
 #include <algorithm>
 
 namespace mlpack {
-namespace neighbor {
 
 // Constructor.
 template<typename MatType>
@@ -81,24 +80,23 @@ void DrusillaSelect<MatType>::Train(
   candidateSet.set_size(referenceSet.n_rows, l * m);
   candidateIndices.set_size(l * m);
 
-  arma::vec dataMean(arma::mean(referenceSet, 1));
+  arma::vec dataMean(mean(referenceSet, 1));
   arma::vec norms(referenceSet.n_cols);
 
   MatType refCopy(referenceSet.n_rows, referenceSet.n_cols);
   for (size_t i = 0; i < refCopy.n_cols; ++i)
   {
     refCopy.col(i) = referenceSet.col(i) - dataMean;
-    norms[i] = arma::norm(refCopy.col(i));
+    norms[i] = norm(refCopy.col(i));
   }
 
   // Find the top m points for each of the l projections...
   for (size_t i = 0; i < l; ++i)
   {
     // Pick best index.
-    arma::uword maxIndex;
-    norms.max(maxIndex);
+    arma::uword maxIndex = norms.index_max();
 
-    arma::vec line(refCopy.col(maxIndex) / arma::norm(refCopy.col(maxIndex)));
+    arma::vec line(refCopy.col(maxIndex) / norm(refCopy.col(maxIndex)));
 
     // Calculate distortion and offset and make scores.
     std::vector<bool> closeAngle(referenceSet.n_cols, false);
@@ -107,8 +105,8 @@ void DrusillaSelect<MatType>::Train(
     {
       if (norms[j] > 0.0)
       {
-        const double offset = arma::dot(refCopy.col(j), line);
-        const double distortion = arma::norm(refCopy.col(j) - offset * line);
+        const double offset = dot(refCopy.col(j), line);
+        const double distortion = norm(refCopy.col(j) - offset * line);
         sums[j] = std::abs(offset) - std::abs(distortion);
         closeAngle[j] =
             (std::atan(distortion / std::abs(offset)) < (M_PI / 8.0));
@@ -120,7 +118,7 @@ void DrusillaSelect<MatType>::Train(
     }
 
     // Find the top m elements using a priority queue.
-    typedef std::pair<double, size_t> Candidate;
+    using Candidate = std::pair<double, size_t>;
     struct CandidateCmp
     {
       bool operator()(const Candidate& c1, const Candidate& c2)
@@ -129,7 +127,8 @@ void DrusillaSelect<MatType>::Train(
       }
     };
 
-    std::vector<Candidate> clist(m, std::make_pair(double(-DBL_MAX), size_t(-1)));
+    std::vector<Candidate> clist(
+        m, std::make_pair(double(-DBL_MAX), size_t(-1)));
     std::priority_queue<Candidate, std::vector<Candidate>, CandidateCmp>
         pq(CandidateCmp(), std::move(clist));
 
@@ -181,9 +180,9 @@ void DrusillaSelect<MatType>::Search(const MatType& querySet,
   // We'll use the NeighborSearchRules class to perform our brute-force search.
   // Note that we aren't using trees for our search, so we can use 'int' as a
   // TreeType.
-  metric::EuclideanDistance metric;
-  NeighborSearchRules<FurthestNeighborSort, metric::EuclideanDistance,
-      tree::KDTree<metric::EuclideanDistance, tree::EmptyStatistic, MatType>>
+  EuclideanDistance metric;
+  NeighborSearchRules<FurthestNeighborSort, EuclideanDistance,
+      KDTree<EuclideanDistance, EmptyStatistic, MatType>>
       rules(candidateSet, querySet, k, metric, 0, false);
 
   for (size_t q = 0; q < querySet.n_cols; ++q)
@@ -200,18 +199,15 @@ void DrusillaSelect<MatType>::Search(const MatType& querySet,
 //! Serialize the model.
 template<typename MatType>
 template<typename Archive>
-void DrusillaSelect<MatType>::Serialize(Archive& ar,
-                                        const unsigned int /* version */)
+void DrusillaSelect<MatType>::serialize(Archive& ar,
+                                        const uint32_t /* version */)
 {
-  using data::CreateNVP;
-
-  ar & CreateNVP(candidateSet, "candidateSet");
-  ar & CreateNVP(candidateIndices, "candidateIndices");
-  ar & CreateNVP(l, "l");
-  ar & CreateNVP(m, "m");
+  ar(CEREAL_NVP(candidateSet));
+  ar(CEREAL_NVP(candidateIndices));
+  ar(CEREAL_NVP(l));
+  ar(CEREAL_NVP(m));
 }
 
-} // namespace neighbor
 } // namespace mlpack
 
 #endif

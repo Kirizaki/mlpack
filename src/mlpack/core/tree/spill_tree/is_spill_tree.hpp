@@ -1,5 +1,5 @@
 /**
- * @file is_spill_tree.hpp
+ * @file core/tree/spill_tree/is_spill_tree.hpp
  *
  * Definition of IsSpillTree.
  *
@@ -14,7 +14,6 @@
 #include "spill_tree.hpp"
 
 namespace mlpack {
-namespace tree /** Trees and tree-building procedures. */ {
 
 // Useful struct when specific behaviour for SpillTrees is required.
 template<typename TreeType>
@@ -24,20 +23,19 @@ struct IsSpillTree
 };
 
 // Specialization for SpillTree.
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename HyperplaneMetricType>
+         template<typename HyperplaneDistanceType, typename HyperplaneMatType>
             class HyperplaneType,
-         template<typename SplitMetricType, typename SplitMatType>
+         template<typename SplitDistanceType, typename SplitMatType>
             class SplitType>
-struct IsSpillTree<tree::SpillTree<MetricType, StatisticType, MatType,
+struct IsSpillTree<SpillTree<DistanceType, StatisticType, MatType,
     HyperplaneType, SplitType>>
 {
   static const bool value = true;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

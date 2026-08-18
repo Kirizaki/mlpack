@@ -1,5 +1,5 @@
 /**
- * @file tree_traits_test.cpp
+ * @file tests/rectangle_tree_test.cpp
  * @author Andrew Wells
  *
  * Tests for the RectangleTree class.  This should ensure that the class works
@@ -12,51 +12,44 @@
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #include <mlpack/core.hpp>
-#include <mlpack/core/tree/tree_traits.hpp>
-#include <mlpack/core/tree/rectangle_tree.hpp>
-#include <mlpack/methods/neighbor_search/neighbor_search.hpp>
+#include <mlpack/methods/neighbor_search.hpp>
 
-#include <boost/test/unit_test.hpp>
-#include "test_tools.hpp"
+#include "catch.hpp"
+#include "test_catch_tools.hpp"
 
 using namespace mlpack;
-using namespace mlpack::neighbor;
-using namespace mlpack::tree;
-using namespace mlpack::metric;
-
-BOOST_AUTO_TEST_SUITE(RectangleTreeTest);
 
 // Test the traits on RectangleTrees.
 
-BOOST_AUTO_TEST_CASE(RectangleTreeTraitsTest)
+TEST_CASE("RectangleTreeTest", "[RectangleTreeTest]")
 {
   // Children may be overlapping.
   bool b = TreeTraits<RTree<EuclideanDistance, EmptyStatistic,
       arma::mat>>::HasOverlappingChildren;
-  BOOST_REQUIRE_EQUAL(b, true);
+  REQUIRE(b == true);
 
   // Points are not contained in multiple levels.
   b = TreeTraits<RTree<EuclideanDistance, EmptyStatistic,
       arma::mat>>::HasSelfChildren;
-  BOOST_REQUIRE_EQUAL(b, false);
+  REQUIRE(b == false);
 }
 
 // Test to make sure the tree can be contains the correct number of points after
 // it is constructed.
 
-BOOST_AUTO_TEST_CASE(RectangleTreeConstructionCountTest)
+TEST_CASE("RectangleTreeConstructionCountTest", "[RectangleTreeTest]")
 {
   arma::mat dataset;
   dataset.randu(3, 1000); // 1000 points in 3 dimensions.
 
-  typedef RTree<EuclideanDistance, NeighborSearchStat<NearestNeighborSort>,
-      arma::mat> TreeType;
+  using TreeType = RTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
 
-  TreeType tree(dataset, 20, 6, 5, 2, 0);
+  TreeType tree(dataset, 20, 6, 5, 2);
   TreeType tree2 = tree;
 
-  BOOST_REQUIRE_EQUAL(tree.NumDescendants(), 1000);
-  BOOST_REQUIRE_EQUAL(tree2.NumDescendants(), 1000);
+  REQUIRE(tree.NumDescendants() == 1000);
+  REQUIRE(tree2.NumDescendants() == 1000);
 }
 
 /**
@@ -72,7 +65,7 @@ std::vector<arma::vec*> GetAllPointsInTree(const TreeType& tree)
   std::vector<arma::vec*> vec;
   if (tree.NumChildren() > 0)
   {
-    for (size_t i = 0; i < tree.NumChildren(); i++)
+    for (size_t i = 0; i < tree.NumChildren(); ++i)
     {
       std::vector<arma::vec*> tmp = GetAllPointsInTree(tree.Child(i));
       vec.insert(vec.begin(), tmp.begin(), tmp.end());
@@ -80,7 +73,7 @@ std::vector<arma::vec*> GetAllPointsInTree(const TreeType& tree)
   }
   else
   {
-    for (size_t i = 0; i < tree.Count(); i++)
+    for (size_t i = 0; i < tree.Count(); ++i)
     {
       arma::vec* c = new arma::vec(tree.Dataset().col(tree.Point(i)));
       vec.push_back(c);
@@ -92,32 +85,32 @@ std::vector<arma::vec*> GetAllPointsInTree(const TreeType& tree)
 // Test to ensure that none of the points in the tree are duplicates.  This,
 // combined with the above test to see how many points are in the tree, should
 // ensure that we inserted all points.
-BOOST_AUTO_TEST_CASE(RectangleTreeConstructionRepeatTest)
+TEST_CASE("RectangleTreeConstructionRepeatTest", "[RectangleTreeTest]")
 {
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
 
-  typedef RTree<EuclideanDistance, NeighborSearchStat<NearestNeighborSort>,
-      arma::mat> TreeType;
+  using TreeType = RTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
 
-  TreeType tree(dataset, 20, 6, 5, 2, 0);
+  TreeType tree(dataset, 20, 6, 5, 2);
 
   std::vector<arma::vec*> allPoints = GetAllPointsInTree(tree);
-  for (size_t i = 0; i < allPoints.size(); i++)
+  for (size_t i = 0; i < allPoints.size(); ++i)
   {
-    for (size_t j = i + 1; j < allPoints.size(); j++)
+    for (size_t j = i + 1; j < allPoints.size(); ++j)
     {
       arma::vec v1 = *(allPoints[i]);
       arma::vec v2 = *(allPoints[j]);
       bool same = true;
-      for (size_t k = 0; k < v1.n_rows; k++)
+      for (size_t k = 0; k < v1.n_rows; ++k)
         same &= (v1[k] == v2[k]);
 
-      BOOST_REQUIRE_NE(same, true);
+      REQUIRE(same != true);
     }
   }
 
-  for (size_t i = 0; i < allPoints.size(); i++)
+  for (size_t i = 0; i < allPoints.size(); ++i)
     delete allPoints[i];
 }
 
@@ -133,15 +126,15 @@ void CheckContainment(const TreeType& tree)
 {
   if (tree.NumChildren() == 0)
   {
-    for (size_t i = 0; i < tree.Count(); i++)
-      BOOST_REQUIRE(tree.Bound().Contains(
+    for (size_t i = 0; i < tree.Count(); ++i)
+      REQUIRE(tree.Bound().Contains(
           tree.Dataset().unsafe_col(tree.Point(i))));
   }
   else
   {
-    for (size_t i = 0; i < tree.NumChildren(); i++)
+    for (size_t i = 0; i < tree.NumChildren(); ++i)
     {
-      for (size_t j = 0; j < tree.Bound().Dim(); j++)
+      for (size_t j = 0; j < tree.Bound().Dim(); ++j)
       {
         //  All children should be covered by the parent node.
         //  Some children can be empty (only in case of the R++ tree)
@@ -151,7 +144,7 @@ void CheckContainment(const TreeType& tree)
                 std::numeric_limits<typename TreeType::ElemType>::max()) ||
             tree.Bound()[j].Contains(tree.Child(i).Bound()[j]);
 
-        BOOST_REQUIRE(success);
+        REQUIRE(success);
       }
 
       CheckContainment(tree.Child(i));
@@ -167,28 +160,28 @@ void CheckExactContainment(const TreeType& tree)
 {
   if (tree.NumChildren() == 0)
   {
-    for (size_t i = 0; i < tree.Bound().Dim(); i++)
+    for (size_t i = 0; i < tree.Bound().Dim(); ++i)
     {
       double min = DBL_MAX;
       double max = -1.0 * DBL_MAX;
-      for(size_t j = 0; j < tree.Count(); j++)
+      for (size_t j = 0; j < tree.Count(); ++j)
       {
         if (tree.Dataset().col(tree.Point(j))[i] < min)
           min = tree.Dataset().col(tree.Point(j))[i];
         if (tree.Dataset().col(tree.Point(j))[i] > max)
           max = tree.Dataset().col(tree.Point(j))[i];
       }
-      BOOST_REQUIRE_EQUAL(max, tree.Bound()[i].Hi());
-      BOOST_REQUIRE_EQUAL(min, tree.Bound()[i].Lo());
+      REQUIRE(max == tree.Bound()[i].Hi());
+      REQUIRE(min == tree.Bound()[i].Lo());
     }
   }
   else
   {
-    for (size_t i = 0; i < tree.Bound().Dim(); i++)
+    for (size_t i = 0; i < tree.Bound().Dim(); ++i)
     {
       double min = DBL_MAX;
       double max = -1.0 * DBL_MAX;
-      for (size_t j = 0; j < tree.NumChildren(); j++)
+      for (size_t j = 0; j < tree.NumChildren(); ++j)
       {
         if (tree.Child(j).Bound()[i].Lo() < min)
           min = tree.Child(j).Bound()[i].Lo();
@@ -196,11 +189,11 @@ void CheckExactContainment(const TreeType& tree)
           max = tree.Child(j).Bound()[i].Hi();
       }
 
-      BOOST_REQUIRE_EQUAL(max, tree.Bound()[i].Hi());
-      BOOST_REQUIRE_EQUAL(min, tree.Bound()[i].Lo());
+      REQUIRE(max == tree.Bound()[i].Hi());
+      REQUIRE(min == tree.Bound()[i].Lo());
     }
 
-    for (size_t i = 0; i < tree.NumChildren(); i++)
+    for (size_t i = 0; i < tree.NumChildren(); ++i)
       CheckExactContainment(tree.Child(i));
   }
 }
@@ -211,24 +204,24 @@ void CheckExactContainment(const TreeType& tree)
 template<typename TreeType>
 void CheckHierarchy(const TreeType& tree)
 {
-  for (size_t i = 0; i < tree.NumChildren(); i++)
+  for (size_t i = 0; i < tree.NumChildren(); ++i)
   {
-    BOOST_REQUIRE_EQUAL(&tree, tree.Child(i).Parent());
+    REQUIRE(&tree == tree.Child(i).Parent());
     CheckHierarchy(tree.Child(i));
   }
 }
 
 // Test to see if the bounds of the tree are correct. (Cover all bounds and
 // points beneath this node of the tree).
-BOOST_AUTO_TEST_CASE(RectangleTreeContainmentTest)
+TEST_CASE("RectangleTreeContainmentTest", "[RectangleTreeTest]")
 {
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
 
-  typedef RTree<EuclideanDistance, NeighborSearchStat<NearestNeighborSort>,
-      arma::mat> TreeType;
+  using TreeType = RTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
 
-  TreeType tree(dataset, 20, 6, 5, 2, 0);
+  TreeType tree(dataset, 20, 6, 5, 2);
   CheckContainment(tree);
   CheckExactContainment(tree);
 }
@@ -249,31 +242,31 @@ void CheckFills(const TreeType& tree)
 {
   if (tree.IsLeaf())
   {
-    BOOST_REQUIRE(tree.Count() >= tree.MinLeafSize() || tree.Parent() == NULL);
-    BOOST_REQUIRE(tree.Count() <= tree.MaxLeafSize());
+    REQUIRE((tree.Count() >= tree.MinLeafSize() || tree.Parent() == NULL));
+    REQUIRE(tree.Count() <= tree.MaxLeafSize());
   }
   else
   {
-    for (size_t i = 0; i < tree.NumChildren(); i++)
+    for (size_t i = 0; i < tree.NumChildren(); ++i)
     {
-      BOOST_REQUIRE(tree.NumChildren() >= tree.MinNumChildren() ||
-                    tree.Parent() == NULL);
-      BOOST_REQUIRE(tree.NumChildren() <= tree.MaxNumChildren());
+      REQUIRE((tree.NumChildren() >= tree.MinNumChildren() ||
+                    tree.Parent() == NULL));
+      REQUIRE(tree.NumChildren() <= tree.MaxNumChildren());
       CheckFills(tree.Child(i));
     }
   }
 }
 
 // Test to ensure that the minimum and maximum fills are satisfied.
-BOOST_AUTO_TEST_CASE(CheckMinAndMaxFills)
+TEST_CASE("CheckMinAndMaxFills", "[RectangleTreeTest]")
 {
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
 
-  typedef RTree<EuclideanDistance, NeighborSearchStat<NearestNeighborSort>,
-      arma::mat> TreeType;
+  using TreeType = RTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
 
-  TreeType tree(dataset, 20, 6, 5, 2, 0);
+  TreeType tree(dataset, 20, 6, 5, 2);
   CheckFills(tree);
 }
 
@@ -292,7 +285,7 @@ int GetMaxLevel(const TreeType& tree)
   if (!tree.IsLeaf())
   {
     int m = 0;
-    for (size_t i = 0; i < tree.NumChildren(); i++)
+    for (size_t i = 0; i < tree.NumChildren(); ++i)
     {
       int n = GetMaxLevel(tree.Child(i));
       if (n > m)
@@ -319,7 +312,7 @@ int GetMinLevel(const TreeType& tree)
   if (!tree.IsLeaf())
   {
     int m = INT_MAX;
-    for (size_t i = 0; i < tree.NumChildren(); i++)
+    for (size_t i = 0; i < tree.NumChildren(); ++i)
     {
       int n = GetMinLevel(tree.Child(i));
       if (n < m)
@@ -339,41 +332,41 @@ size_t CheckNumDescendants(const TreeType& tree)
 {
   if (tree.IsLeaf())
   {
-    BOOST_REQUIRE_EQUAL(tree.NumDescendants(), tree.Count());
+    REQUIRE(tree.NumDescendants() == tree.Count());
     return tree.Count();
   }
 
   size_t numDescendants = 0;
 
-  for (size_t i = 0; i < tree.NumChildren(); i++)
+  for (size_t i = 0; i < tree.NumChildren(); ++i)
     numDescendants += CheckNumDescendants(tree.Child(i));
 
-  BOOST_REQUIRE_EQUAL(tree.NumDescendants(), numDescendants);
+  REQUIRE(tree.NumDescendants() == numDescendants);
 
   return numDescendants;
 }
 
 // A test to ensure that all leaf nodes are stored on the same level of the
 // tree.
-BOOST_AUTO_TEST_CASE(TreeBalance)
+TEST_CASE("TreeBalance", "[RectangleTreeTest]")
 {
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
 
-  typedef RTree<EuclideanDistance, NeighborSearchStat<NearestNeighborSort>,
-      arma::mat> TreeType;
+  using TreeType = RTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
 
-  TreeType tree(dataset, 20, 6, 5, 2, 0);
+  TreeType tree(dataset, 20, 6, 5, 2);
 
-  BOOST_REQUIRE_EQUAL(GetMinLevel(tree), GetMaxLevel(tree));
-  BOOST_REQUIRE_EQUAL(tree.TreeDepth(), GetMinLevel(tree));
+  REQUIRE(GetMinLevel(tree) == GetMaxLevel(tree));
+  REQUIRE((int) tree.TreeDepth() == GetMinLevel(tree));
 }
 
 // A test to see if point deletion is working correctly.  We build a tree, then
 // delete numIter points and test that the query gives correct results.  It is
 // remotely possible that this test will give a false negative if it should
 // happen that two points are the same distance from a third point.
-BOOST_AUTO_TEST_CASE(PointDeletion)
+TEST_CASE("PointDeletion", "[RectangleTreeTest]")
 {
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
@@ -383,43 +376,43 @@ BOOST_AUTO_TEST_CASE(PointDeletion)
 
   const int numIter = 50;
 
-  typedef RTree<EuclideanDistance, NeighborSearchStat<NearestNeighborSort>,
-      arma::mat> TreeType;
-  TreeType tree(dataset, 20, 6, 5, 2, 0);
+  using TreeType = RTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
+  TreeType tree(dataset, 20, 6, 5, 2);
 
-  for (int i = 0; i < numIter; i++)
+  for (int i = 0; i < numIter; ++i)
     tree.DeletePoint(999 - i);
 
   // Do a few sanity checks.  Ensure each point is unique, the tree has the
   // correct number of points, the tree has legal containment, and the tree's
   // data is in sync.
   std::vector<arma::vec*> allPoints = GetAllPointsInTree(tree);
-  for (size_t i = 0; i < allPoints.size(); i++)
+  for (size_t i = 0; i < allPoints.size(); ++i)
   {
-    for (size_t j = i + 1; j < allPoints.size(); j++)
+    for (size_t j = i + 1; j < allPoints.size(); ++j)
     {
       arma::vec v1 = *(allPoints[i]);
       arma::vec v2 = *(allPoints[j]);
       bool same = true;
-      for (size_t k = 0; k < v1.n_rows; k++)
+      for (size_t k = 0; k < v1.n_rows; ++k)
         same &= (v1[k] == v2[k]);
 
-      BOOST_REQUIRE(!same);
+      REQUIRE(!same);
     }
   }
 
-  for (size_t i = 0; i < allPoints.size(); i++)
+  for (size_t i = 0; i < allPoints.size(); ++i)
     delete allPoints[i];
 
-  BOOST_REQUIRE_EQUAL(tree.NumDescendants(), 1000 - numIter);
+  REQUIRE(tree.NumDescendants() == 1000 - numIter);
 
   CheckContainment(tree);
   CheckExactContainment(tree);
   CheckNumDescendants(tree);
 
   // Single-tree search.
-  NeighborSearch<NearestNeighborSort, metric::LMetric<2, true>, arma::mat,
-      RTree> knn1(std::move(tree), SINGLE_TREE_MODE);
+  NeighborSearch<NearestNeighborSort, LMetric<2, true>, arma::mat, RTree>
+      knn1(std::move(tree), SINGLE_TREE);
 
   arma::Mat<size_t> neighbors1;
   arma::mat distances1;
@@ -433,14 +426,14 @@ BOOST_AUTO_TEST_CASE(PointDeletion)
   arma::mat distances2;
 
   // Nearest neighbor search the naive way.
-  KNN knn2(newDataset, NAIVE_MODE);
+  KNN knn2(newDataset, NAIVE);
 
   knn2.Search(querySet, 5, neighbors2, distances2);
 
-  for (size_t i = 0; i < neighbors1.size(); i++)
+  for (size_t i = 0; i < neighbors1.size(); ++i)
   {
-    BOOST_REQUIRE_EQUAL(distances1[i], distances2[i]);
-    BOOST_REQUIRE_EQUAL(neighbors1[i], neighbors2[i]);
+    REQUIRE(distances1[i] == distances2[i]);
+    REQUIRE(neighbors1[i] == neighbors2[i]);
   }
 }
 
@@ -450,15 +443,15 @@ BOOST_AUTO_TEST_CASE(PointDeletion)
 // negative if it should happen that two points are the same distance from a
 // third point.  Note that this is extremely inefficient.  You should not use
 // dynamic insertion until a better solution for resizing matrices is available.
-BOOST_AUTO_TEST_CASE(PointDynamicAdd)
+TEST_CASE("PointDynamicAdd", "[RectangleTreeTest]")
 {
   const int numIter = 50;
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
 
-  typedef RTree<EuclideanDistance, NeighborSearchStat<NearestNeighborSort>,
-      arma::mat> TreeType;
-  TreeType tree(dataset, 20, 6, 5, 2, 0);
+  using TreeType = RTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
+  TreeType tree(dataset, 20, 6, 5, 2);
 
   // Add numIter new points to the dataset.  The tree copies the dataset, so we
   // must modify both the original dataset and the one that the tree holds.
@@ -467,7 +460,7 @@ BOOST_AUTO_TEST_CASE(PointDynamicAdd)
   dataset.reshape(8, 1000 + numIter);
   arma::mat tmpData;
   tmpData.randu(8, numIter);
-  for (int i = 0; i < numIter; i++)
+  for (int i = 0; i < numIter; ++i)
   {
     tree.Dataset().col(1000 + i) = tmpData.col(i);
     dataset.col(1000 + i) = tmpData.col(i);
@@ -478,24 +471,24 @@ BOOST_AUTO_TEST_CASE(PointDynamicAdd)
   // correct number of points, the tree has legal containment, and the tree's
   // data is in sync.
   std::vector<arma::vec*> allPoints = GetAllPointsInTree(tree);
-  for (size_t i = 0; i < allPoints.size(); i++)
+  for (size_t i = 0; i < allPoints.size(); ++i)
   {
-    for (size_t j = i + 1; j < allPoints.size(); j++)
+    for (size_t j = i + 1; j < allPoints.size(); ++j)
     {
       arma::vec v1 = *(allPoints[i]);
       arma::vec v2 = *(allPoints[j]);
       bool same = true;
-      for (size_t k = 0; k < v1.n_rows; k++)
+      for (size_t k = 0; k < v1.n_rows; ++k)
         same &= (v1[k] == v2[k]);
 
-      BOOST_REQUIRE(!same);
+      REQUIRE(!same);
     }
   }
 
-  for (size_t i = 0; i < allPoints.size(); i++)
+  for (size_t i = 0; i < allPoints.size(); ++i)
     delete allPoints[i];
 
-  BOOST_REQUIRE_EQUAL(tree.NumDescendants(), 1000 + numIter);
+  REQUIRE(tree.NumDescendants() == 1000 + numIter);
   CheckContainment(tree);
   CheckExactContainment(tree);
   CheckNumDescendants(tree);
@@ -508,26 +501,26 @@ BOOST_AUTO_TEST_CASE(PointDynamicAdd)
   arma::mat distances2;
 
   // Nearest neighbor search with the R tree.
-  NeighborSearch<NearestNeighborSort, metric::LMetric<2, true>, arma::mat,
-      RTree> knn1(std::move(tree), SINGLE_TREE_MODE);
+  NeighborSearch<NearestNeighborSort, LMetric<2, true>, arma::mat, RTree>
+      knn1(std::move(tree), SINGLE_TREE);
 
   knn1.Search(5, neighbors1, distances1);
 
   // Nearest neighbor search the naive way.
-  KNN knn2(dataset, NAIVE_MODE);
+  KNN knn2(dataset, NAIVE);
 
   knn2.Search(5, neighbors2, distances2);
 
-  for (size_t i = 0; i < neighbors1.size(); i++)
+  for (size_t i = 0; i < neighbors1.size(); ++i)
   {
-    BOOST_REQUIRE_EQUAL(distances1[i], distances2[i]);
-    BOOST_REQUIRE_EQUAL(neighbors1[i], neighbors2[i]);
+    REQUIRE(distances1[i] == distances2[i]);
+    REQUIRE(neighbors1[i] == neighbors2[i]);
   }
 }
 
 // A test to ensure that the SingleTreeTraverser is working correctly by
 // comparing its results to the results of a naive search.
-BOOST_AUTO_TEST_CASE(SingleTreeTraverserTest)
+TEST_CASE("SingleTreeTraverserTest", "[RectangleTreeTest]")
 {
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
@@ -536,11 +529,11 @@ BOOST_AUTO_TEST_CASE(SingleTreeTraverserTest)
   arma::Mat<size_t> neighbors2;
   arma::mat distances2;
 
-  typedef RStarTree<EuclideanDistance, NeighborSearchStat<NearestNeighborSort>,
-      arma::mat> TreeType;
-  TreeType rTree(dataset, 20, 6, 5, 2, 0);
+  using TreeType = RStarTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
+  TreeType rTree(dataset, 20, 6, 5, 2);
 
-  BOOST_REQUIRE_EQUAL(rTree.NumDescendants(), 1000);
+  REQUIRE(rTree.NumDescendants() == 1000);
 
   CheckContainment(rTree);
   CheckExactContainment(rTree);
@@ -548,26 +541,26 @@ BOOST_AUTO_TEST_CASE(SingleTreeTraverserTest)
   CheckNumDescendants(rTree);
 
   // Nearest neighbor search with the R tree.
-  NeighborSearch<NearestNeighborSort, metric::LMetric<2, true>, arma::mat,
-      RStarTree> knn1(std::move(rTree), SINGLE_TREE_MODE);
+  NeighborSearch<NearestNeighborSort, LMetric<2, true>, arma::mat, RStarTree>
+      knn1(std::move(rTree), SINGLE_TREE);
 
   knn1.Search(5, neighbors1, distances1);
 
   // Nearest neighbor search the naive way.
-  KNN knn2(dataset, NAIVE_MODE);
+  KNN knn2(dataset, NAIVE);
 
   knn2.Search(5, neighbors2, distances2);
 
-  for (size_t i = 0; i < neighbors1.size(); i++)
+  for (size_t i = 0; i < neighbors1.size(); ++i)
   {
-    BOOST_REQUIRE_EQUAL(neighbors1[i], neighbors2[i]);
-    BOOST_REQUIRE_EQUAL(distances1[i], distances2[i]);
+    REQUIRE(neighbors1[i] == neighbors2[i]);
+    REQUIRE(distances1[i] == distances2[i]);
   }
 }
 
 // A test to ensure that the SingleTreeTraverser is working correctly by
 // comparing its results to the results of a naive search.
-BOOST_AUTO_TEST_CASE(XTreeTraverserTest)
+TEST_CASE("XTreeTraverserTest", "[RectangleTreeTest]")
 {
   arma::mat dataset;
 
@@ -579,11 +572,11 @@ BOOST_AUTO_TEST_CASE(XTreeTraverserTest)
   arma::Mat<size_t> neighbors2;
   arma::mat distances2;
 
-  typedef XTree<EuclideanDistance, NeighborSearchStat<NearestNeighborSort>,
-      arma::mat> TreeType;
-  TreeType xTree(dataset, 20, 6, 5, 2, 0);
+  using TreeType = XTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
+  TreeType xTree(dataset, 20, 6, 5, 2);
 
-  BOOST_REQUIRE_EQUAL(xTree.NumDescendants(), numP);
+  REQUIRE(xTree.NumDescendants() == numP);
 
   CheckContainment(xTree);
   CheckExactContainment(xTree);
@@ -591,24 +584,24 @@ BOOST_AUTO_TEST_CASE(XTreeTraverserTest)
   CheckNumDescendants(xTree);
 
   // Nearest neighbor search with the X tree.
-  NeighborSearch<NearestNeighborSort, metric::LMetric<2, true>, arma::mat,
-      XTree> knn1(std::move(xTree), SINGLE_TREE_MODE);
+  NeighborSearch<NearestNeighborSort, LMetric<2, true>, arma::mat, XTree>
+      knn1(std::move(xTree), SINGLE_TREE);
 
   knn1.Search(5, neighbors1, distances1);
 
   // Nearest neighbor search the naive way.
-  KNN knn2(dataset, NAIVE_MODE);
+  KNN knn2(dataset, NAIVE);
 
   knn2.Search(5, neighbors2, distances2);
 
-  for (size_t i = 0; i < neighbors1.size(); i++)
+  for (size_t i = 0; i < neighbors1.size(); ++i)
   {
-    BOOST_REQUIRE_EQUAL(neighbors1[i], neighbors2[i]);
-    BOOST_REQUIRE_EQUAL(distances1[i], distances2[i]);
+    REQUIRE(neighbors1[i] == neighbors2[i]);
+    REQUIRE(distances1[i] == distances2[i]);
   }
 }
 
-BOOST_AUTO_TEST_CASE(HilbertRTreeTraverserTest)
+TEST_CASE("HilbertRTreeTraverserTest", "[RectangleTreeTest]")
 {
   arma::mat dataset;
 
@@ -620,11 +613,11 @@ BOOST_AUTO_TEST_CASE(HilbertRTreeTraverserTest)
   arma::Mat<size_t> neighbors2;
   arma::mat distances2;
 
-  typedef HilbertRTree<EuclideanDistance,
-      NeighborSearchStat<NearestNeighborSort>, arma::mat> TreeType;
-  TreeType hilbertRTree(dataset, 20, 6, 5, 2, 0);
+  using TreeType = HilbertRTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
+  TreeType hilbertRTree(dataset, 20, 6, 5, 2);
 
-  BOOST_REQUIRE_EQUAL(hilbertRTree.NumDescendants(), numP);
+  REQUIRE(hilbertRTree.NumDescendants() == numP);
 
   CheckContainment(hilbertRTree);
   CheckExactContainment(hilbertRTree);
@@ -632,20 +625,20 @@ BOOST_AUTO_TEST_CASE(HilbertRTreeTraverserTest)
   CheckNumDescendants(hilbertRTree);
 
   // Nearest neighbor search with the Hilbert R tree.
-  NeighborSearch<NearestNeighborSort, metric::LMetric<2, true>, arma::mat,
-      HilbertRTree> knn1(std::move(hilbertRTree), SINGLE_TREE_MODE);
+  NeighborSearch<NearestNeighborSort, LMetric<2, true>, arma::mat, HilbertRTree>
+      knn1(std::move(hilbertRTree), SINGLE_TREE);
 
   knn1.Search(5, neighbors1, distances1);
 
   // Nearest neighbor search the naive way.
-  KNN knn2(dataset, NAIVE_MODE);
+  KNN knn2(dataset, NAIVE);
 
   knn2.Search(5, neighbors2, distances2);
 
-  for (size_t i = 0; i < neighbors1.size(); i++)
+  for (size_t i = 0; i < neighbors1.size(); ++i)
   {
-    BOOST_REQUIRE_EQUAL(neighbors1[i], neighbors2[i]);
-    BOOST_REQUIRE_EQUAL(distances1[i], distances2[i]);
+    REQUIRE(neighbors1[i] == neighbors2[i]);
+    REQUIRE(distances1[i] == distances2[i]);
   }
 }
 
@@ -654,41 +647,46 @@ void CheckHilbertOrdering(const TreeType& tree)
 {
   if (tree.IsLeaf())
   {
-    for (size_t i = 0; i < tree.NumPoints() - 1; i++)
-      BOOST_REQUIRE_LE(tree.AuxiliaryInfo().HilbertValue().ComparePoints(
+    for (size_t i = 0; i < tree.NumPoints() - 1; ++i)
+    {
+      REQUIRE(tree.AuxiliaryInfo().HilbertValue().ComparePoints(
           tree.Dataset().col(tree.Point(i)),
-          tree.Dataset().col(tree.Point(i + 1))),
+          tree.Dataset().col(tree.Point(i + 1))) <=
           0);
+    }
 
-    BOOST_REQUIRE_EQUAL(tree.AuxiliaryInfo().HilbertValue().CompareWith(
-        tree.Dataset().col(tree.Point(tree.NumPoints() - 1))),
+
+    REQUIRE(tree.AuxiliaryInfo().HilbertValue().CompareWith(
+        tree.Dataset().col(tree.Point(tree.NumPoints() - 1))) ==
         0);
   }
   else
   {
-    for (size_t i = 0; i < tree.NumChildren() - 1; i++)
-      BOOST_REQUIRE_LE(tree.AuxiliaryInfo().HilbertValue().CompareValues(
+    for (size_t i = 0; i < tree.NumChildren() - 1; ++i)
+    {
+      REQUIRE(tree.AuxiliaryInfo().HilbertValue().CompareValues(
           tree.Child(i).AuxiliaryInfo().HilbertValue(),
-          tree.Child(i + 1).AuxiliaryInfo().HilbertValue()),
+          tree.Child(i + 1).AuxiliaryInfo().HilbertValue()) <=
           0);
+    }
 
-    BOOST_REQUIRE_EQUAL(tree.AuxiliaryInfo().HilbertValue().CompareWith(
-        tree.Child(tree.NumChildren() - 1).AuxiliaryInfo().HilbertValue()),
+    REQUIRE(tree.AuxiliaryInfo().HilbertValue().CompareWith(
+        tree.Child(tree.NumChildren() - 1).AuxiliaryInfo().HilbertValue()) ==
         0);
 
-    for (size_t i = 0; i < tree.NumChildren(); i++)
+    for (size_t i = 0; i < tree.NumChildren(); ++i)
       CheckHilbertOrdering(tree.Child(i));
   }
 }
 
-BOOST_AUTO_TEST_CASE(HilbertRTreeOrderingTest)
+TEST_CASE("HilbertRTreeOrderingTest", "[RectangleTreeTest]")
 {
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
 
-  typedef HilbertRTree<EuclideanDistance,
-      NeighborSearchStat<NearestNeighborSort>, arma::mat> TreeType;
-  TreeType hilbertRTree(dataset, 20, 6, 5, 2, 0);
+  using TreeType = HilbertRTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
+  TreeType hilbertRTree(dataset, 20, 6, 5, 2);
 
   CheckHilbertOrdering(hilbertRTree);
 }
@@ -696,15 +694,14 @@ BOOST_AUTO_TEST_CASE(HilbertRTreeOrderingTest)
 template<typename TreeType>
 void CheckDiscreteHilbertValueSync(const TreeType& tree)
 {
-  typedef DiscreteHilbertValue<typename TreeType::ElemType>
-      HilbertValue;
-  typedef typename HilbertValue::HilbertElemType HilbertElemType;
+  using HilbertValue = DiscreteHilbertValue<typename TreeType::ElemType>;
+  using HilbertElemType = typename HilbertValue::HilbertElemType;
 
   if (tree.IsLeaf())
   {
     const HilbertValue& value = tree.AuxiliaryInfo().HilbertValue();
 
-    for (size_t i = 0; i < tree.NumPoints(); i++)
+    for (size_t i = 0; i < tree.NumPoints(); ++i)
     {
       arma::Col<HilbertElemType> pointValue =
           HilbertValue::CalculateValue(tree.Dataset().col(tree.Point(i)));
@@ -712,27 +709,29 @@ void CheckDiscreteHilbertValueSync(const TreeType& tree)
       const int equal = HilbertValue::CompareValues(
           value.LocalHilbertValues()->col(i), pointValue);
 
-      BOOST_REQUIRE_EQUAL(equal, 0);
+      REQUIRE(equal == 0);
     }
   }
   else
-    for (size_t i = 0; i < tree.NumChildren(); i++)
+  {
+    for (size_t i = 0; i < tree.NumChildren(); ++i)
       CheckDiscreteHilbertValueSync(tree.Child(i));
+  }
 }
 
-BOOST_AUTO_TEST_CASE(DiscreteHilbertValueSyncTest)
+TEST_CASE("DiscreteHilbertValueSyncTest", "[RectangleTreeTest]")
 {
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
 
-  typedef HilbertRTree<EuclideanDistance,
-      NeighborSearchStat<NearestNeighborSort>,arma::mat> TreeType;
-  TreeType hilbertRTree(dataset, 20, 6, 5, 2, 0);
+  using TreeType = HilbertRTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
+  TreeType hilbertRTree(dataset, 20, 6, 5, 2);
 
   CheckDiscreteHilbertValueSync(hilbertRTree);
 }
 
-BOOST_AUTO_TEST_CASE(DiscreteHilbertValueTest)
+TEST_CASE("DiscreteHilbertValueTest", "[RectangleTreeTest]")
 {
   arma::vec point01(1);
   arma::vec point02(1);
@@ -740,56 +739,47 @@ BOOST_AUTO_TEST_CASE(DiscreteHilbertValueTest)
   point01[0] = -DBL_MAX;
   point02[0] = DBL_MAX;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point01,
-                                                                  point02), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point01, point02) == -1);
 
   point01[0] = -DBL_MAX;
   point02[0] = -100;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point01,
-                                                                  point02), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point01, point02) == -1);
 
   point01[0] = -100;
   point02[0] = -1;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point01,
-                                                                  point02), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point01, point02) == -1);
 
   point01[0] = -1;
   point02[0] = -std::numeric_limits<double>::min();
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point01,
-                                                                  point02), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point01, point02) == -1);
 
   point01[0] = -std::numeric_limits<double>::min();
   point02[0] = 0;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point01,
-                                                                  point02), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point01, point02) == -1);
 
   point01[0] = 0;
   point02[0] = std::numeric_limits<double>::min();
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point01,
-                                                                  point02), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point01, point02) == -1);
 
   point01[0] = std::numeric_limits<double>::min();
   point02[0] = 1;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point01,
-                                                                  point02), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point01, point02) == -1);
 
   point01[0] = 1;
   point02[0] = 100;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point01,
-                                                                  point02), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point01, point02) == -1);
 
   point01[0] = 100;
   point02[0] = DBL_MAX;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point01,
-                                                                  point02), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point01, point02) == -1);
 
   arma::vec point1(2);
   arma::vec point2(2);
@@ -800,8 +790,7 @@ BOOST_AUTO_TEST_CASE(DiscreteHilbertValueTest)
   point2[0] = 0;
   point2[1] = 0;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point1,
-                                                                  point2), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point1, point2) == -1);
 
   point1[0] = -1;
   point1[1] = -1;
@@ -809,8 +798,7 @@ BOOST_AUTO_TEST_CASE(DiscreteHilbertValueTest)
   point2[0] = 1;
   point2[1] = -1;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point1,
-                                                                  point2), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point1, point2) == -1);
 
   point1[0] = -1;
   point1[1] = -1;
@@ -818,8 +806,7 @@ BOOST_AUTO_TEST_CASE(DiscreteHilbertValueTest)
   point2[0] = -1;
   point2[1] = 1;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point1,
-                                                                  point2), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point1, point2) == -1);
 
   point1[0] = -DBL_MAX + 1;
   point1[1] = -DBL_MAX + 1;
@@ -827,8 +814,7 @@ BOOST_AUTO_TEST_CASE(DiscreteHilbertValueTest)
   point2[0] = -1;
   point2[1] = -1;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point1,
-                                                                  point2), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point1, point2) == -1);
 
   point1[0] = DBL_MAX * 0.75;
   point1[1] = DBL_MAX * 0.75;
@@ -836,8 +822,7 @@ BOOST_AUTO_TEST_CASE(DiscreteHilbertValueTest)
   point2[0] = DBL_MAX * 0.25;
   point2[1] = DBL_MAX * 0.25;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point1,
-                                                                  point2), 1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point1, point2) == 1);
 
   arma::vec point3(4);
   arma::vec point4(4);
@@ -852,8 +837,7 @@ BOOST_AUTO_TEST_CASE(DiscreteHilbertValueTest)
   point4[2] = 1.0;
   point4[3] = 1.0;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point3,
-                                                                  point4), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point3, point4) == -1);
 
   point3[0] = -DBL_MAX;
   point3[1] = DBL_MAX;
@@ -865,56 +849,54 @@ BOOST_AUTO_TEST_CASE(DiscreteHilbertValueTest)
   point4[2] = DBL_MAX;
   point4[3] = DBL_MAX;
 
-  BOOST_REQUIRE_EQUAL(DiscreteHilbertValue<double>::ComparePoints(point3,
-                                                                  point4), -1);
+  REQUIRE(DiscreteHilbertValue<double>::ComparePoints(point3, point4) == -1);
 }
 
 template<typename TreeType>
 void CheckHilbertValue(const TreeType& tree)
 {
-  typedef DiscreteHilbertValue<typename TreeType::ElemType>
-      HilbertValue;
+  using HilbertValue = DiscreteHilbertValue<typename TreeType::ElemType>;
 
   const HilbertValue& value = tree.AuxiliaryInfo().HilbertValue();
 
   if (tree.IsLeaf())
   {
-    BOOST_REQUIRE_EQUAL(value.OwnsLocalHilbertValues(), true);
+    REQUIRE(value.OwnsLocalHilbertValues() == true);
     return;
   }
 
-  for (size_t i = 0; i < tree.NumChildren(); i++)
+  for (size_t i = 0; i < tree.NumChildren(); ++i)
   {
     const HilbertValue& childValue =
         tree.Child(i).AuxiliaryInfo().HilbertValue();
-    BOOST_REQUIRE_EQUAL(value.ValueToInsert(), childValue.ValueToInsert());
+    REQUIRE(value.ValueToInsert() == childValue.ValueToInsert());
   }
 
   const HilbertValue& childValue =
       tree.Child(tree.NumChildren() - 1).AuxiliaryInfo().HilbertValue();
-  BOOST_REQUIRE_EQUAL(value.LocalHilbertValues(),
+  REQUIRE(value.LocalHilbertValues() ==
       childValue.LocalHilbertValues());
 
   if (!tree.Parent())
-    BOOST_REQUIRE_EQUAL(value.OwnsValueToInsert(), true);
+    REQUIRE(value.OwnsValueToInsert() == true);
   else
-    BOOST_REQUIRE_EQUAL(value.OwnsValueToInsert(), false);
+    REQUIRE(value.OwnsValueToInsert() == false);
 
-  BOOST_REQUIRE_EQUAL(value.OwnsLocalHilbertValues(), false);
+  REQUIRE(value.OwnsLocalHilbertValues() == false);
 
-  for (size_t i = 0; i < tree.NumChildren(); i++)
+  for (size_t i = 0; i < tree.NumChildren(); ++i)
     CheckHilbertValue(tree.Child(i));
 }
 
-BOOST_AUTO_TEST_CASE(HilbertRTeeCopyConstructorTest)
+TEST_CASE("HilbertRTreeCopyConstructorTest", "[RectangleTreeTest]")
 {
-  typedef HilbertRTree<EuclideanDistance,
-      NeighborSearchStat<NearestNeighborSort>, arma::mat> TreeType;
+  using TreeType = HilbertRTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
 
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
 
-  TreeType tree(dataset, 20, 6, 5, 2, 0);
+  TreeType tree(dataset, 20, 6, 5, 2);
   TreeType copy(tree);
 
   CheckHilbertValue(copy);
@@ -926,15 +908,15 @@ BOOST_AUTO_TEST_CASE(HilbertRTeeCopyConstructorTest)
   CheckNumDescendants(copy);
 }
 
-BOOST_AUTO_TEST_CASE(HilbertRTeeMoveConstructorTest)
+TEST_CASE("HilbertRTeeMoveConstructorTest", "[RectangleTreeTest]")
 {
-  typedef HilbertRTree<EuclideanDistance,
-      NeighborSearchStat<NearestNeighborSort>, arma::mat> TreeType;
+  using TreeType = HilbertRTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
 
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
 
-  TreeType tree(dataset, 20, 6, 5, 2, 0);
+  TreeType tree(dataset, 20, 6, 5, 2);
   TreeType copy(std::move(tree));
 
   CheckHilbertValue(copy);
@@ -952,11 +934,11 @@ void CheckOverlap(const TreeType& tree)
   bool success = true;
 
   // Check if two nodes overlap each other.
-  for (size_t i = 0; i < tree.NumChildren(); i++)
+  for (size_t i = 0; i < tree.NumChildren(); ++i)
   {
     success = true;
 
-    for (size_t j = 0; j < tree.NumChildren(); j++)
+    for (size_t j = 0; j < tree.NumChildren(); ++j)
     {
       if (j == i)
         continue;
@@ -969,35 +951,35 @@ void CheckOverlap(const TreeType& tree)
     if (!success)
       break;
   }
-  BOOST_REQUIRE_EQUAL(success, true);
+  REQUIRE(success == true);
 
-  for (size_t i = 0; i < tree.NumChildren(); i++)
+  for (size_t i = 0; i < tree.NumChildren(); ++i)
     CheckOverlap(tree.Child(i));
 }
 
 
-BOOST_AUTO_TEST_CASE(RPlusTreeOverlapTest)
+TEST_CASE("RPlusTreeOverlapTest", "[RectangleTreeTest]")
 {
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
 
-  typedef RPlusTree<EuclideanDistance,
-      NeighborSearchStat<NearestNeighborSort>,arma::mat> TreeType;
-  TreeType rPlusTree(dataset, 20, 6, 5, 2, 0);
+  using TreeType = RPlusTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
+  TreeType rPlusTree(dataset, 20, 6, 5, 2);
 
   CheckOverlap(rPlusTree);
 
   // Children can not be overlapping.
   bool b = TreeTraits<TreeType>::HasOverlappingChildren;
-  BOOST_REQUIRE_EQUAL(b, false);
+  REQUIRE(b == false);
 
   // Ensure that all leaf nodes are at the same level.
-  BOOST_REQUIRE_EQUAL(GetMinLevel(rPlusTree), GetMaxLevel(rPlusTree));
-  BOOST_REQUIRE_EQUAL(rPlusTree.TreeDepth(), GetMinLevel(rPlusTree));
+  REQUIRE(GetMinLevel(rPlusTree) == GetMaxLevel(rPlusTree));
+  REQUIRE((int) rPlusTree.TreeDepth() == GetMinLevel(rPlusTree));
 }
 
 
-BOOST_AUTO_TEST_CASE(RPlusTreeTraverserTest)
+TEST_CASE("RPlusTreeTraverserTest", "[RectangleTreeTest]")
 {
   arma::mat dataset;
 
@@ -1009,11 +991,11 @@ BOOST_AUTO_TEST_CASE(RPlusTreeTraverserTest)
   arma::Mat<size_t> neighbors2;
   arma::mat distances2;
 
-  typedef RPlusTree<EuclideanDistance, NeighborSearchStat<NearestNeighborSort>,
-      arma::mat > TreeType;
-  TreeType rPlusTree(dataset, 20, 6, 5, 2, 0);
+  using TreeType = RPlusTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
+  TreeType rPlusTree(dataset, 20, 6, 5, 2);
 
-  BOOST_REQUIRE_EQUAL(rPlusTree.NumDescendants(), numP);
+  REQUIRE(rPlusTree.NumDescendants() == numP);
 
   CheckContainment(rPlusTree);
   CheckExactContainment(rPlusTree);
@@ -1022,45 +1004,44 @@ BOOST_AUTO_TEST_CASE(RPlusTreeTraverserTest)
   CheckNumDescendants(rPlusTree);
 
   // Nearest neighbor search with the R+ tree.
-  NeighborSearch<NearestNeighborSort, metric::LMetric<2, true>, arma::mat,
-      RPlusTree > knn1(std::move(rPlusTree), SINGLE_TREE_MODE);
+  NeighborSearch<NearestNeighborSort, LMetric<2, true>, arma::mat, RPlusTree>
+      knn1(std::move(rPlusTree), SINGLE_TREE);
 
   knn1.Search(5, neighbors1, distances1);
 
   // Nearest neighbor search the naive way.
-  KNN knn2(dataset, NAIVE_MODE);
+  KNN knn2(dataset, NAIVE);
 
   knn2.Search(5, neighbors2, distances2);
 
-  for (size_t i = 0; i < neighbors1.size(); i++)
+  for (size_t i = 0; i < neighbors1.size(); ++i)
   {
-    BOOST_REQUIRE_EQUAL(neighbors1[i], neighbors2[i]);
-    BOOST_REQUIRE_EQUAL(distances1[i], distances2[i]);
+    REQUIRE(neighbors1[i] == neighbors2[i]);
+    REQUIRE(distances1[i] == distances2[i]);
   }
 }
 
 template<typename TreeType>
 void CheckRPlusPlusTreeBound(const TreeType& tree)
 {
-  typedef bound::HRectBound<metric::EuclideanDistance,
-      typename TreeType::ElemType> Bound;
+  using Bound = HRectBound<EuclideanDistance, typename TreeType::ElemType>;
 
   bool success = true;
 
   // Ensure that the maximum bounding rectangle contains all children.
-  for (size_t k = 0; k < tree.Bound().Dim(); k++)
+  for (size_t k = 0; k < tree.Bound().Dim(); ++k)
   {
-    BOOST_REQUIRE_LE(tree.Bound()[k].Hi(),
+    REQUIRE(tree.Bound()[k].Hi() <=
         tree.AuxiliaryInfo().OuterBound()[k].Hi());
-    BOOST_REQUIRE_LE(tree.AuxiliaryInfo().OuterBound()[k].Lo(),
+    REQUIRE(tree.AuxiliaryInfo().OuterBound()[k].Lo() <=
         tree.Bound()[k].Lo());
   }
 
   if (tree.IsLeaf())
   {
     // Ensure that the maximum bounding rectangle contains all points.
-    for (size_t i = 0; i < tree.Count(); i++)
-      BOOST_REQUIRE_EQUAL(true,
+    for (size_t i = 0; i < tree.Count(); ++i)
+      REQUIRE(true ==
           tree.Bound().Contains(tree.Dataset().col(tree.Point(i))));
 
     return;
@@ -1068,12 +1049,12 @@ void CheckRPlusPlusTreeBound(const TreeType& tree)
 
   // Ensure that two children's maximum bounding rectangles do not overlap
   // each other.
-  for (size_t i = 0; i < tree.NumChildren(); i++)
+  for (size_t i = 0; i < tree.NumChildren(); ++i)
   {
     const Bound& bound1 = tree.Child(i).AuxiliaryInfo().OuterBound();
     success = true;
 
-    for (size_t j = 0; j < tree.NumChildren(); j++)
+    for (size_t j = 0; j < tree.NumChildren(); ++j)
     {
       if (j == i)
         continue;
@@ -1087,47 +1068,46 @@ void CheckRPlusPlusTreeBound(const TreeType& tree)
     if (!success)
       break;
   }
-  BOOST_REQUIRE_EQUAL(success, true);
+  REQUIRE(success == true);
 
-  for (size_t i = 0; i < tree.NumChildren(); i++)
+  for (size_t i = 0; i < tree.NumChildren(); ++i)
     CheckRPlusPlusTreeBound(tree.Child(i));
 }
 
-BOOST_AUTO_TEST_CASE(RPlusPlusTreeBoundTest)
+TEST_CASE("RPlusPlusTreeBoundTest", "[RectangleTreeTest]")
 {
   arma::mat dataset;
   dataset.randu(8, 1000); // 1000 points in 8 dimensions.
 
   // Check the MinimalCoverageSweep.
-  typedef RPlusPlusTree<EuclideanDistance,
-      NeighborSearchStat<NearestNeighborSort>,arma::mat> TreeType;
-  TreeType rPlusPlusTree(dataset, 20, 6, 5, 2, 0);
+  using TreeType = RPlusPlusTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
+  TreeType rPlusPlusTree(dataset, 20, 6, 5, 2);
 
   CheckRPlusPlusTreeBound(rPlusPlusTree);
 
   // Children can not be overlapping.
   bool b = TreeTraits<TreeType>::HasOverlappingChildren;
-  BOOST_REQUIRE_EQUAL(b, false);
+  REQUIRE(b == false);
 
-  BOOST_REQUIRE_EQUAL(GetMinLevel(rPlusPlusTree), GetMaxLevel(rPlusPlusTree));
-  BOOST_REQUIRE_EQUAL(rPlusPlusTree.TreeDepth(), GetMinLevel(rPlusPlusTree));
+  REQUIRE(GetMinLevel(rPlusPlusTree) == GetMaxLevel(rPlusPlusTree));
+  REQUIRE((int) rPlusPlusTree.TreeDepth() == GetMinLevel(rPlusPlusTree));
 
   // Check the MinimalSplitsNumberSweep.
-  typedef RectangleTree<EuclideanDistance,
+  using RPlusPlusTreeMinimalSplits = RectangleTree<EuclideanDistance,
       NeighborSearchStat<NearestNeighborSort>, arma::mat,
-      RPlusTreeSplit<RPlusPlusTreeSplitPolicy, MinimalCoverageSweep>,
-      RPlusPlusTreeDescentHeuristic, RPlusPlusTreeAuxiliaryInformation>
-          RPlusPlusTreeMinimalSplits;
+      RPlusTreeSplitType<RPlusPlusTreeSplitPolicy, MinimalCoverageSweep>,
+      RPlusPlusTreeDescentHeuristic, RPlusPlusTreeAuxiliaryInformation>;
 
-  RPlusPlusTreeMinimalSplits rPlusPlusTree2(dataset, 20, 6, 5, 2, 0);
+  RPlusPlusTreeMinimalSplits rPlusPlusTree2(dataset, 20, 6, 5, 2);
 
   CheckRPlusPlusTreeBound(rPlusPlusTree2);
 
-  BOOST_REQUIRE_EQUAL(GetMinLevel(rPlusPlusTree2), GetMaxLevel(rPlusPlusTree2));
-  BOOST_REQUIRE_EQUAL(rPlusPlusTree2.TreeDepth(), GetMinLevel(rPlusPlusTree2));
+  REQUIRE(GetMinLevel(rPlusPlusTree2) == GetMaxLevel(rPlusPlusTree2));
+  REQUIRE((int) rPlusPlusTree2.TreeDepth() == GetMinLevel(rPlusPlusTree2));
 }
 
-BOOST_AUTO_TEST_CASE(RPlusPlusTreeTraverserTest)
+TEST_CASE("RPlusPlusTreeTraverserTest", "[RectangleTreeTest]")
 {
   arma::mat dataset;
 
@@ -1139,11 +1119,11 @@ BOOST_AUTO_TEST_CASE(RPlusPlusTreeTraverserTest)
   arma::Mat<size_t> neighbors2;
   arma::mat distances2;
 
-  typedef RPlusPlusTree<EuclideanDistance,
-      NeighborSearchStat<NearestNeighborSort>, arma::mat > TreeType;
-  TreeType rPlusPlusTree(dataset, 20, 6, 5, 2, 0);
+  using TreeType = RPlusPlusTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
+  TreeType rPlusPlusTree(dataset, 20, 6, 5, 2);
 
-  BOOST_REQUIRE_EQUAL(rPlusPlusTree.NumDescendants(), numP);
+  REQUIRE(rPlusPlusTree.NumDescendants() == numP);
 
   CheckContainment(rPlusPlusTree);
   CheckExactContainment(rPlusPlusTree);
@@ -1152,30 +1132,30 @@ BOOST_AUTO_TEST_CASE(RPlusPlusTreeTraverserTest)
   CheckNumDescendants(rPlusPlusTree);
 
   // Nearest neighbor search with the R++ tree.
-  NeighborSearch<NearestNeighborSort, metric::LMetric<2, true>,
-      arma::mat, RPlusPlusTree > knn1(std::move(rPlusPlusTree),
-      SINGLE_TREE_MODE);
+  NeighborSearch<NearestNeighborSort, LMetric<2, true>,
+      arma::mat, RPlusPlusTree> knn1(std::move(rPlusPlusTree),
+      SINGLE_TREE);
 
   knn1.Search(5, neighbors1, distances1);
 
   // Nearest neighbor search the naive way.
-  KNN knn2(dataset, NAIVE_MODE);
+  KNN knn2(dataset, NAIVE);
 
   knn2.Search(5, neighbors2, distances2);
 
-  for (size_t i = 0; i < neighbors1.size(); i++)
+  for (size_t i = 0; i < neighbors1.size(); ++i)
   {
-    BOOST_REQUIRE_EQUAL(neighbors1[i], neighbors2[i]);
-    BOOST_REQUIRE_EQUAL(distances1[i], distances2[i]);
+    REQUIRE(neighbors1[i] == neighbors2[i]);
+    REQUIRE(distances1[i] == distances2[i]);
   }
 }
 
 
 // Test the tree splitting.  We set MaxLeafSize and MaxNumChildren rather low
 // to allow us to test by hand without adding hundreds of points.
-BOOST_AUTO_TEST_CASE(RTreeSplitTest)
+TEST_CASE("RTreeSplitTest", "[RectangleTreeTest]")
 {
-  arma::mat data = arma::trans(arma::mat("0.0 0.0;"
+  arma::mat data = trans(arma::mat("0.0 0.0;"
                                          "0.0 1.0;"
                                          "1.0 0.1;"
                                          "1.0 0.5;"
@@ -1186,15 +1166,15 @@ BOOST_AUTO_TEST_CASE(RTreeSplitTest)
                                          "0.1 0.5;"
                                          "0.3 0.7;"));
 
-  typedef RTree<EuclideanDistance, NeighborSearchStat<NearestNeighborSort>,
-      arma::mat> TreeType;
-  TreeType rTree(data, 5, 2, 2, 1, 0);
+  using TreeType = RTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
+  TreeType rTree(data, 5, 2, 2, 1);
 
   // There's technically no reason they have to be in a certain order, so we
   // use firstChild etc. to arbitrarily name them.
-  BOOST_REQUIRE_EQUAL(rTree.NumChildren(), 2);
-  BOOST_REQUIRE_EQUAL(rTree.NumDescendants(), 10);
-  BOOST_REQUIRE_EQUAL(rTree.TreeDepth(), 3);
+  REQUIRE(rTree.NumChildren() == 2);
+  REQUIRE(rTree.NumDescendants() == 10);
+  REQUIRE(rTree.TreeDepth() == 3);
 
   int firstChild = 0, secondChild = 1;
   if (rTree.Child(firstChild).NumChildren() == 2)
@@ -1203,34 +1183,37 @@ BOOST_AUTO_TEST_CASE(RTreeSplitTest)
     secondChild = 0;
   }
 
-  BOOST_REQUIRE_SMALL(rTree.Child(firstChild).Bound()[0].Lo(), 1e-15);
-  BOOST_REQUIRE_CLOSE(rTree.Child(firstChild).Bound()[0].Hi(), 0.1,
-      1e-15);
-  BOOST_REQUIRE_SMALL(rTree.Child(firstChild).Bound()[1].Lo(), 1e-15);
-  BOOST_REQUIRE_CLOSE(rTree.Child(firstChild).Bound()[1].Hi(), 1.0,
-      1e-15);
+  REQUIRE(rTree.Child(firstChild).Bound()[0].Lo() ==
+      Approx(0.0).margin(1e-15));
 
-  BOOST_REQUIRE_CLOSE(rTree.Child(secondChild).Bound()[0].Lo(), 0.3,
-      1e-15);
-  BOOST_REQUIRE_CLOSE(rTree.Child(secondChild).Bound()[0].Hi(), 1.0,
-      1e-15);
-  BOOST_REQUIRE_CLOSE(rTree.Child(secondChild).Bound()[1].Lo(), 0.1,
-      1e-15);
-  BOOST_REQUIRE_CLOSE(rTree.Child(secondChild).Bound()[1].Hi(), 0.9,
-      1e-15);
+  REQUIRE(rTree.Child(firstChild).Bound()[0].Hi() ==
+      Approx(0.1).epsilon(1e-17));
+  REQUIRE(rTree.Child(firstChild).Bound()[1].Lo() ==
+      Approx(0.0).margin(1e-15));
+  REQUIRE(rTree.Child(firstChild).Bound()[1].Hi() ==
+      Approx(1.0).epsilon(1e-17));
 
-  BOOST_REQUIRE_EQUAL(rTree.Child(firstChild).NumChildren(), 1);
-  BOOST_REQUIRE_SMALL(
-      rTree.Child(firstChild).Child(0).Bound()[0].Lo(), 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(firstChild).Child(0).Bound()[0].Hi(), 0.1,
-      1e-15);
-  BOOST_REQUIRE_SMALL(
-      rTree.Child(firstChild).Child(0).Bound()[1].Lo(), 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(firstChild).Child(0).Bound()[1].Hi(), 1.0,
-      1e-15);
-  BOOST_REQUIRE_EQUAL(rTree.Child(firstChild).Child(0).Count(), 3);
+  REQUIRE(rTree.Child(secondChild).Bound()[0].Lo() ==
+      Approx(0.3).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Bound()[0].Hi() ==
+      Approx(1.0).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Bound()[1].Lo() ==
+      Approx(0.1).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Bound()[1].Hi() ==
+      Approx(0.9).epsilon(1e-17));
+
+  REQUIRE(rTree.Child(firstChild).NumChildren() == 1);
+  REQUIRE(rTree.Child(firstChild).Child(0).Bound()[0].Lo() ==
+      Approx(0.0).margin(1e-15));
+
+  REQUIRE(rTree.Child(firstChild).Child(0).Bound()[0].Hi() ==
+      Approx(0.1).epsilon(1e-17));
+  REQUIRE(rTree.Child(firstChild).Child(0).Bound()[1].Lo() ==
+      Approx(0.0).margin(1e-15));
+  REQUIRE(rTree.Child(firstChild).Child(0).Bound()[1].Hi() ==
+      Approx(1.0).epsilon(1e-17));
+
+  REQUIRE(rTree.Child(firstChild).Child(0).Count() == 3);
 
   int firstPrime = 0, secondPrime = 1;
   if (rTree.Child(secondChild).Child(firstPrime).Count() == 3)
@@ -1239,43 +1222,35 @@ BOOST_AUTO_TEST_CASE(RTreeSplitTest)
     secondPrime = 0;
   }
 
-  BOOST_REQUIRE_EQUAL(rTree.Child(secondChild).NumChildren(), 2);
-  BOOST_REQUIRE_EQUAL(
-      rTree.Child(secondChild).Child(firstPrime).Count(), 4);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(firstPrime).Bound()[0].Lo(),
-      0.3, 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(firstPrime).Bound()[0].Hi(),
-      0.7, 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(firstPrime).Bound()[1].Lo(),
-      0.3, 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(firstPrime).Bound()[1].Hi(),
-      0.7, 1e-15);
+  REQUIRE(rTree.Child(secondChild).NumChildren() == 2);
+  REQUIRE(rTree.Child(secondChild).Child(firstPrime).Count() == 4);
+  REQUIRE(rTree.Child(secondChild).Child(firstPrime).Bound()[0].Lo() ==
+      Approx(0.3).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(firstPrime).Bound()[0].Hi() ==
+      Approx(0.7).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(firstPrime).Bound()[1].Lo() ==
+      Approx(0.3).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(firstPrime).Bound()[1].Hi() ==
+      Approx(0.7).epsilon(1e-17));
 
-  BOOST_REQUIRE_EQUAL(
-      rTree.Child(secondChild).Child(secondPrime).Count(), 3);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(secondPrime).Bound()[0].Lo(),
-      0.9, 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(secondPrime).Bound()[0].Hi(),
-      1.0, 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(secondPrime).Bound()[1].Lo(),
-      0.1, 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(secondPrime).Bound()[1].Hi(),
-      0.9, 1e-15);
+
+  REQUIRE(rTree.Child(secondChild).Child(secondPrime).Count() == 3);
+  REQUIRE(rTree.Child(secondChild).Child(secondPrime).Bound()[0].Lo() ==
+      Approx(0.9).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(secondPrime).Bound()[0].Hi() ==
+      Approx(1.0).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(secondPrime).Bound()[1].Lo() ==
+      Approx(0.1).epsilon(1e-17));
+
+  REQUIRE(rTree.Child(secondChild).Child(secondPrime).Bound()[1].Hi() ==
+      Approx(0.9).epsilon(1e-17));
 }
 
 // Test the tree splitting.  We set MaxLeafSize and MaxNumChildren rather low
 // to allow us to test by hand without adding hundreds of points.
-BOOST_AUTO_TEST_CASE(RStarTreeSplitTest)
+TEST_CASE("RStarTreeSplitTest", "[RectangleTreeTest]")
 {
-  arma::mat data = arma::trans(arma::mat("0.0 0.0;"
+  arma::mat data = trans(arma::mat("0.0 0.0;"
                                          "0.0 1.0;"
                                          "1.0 0.1;"
                                          "1.0 0.5;"
@@ -1286,16 +1261,16 @@ BOOST_AUTO_TEST_CASE(RStarTreeSplitTest)
                                          "0.1 0.5;"
                                          "0.3 0.7;"));
 
-  typedef RStarTree<EuclideanDistance, NeighborSearchStat<NearestNeighborSort>,
-    arma::mat> TreeType;
+  using TreeType = RStarTree<EuclideanDistance,
+      NeighborSearchStat<NearestNeighborSort>, arma::mat>;
 
-  TreeType rTree(data, 5, 2, 2, 1, 0);
+  TreeType rTree(data, 5, 2, 2, 1);
 
   // There's technically no reason they have to be in a certain order, so we
   // use firstChild etc. to arbitrarily name them.
-  BOOST_REQUIRE_EQUAL(rTree.NumChildren(), 2);
-  BOOST_REQUIRE_EQUAL(rTree.NumDescendants(), 10);
-  BOOST_REQUIRE_EQUAL(rTree.TreeDepth(), 3);
+  REQUIRE(rTree.NumChildren() == 2);
+  REQUIRE(rTree.NumDescendants() == 10);
+  REQUIRE(rTree.TreeDepth() == 3);
 
   int firstChild = 0, secondChild = 1;
   if (rTree.Child(firstChild).NumChildren() == 2)
@@ -1304,32 +1279,35 @@ BOOST_AUTO_TEST_CASE(RStarTreeSplitTest)
     secondChild = 0;
   }
 
-  BOOST_REQUIRE_SMALL(rTree.Child(firstChild).Bound()[0].Lo(), 1e-15);
-  BOOST_REQUIRE_CLOSE(rTree.Child(firstChild).Bound()[0].Hi(), 0.1,
-      1e-15);
-  BOOST_REQUIRE_SMALL(rTree.Child(firstChild).Bound()[1].Lo(), 1e-15);
-  BOOST_REQUIRE_CLOSE(rTree.Child(firstChild).Bound()[1].Hi(), 1.0,
-      1e-15);
+  REQUIRE(rTree.Child(firstChild).Bound()[0].Lo() ==
+      Approx(0.0).margin(1e-15));
+  REQUIRE(rTree.Child(firstChild).Bound()[0].Hi() ==
+      Approx(0.1).epsilon(1e-17));
+  REQUIRE(rTree.Child(firstChild).Bound()[1].Lo() ==
+      Approx(0.0).margin(1e-15));
+  REQUIRE(rTree.Child(firstChild).Bound()[1].Hi() ==
+      Approx(1.0).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Bound()[0].Lo() ==
+      Approx(0.3).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Bound()[0].Hi() ==
+      Approx(1.0).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Bound()[1].Lo() ==
+      Approx(0.1).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Bound()[1].Hi() ==
+      Approx(0.9).epsilon(1e-17));
+  REQUIRE(rTree.Child(firstChild).NumChildren() == 1);
 
-  BOOST_REQUIRE_CLOSE(rTree.Child(secondChild).Bound()[0].Lo(), 0.3,
-      1e-15);
-  BOOST_REQUIRE_CLOSE(rTree.Child(secondChild).Bound()[0].Hi(), 1.0,
-      1e-15);
-  BOOST_REQUIRE_CLOSE(rTree.Child(secondChild).Bound()[1].Lo(), 0.1,
-      1e-15);
-  BOOST_REQUIRE_CLOSE(rTree.Child(secondChild).Bound()[1].Hi(), 0.9,
-      1e-15);
 
-  BOOST_REQUIRE_EQUAL(rTree.Child(firstChild).NumChildren(), 1);
-  BOOST_REQUIRE_SMALL(
-      rTree.Child(firstChild).Child(0).Bound()[0].Lo(), 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(firstChild).Child(0).Bound()[0].Hi(), 0.1, 1e-15);
-  BOOST_REQUIRE_SMALL(
-      rTree.Child(firstChild).Child(0).Bound()[1].Lo(), 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(firstChild).Child(0).Bound()[1].Hi(), 1.0, 1e-15);
-  BOOST_REQUIRE_EQUAL(rTree.Child(firstChild).Child(0).Count(), 3);
+  REQUIRE(rTree.Child(firstChild).Child(0).Bound()[0].Lo() ==
+      Approx(0.0).margin(1e-15));
+  REQUIRE(rTree.Child(firstChild).Child(0).Bound()[0].Hi() ==
+      Approx(0.1).epsilon(1e-17));
+
+  REQUIRE(rTree.Child(firstChild).Child(0).Bound()[1].Lo() ==
+      Approx(0.0).margin(1e-15));
+  REQUIRE(rTree.Child(firstChild).Child(0).Bound()[1].Hi() ==
+      Approx(1.0).epsilon(1e-17));
+  REQUIRE(rTree.Child(firstChild).Child(0).Count() == 3);
 
   int firstPrime = 0, secondPrime = 1;
   if (rTree.Child(secondChild).Child(firstPrime).Count() == 3)
@@ -1338,48 +1316,111 @@ BOOST_AUTO_TEST_CASE(RStarTreeSplitTest)
     secondPrime = 0;
   }
 
-  BOOST_REQUIRE_EQUAL(rTree.Child(secondChild).NumChildren(), 2);
-  BOOST_REQUIRE_EQUAL(
-      rTree.Child(secondChild).Child(firstPrime).Count(), 4);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(firstPrime).Bound()[0].Lo(),
-      0.3, 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(firstPrime).Bound()[0].Hi(),
-      0.7, 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(firstPrime).Bound()[1].Lo(),
-      0.3, 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(firstPrime).Bound()[1].Hi(),
-      0.7, 1e-15);
-
-  BOOST_REQUIRE_EQUAL(
-      rTree.Child(secondChild).Child(secondPrime).Count(), 3);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(secondPrime).Bound()[0].Lo(),
-      0.9, 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(secondPrime).Bound()[0].Hi(),
-      1.0, 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(secondPrime).Bound()[1].Lo(),
-      0.1, 1e-15);
-  BOOST_REQUIRE_CLOSE(
-      rTree.Child(secondChild).Child(secondPrime).Bound()[1].Hi(),
-      0.9, 1e-15);
+  REQUIRE(rTree.Child(secondChild).NumChildren() == 2);
+  REQUIRE(rTree.Child(secondChild).Child(firstPrime).Count() == 4);
+  REQUIRE(rTree.Child(secondChild).Child(firstPrime).Bound()[0].Lo() ==
+      Approx(0.3).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(firstPrime).Bound()[0].Hi() ==
+      Approx(0.7).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(firstPrime).Bound()[1].Lo() ==
+      Approx(0.3).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(firstPrime).Bound()[1].Lo() ==
+      Approx(0.3).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(firstPrime).Bound()[1].Hi() ==
+      Approx(0.7).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(secondPrime).Count() == 3);
+  REQUIRE(rTree.Child(secondChild).Child(secondPrime).Bound()[0].Lo() ==
+      Approx(0.9).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(secondPrime).Bound()[0].Hi() ==
+      Approx(1.0).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(secondPrime).Bound()[1].Lo() ==
+      Approx(0.1).epsilon(1e-17));
+  REQUIRE(rTree.Child(secondChild).Child(secondPrime).Bound()[1].Hi() ==
+      Approx(0.9).epsilon(1e-17));
 }
 
-BOOST_AUTO_TEST_CASE(RectangleTreeMoveDatasetTest)
+TEST_CASE("RectangleTreeMoveDatasetTest", "[RectangleTreeTest]")
 {
   arma::mat dataset = arma::randu<arma::mat>(3, 1000);
-  typedef RTree<EuclideanDistance, EmptyStatistic, arma::mat> TreeType;
+  using TreeType = RTree<EuclideanDistance, EmptyStatistic, arma::mat>;
 
   TreeType tree(std::move(dataset));
 
-  BOOST_REQUIRE_EQUAL(dataset.n_elem, 0);
-  BOOST_REQUIRE_EQUAL(tree.Dataset().n_rows, 3);
-  BOOST_REQUIRE_EQUAL(tree.Dataset().n_cols, 1000);
+  REQUIRE(dataset.n_elem == 0);
+  REQUIRE(tree.Dataset().n_rows == 3);
+  REQUIRE(tree.Dataset().n_cols == 1000);
 }
 
-BOOST_AUTO_TEST_SUITE_END();
+// Test that points can be added to the tree.
+TEST_CASE("RectangleTreeInsertVsBatchTest", "[RectangleTreeTest]")
+{
+  // Make sure that manually inserting points gives the same tree as if we build
+  // the tree all at once.
+  arma::mat dataset = arma::randu<arma::mat>(3, 1000);
+  using TreeType = RTree<EuclideanDistance, EmptyStatistic, arma::mat>;
+
+  TreeType tree1(dataset);
+  TreeType tree2;
+  for (size_t i = 0; i < dataset.n_cols; ++i)
+    tree2.Insert(dataset.col(i));
+
+  REQUIRE(tree1.Dataset().n_cols == tree2.Dataset().n_cols);
+  REQUIRE(tree1.Dataset().n_rows == tree2.Dataset().n_rows);
+
+  // We should have the same structure, too.
+  std::stack<std::pair<TreeType*, TreeType*>> s;
+  s.push(std::make_pair(&tree1, &tree2));
+  while (!s.empty())
+  {
+    std::pair<TreeType*, TreeType*> p = s.top();
+    s.pop();
+
+    TreeType* n1 = p.first;
+    TreeType* n2 = p.second;
+
+    REQUIRE(n1->NumChildren() == n2->NumChildren());
+    REQUIRE(n1->MinNumChildren() == n2->MinNumChildren());
+    REQUIRE(n1->MaxNumChildren() == n2->MaxNumChildren());
+    REQUIRE(n1->NumDescendants() == n2->NumDescendants());
+    REQUIRE(n1->NumPoints() == n2->NumPoints());
+    REQUIRE(n1->MinLeafSize() == n2->MinLeafSize());
+    REQUIRE(n1->MaxLeafSize() == n2->MaxLeafSize());
+    for (size_t p = 0; p < n1->NumPoints(); ++p)
+      REQUIRE(n1->Point(p) == n2->Point(p));
+
+    for (size_t c = 0; c < n1->NumChildren(); ++c)
+      s.push(std::make_pair(&n1->Child(c), &n2->Child(c)));
+  }
+}
+
+// Test that points can be removed from the tree.
+TEST_CASE("RectangleTreeDeleteTest", "[RectangleTreeTest]")
+{
+  // Build a tree on a random dataset and then remove points from it one-by-one.
+  // At the end, we should have an empty tree.
+  arma::mat dataset = arma::randu<arma::mat>(3, 1000);
+  using TreeType = RTree<EuclideanDistance, EmptyStatistic, arma::mat>;
+
+  TreeType tree(dataset);
+  REQUIRE(tree.NumDescendants() == dataset.n_cols);
+
+  arma::Col<size_t> removeOrder = arma::shuffle(
+      arma::linspace<arma::Col<size_t>>(0, dataset.n_cols - 1, dataset.n_cols));
+
+  for (size_t i = 0; i < removeOrder.n_elem; ++i)
+  {
+    // We will have to adjust the index of our point, since we have removed
+    // other points first.
+    const size_t adjust = (i == 0) ? 0 :
+        arma::accu(removeOrder.subvec(0, i - 1) < removeOrder[i]);
+
+    REQUIRE((removeOrder[i] - adjust) < tree.Dataset().n_cols);
+    tree.Delete(removeOrder[i] - adjust);
+    REQUIRE(tree.NumDescendants() == (dataset.n_cols - i - 1));
+    REQUIRE(tree.Dataset().n_cols == (dataset.n_cols - i - 1));
+  }
+
+  // Now the tree should be empty.
+  REQUIRE(tree.NumDescendants() == 0);
+  REQUIRE(tree.NumPoints() == 0);
+}

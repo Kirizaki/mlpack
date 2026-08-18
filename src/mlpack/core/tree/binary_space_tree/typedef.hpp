@@ -1,5 +1,5 @@
 /**
- * @file typedef.hpp
+ * @file core/tree/binary_space_tree/typedef.hpp
  * @author Ryan Curtin
  *
  * Template typedefs for the BinarySpaceTree class that satisfy the requirements
@@ -17,7 +17,6 @@
 #include "../binary_space_tree.hpp"
 
 namespace mlpack {
-namespace tree {
 
 /**
  * The standard midpoint-split kd-tree.  This is not the original formulation by
@@ -55,11 +54,13 @@ namespace tree {
  *
  * @see @ref trees, BinarySpaceTree, MeanSplitKDTree
  */
-template<typename MetricType, typename StatisticType, typename MatType>
-using KDTree = BinarySpaceTree<MetricType,
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using KDTree = BinarySpaceTree<DistanceType,
                                StatisticType,
                                MatType,
-                               bound::HRectBound,
+                               HRectBound,
                                MidpointSplit>;
 
 /**
@@ -72,11 +73,13 @@ using KDTree = BinarySpaceTree<MetricType,
  *
  * @see @ref trees, BinarySpaceTree, KDTree
  */
-template<typename MetricType, typename StatisticType, typename MatType>
-using MeanSplitKDTree = BinarySpaceTree<MetricType,
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using MeanSplitKDTree = BinarySpaceTree<DistanceType,
                                         StatisticType,
                                         MatType,
-                                        bound::HRectBound,
+                                        HRectBound,
                                         MeanSplit>;
 
 /**
@@ -104,11 +107,13 @@ using MeanSplitKDTree = BinarySpaceTree<MetricType,
  *
  * @see @ref trees, BinarySpaceTree, KDTree, MeanSplitBallTree
  */
-template<typename MetricType, typename StatisticType, typename MatType>
-using BallTree = BinarySpaceTree<MetricType,
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using BallTree = BinarySpaceTree<DistanceType,
                                  StatisticType,
                                  MatType,
-                                 bound::BallBound,
+                                 BallBound,
                                  MidpointSplit>;
 
 /**
@@ -133,11 +138,13 @@ using BallTree = BinarySpaceTree<MetricType,
  *
  * @see @ref trees, BinarySpaceTree, BallTree, MeanSplitKDTree
  */
-template<typename MetricType, typename StatisticType, typename MatType>
-using MeanSplitBallTree = BinarySpaceTree<MetricType,
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using MeanSplitBallTree = BinarySpaceTree<DistanceType,
                                           StatisticType,
                                           MatType,
-                                          bound::BallBound,
+                                          BallBound,
                                           MeanSplit>;
 
 /**
@@ -191,11 +198,13 @@ template<typename BoundType,
          typename MatType = arma::mat>
 using VPTreeSplit = VantagePointSplit<BoundType, MatType, 100>;
 
-template<typename MetricType, typename StatisticType, typename MatType>
-using VPTree = BinarySpaceTree<MetricType,
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using VPTree = BinarySpaceTree<DistanceType,
                                StatisticType,
                                MatType,
-                               bound::HollowBallBound,
+                               HollowBallBound,
                                VPTreeSplit>;
 
 /**
@@ -223,12 +232,13 @@ using VPTree = BinarySpaceTree<MetricType,
  *
  * @see @ref trees, BinarySpaceTree, BallTree, MeanSplitKDTree
  */
-
-template<typename MetricType, typename StatisticType, typename MatType>
-using MaxRPTree = BinarySpaceTree<MetricType,
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using MaxRPTree = BinarySpaceTree<DistanceType,
                                   StatisticType,
                                   MatType,
-                                  bound::HRectBound,
+                                  HRectBound,
                                   RPTreeMaxSplit>;
 
 /**
@@ -258,12 +268,14 @@ using MaxRPTree = BinarySpaceTree<MetricType,
  *
  * @see @ref trees, BinarySpaceTree, BallTree, MeanSplitKDTree
  */
-template<typename MetricType, typename StatisticType, typename MatType>
-using RPTree = BinarySpaceTree<MetricType,
-                                  StatisticType,
-                                  MatType,
-                                  bound::HRectBound,
-                                  RPTreeMeanSplit>;
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using RPTree = BinarySpaceTree<DistanceType,
+                               StatisticType,
+                               MatType,
+                               HRectBound,
+                               RPTreeMeanSplit>;
 
 /**
  * The Universal B-tree. When recursively splitting nodes, the class
@@ -293,14 +305,15 @@ using RPTree = BinarySpaceTree<MetricType,
  *
  * @see @ref trees, BinarySpaceTree, BallTree, MeanSplitKDTree
  */
-template<typename MetricType, typename StatisticType, typename MatType>
-using UBTree = BinarySpaceTree<MetricType,
+template<typename DistanceType = EuclideanDistance,
+         typename StatisticType = EmptyStatistic,
+         typename MatType = arma::mat>
+using UBTree = BinarySpaceTree<DistanceType,
                                StatisticType,
                                MatType,
-                               bound::CellBound,
+                               CellBound,
                                UBTreeSplit>;
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

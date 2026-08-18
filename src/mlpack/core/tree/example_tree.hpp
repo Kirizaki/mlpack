@@ -1,5 +1,5 @@
 /**
- * @file example_tree.hpp
+ * @file core/tree/example_tree.hpp
  * @author Ryan Curtin
  *
  * An example tree.  This contains all the functions that mlpack trees must
@@ -15,7 +15,6 @@
 #define MLPACK_CORE_TREE_EXAMPLE_TREE_HPP
 
 namespace mlpack {
-namespace tree {
 
 /**
  * This is not an actual space tree but instead an example tree that exists to
@@ -26,20 +25,20 @@ namespace tree {
  * implementation.
  *
  * Note that trees often have different properties.  These properties are known
- * at compile-time through the mlpack::tree::TreeTraits class, and some
- * properties may imply the existence (or non-existence) of certain functions.
- * Refer to the TreeTraits for more documentation on that.
+ * at compile-time through the TreeTraits class, and some properties may imply
+ * the existence (or non-existence) of certain functions.  Refer to the
+ * TreeTraits for more documentation on that.
  *
  * The three template parameters below must be template parameters to the tree,
  * in the order given below.  More template parameters are fine, but they must
  * come after the first three.
  *
- * @tparam MetricType This defines the space in which the tree will be built.
- *      For some trees, arbitrary metrics cannot be used, and a template
- *      metaprogramming approach should be used to issue a compile-time error if
- *      a metric cannot be used with a specific tree type.  One example is the
- *      tree::BinarySpaceTree tree type, which cannot work with the
- *      metric::IPMetric class.
+ * @tparam DistanceType This defines the space in which the tree will be built.
+ *      For some trees, arbitrary distance metrics cannot be used, and a
+ *      template metaprogramming approach should be used to issue a compile-time
+ *      error if a distance metric cannot be used with a specific tree type.
+ *      One example is the BinarySpaceTree tree type, which cannot work with the
+ *      IPMetric class.
  * @tparam StatisticType A tree node can hold a statistic, which is sometimes
  *      useful for various dual-tree algorithms.  The tree itself does not need
  *      to know anything about how the statistic works, but it needs to hold a
@@ -50,7 +49,7 @@ namespace tree {
  *      matrix type.  When the tree is written it should be assumed that MatType
  *      has the same functionality as arma::mat.
  */
-template<typename MetricType = metric::LMetric<2, true>,
+template<typename DistanceType = LMetric<2, true>,
          typename StatisticType = EmptyStatistic,
          typename MatType = arma::mat>
 class ExampleTree
@@ -58,26 +57,27 @@ class ExampleTree
  public:
   /**
    * This constructor will build the tree given a dataset and an instantiated
-   * metric.  Note that the parameter is a MatType& and not an arma::mat&.  The
-   * dataset is not modified by the tree-building process (if it is, see the
-   * documentation for mlpack::tree::TreeTraits::RearrangesDataset for how to
-   * deal with that situation).  The MetricType parameter is necessary even
-   * though some metrics do not hold any state.  This is so that the tree does
-   * not have to worry about instantiating the metric (if the tree had to worry
-   * about this, this would almost certainly incur additional runtime complexity
-   * and a larger runtime size of the tree node objects, which is to be
-   * avoided).  The metric can't be const, in case MetricType::Evaluate() is
-   * non-const.
+   * distance metric.  Note that the parameter is a MatType& and not an
+   * arma::mat&.  The dataset is not modified by the tree-building process (if
+   * it is, see the documentation for TreeTraits::RearrangesDataset for how to
+   * deal with that situation).  The DistanceType parameter is necessary even
+   * though some distance metrics do not hold any state.  This is so that the
+   * tree does not have to worry about instantiating the metric (if the tree had
+   * to worry about this, this would almost certainly incur additional runtime
+   * complexity and a larger runtime size of the tree node objects, which is to
+   * be avoided).  The metric can't be const, in case DistanceType::Evaluate()
+   * is non-const.
    *
    * When this constructor is finished, the entire tree will be built and ready
    * to use.  The constructor should call the constructor of the statistic for
-   * each node that is built (see tree::EmptyStatistic for more information).
+   * each node that is built (see EmptyStatistic for more information).
    *
    * @param dataset The dataset that the tree will be built on.
-   * @param metric The instantiated metric to use to build the dataset.
+   * @param distance The instantiated distance metric to use to build the
+   *     dataset.
    */
   ExampleTree(const MatType& dataset,
-              MetricType& metric);
+              DistanceType& distance);
 
   //! Return the number of children of this node.
   size_t NumChildren() const;
@@ -127,10 +127,10 @@ class ExampleTree
   //! Modify the statistic for this node.
   StatisticType& Stat();
 
-  //! Get the instantiated metric for this node.
-  const MetricType& Metric() const;
-  //! Modify the instantiated metric for this node.
-  MetricType& Metric();
+  //! Get the instantiated distance for this node.
+  const DistanceType& Distance() const;
+  //! Modify the instantiated distance for this node.
+  DistanceType& Distance();
 
   /**
    * Return the minimum distance between this node and a point.  It is not
@@ -148,7 +148,7 @@ class ExampleTree
    * but instead a lower bound on the minimum distance will suffice.  See the
    * definitions in @ref trees for more information.
    *
-   * @param node Node to return [lower bound on] minimum distance to.
+   * @param other Node to return [lower bound on] minimum distance to.
    */
   double MinDistance(const ExampleTree& other) const;
 
@@ -168,13 +168,13 @@ class ExampleTree
    * but instead an upper bound on the maximum distance will suffice.  See the
    * definitions in @ref trees for more information.
    *
-   * @param node Node to return [upper bound on] maximum distance to.
+   * @param other Node to return [upper bound on] maximum distance to.
    */
   double MaxDistance(const ExampleTree& other) const;
 
   /**
    * Return both the minimum and maximum distances between this node and a point
-   * as a math::Range object.  This overload is given because it is possible
+   * as a Range object.  This overload is given because it is possible
    * that, for some tree types, calculation of both at once is faster than a
    * call to MinDistance() then MaxDistance().  It is not necessary that the
    * minimum and maximum distances be exact; it is sufficient to return a lower
@@ -183,20 +183,20 @@ class ExampleTree
    *
    * @param point Point to return [bounds on] minimum and maximum distances to.
    */
-  math::Range RangeDistance(const MatType& point) const;
+  Range RangeDistance(const MatType& point) const;
 
   /**
    * Return both the minimum and maximum distances between this node and another
-   * node as a math::Range object.  This overload is given because it is
+   * node as a Range object.  This overload is given because it is
    * possible that, for some tree types, calculation of both at once is faster
    * than a call to MinDistance() then MaxDistance().  It is not necessary that
    * the minimum and maximum distances be exact; it is sufficient to return a
    * lower bound on the minimum distance and an upper bound on the maximum
    * distance.  See the definitions in @ref trees for more information.
    *
-   * @param node Node to return [bounds on] minimum and maximum distances to.
+   * @param other Node to return [bounds on] minimum and maximum distances to.
    */
-  math::Range RangeDistance(const ExampleTree& other) const;
+  Range RangeDistance(const ExampleTree& other) const;
 
   /**
    * Fill the given vector with the center of the node.
@@ -227,14 +227,13 @@ class ExampleTree
   /**
    * This member is just here so the ExampleTree compiles without warnings.  It
    * is not required to be a member in every type of tree.  Be aware that
-   * storing the metric as a member and not a reference may mean that for some
-   * metrics (such as metric::MahalanobisDistance in high dimensionality) may
-   * incur lots of unnecessary matrix copying.
+   * storing the distance metric as a member and not a reference may mean that
+   * for some distance metrics (such as MahalanobisDistance in high
+   * dimensionality) may incur lots of unnecessary matrix copying.
    */
-  MetricType& metric;
+  DistanceType& metric;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

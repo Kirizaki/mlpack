@@ -1,5 +1,5 @@
 /**
- * @file traversal_info.hpp
+ * @file core/tree/traversal_info.hpp
  * @author Ryan Curtin
  *
  * This class will hold the traversal information for dual-tree traversals.  A
@@ -15,7 +15,6 @@
 #define MLPACK_CORE_TREE_TRAVERSAL_INFO_HPP
 
 namespace mlpack {
-namespace tree {
 
 /**
  * The TraversalInfo class holds traversal information which is used in
@@ -90,7 +89,6 @@ class TraversalInfo
   double lastBaseCase;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

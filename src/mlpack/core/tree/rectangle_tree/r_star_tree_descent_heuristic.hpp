@@ -1,5 +1,5 @@
 /**
- * @file r_star_tree_descent_heuristic.hpp
+ * @file core/tree/rectangle_tree/r_star_tree_descent_heuristic.hpp
  * @author Andrew Wells
  *
  * Definition of RStarTreeDescentHeuristic, a class that chooses the best child
@@ -16,7 +16,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace tree {
 
 /**
  * When descending a RectangleTree to insert a point, we need to have a way to
@@ -33,7 +32,7 @@ class RStarTreeDescentHeuristic
    * 2. If the point is not contained in (or on) bound, the value returned is
    *    greater than zero.
    *
-   * @param bound The bound used for the node that is being evaluated.
+   * @param node The node that is being evaluated.
    * @param point The index of the point that is being inserted.
    */
   template<typename TreeType>
@@ -44,7 +43,6 @@ class RStarTreeDescentHeuristic
                                   const TreeType* insertedNode);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

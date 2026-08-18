@@ -1,5 +1,5 @@
 /**
- * @file local_coordinate_coding_test.cpp
+ * @file tests/local_coordinate_coding_test.cpp
  * @author Nishant Mehta
  *
  * Test for Local Coordinate Coding.
@@ -10,160 +10,198 @@
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 
-// Note: We don't use BOOST_REQUIRE_CLOSE in the code below because we need
-// to use FPC_WEAK, and it's not at all intuitive how to do that.
-#include <mlpack/methods/local_coordinate_coding/lcc.hpp>
+#include <mlpack/methods/local_coordinate_coding.hpp>
 
-#include <boost/test/unit_test.hpp>
-#include "test_tools.hpp"
+#include "catch.hpp"
 #include "serialization.hpp"
 
 using namespace arma;
 using namespace mlpack;
-using namespace mlpack::regression;
-using namespace mlpack::lcc;
 
-BOOST_AUTO_TEST_SUITE(LocalCoordinateCodingTest);
-
-void VerifyCorrectness(vec beta, vec errCorr, double lambda)
+template<typename MatType, typename VecType>
+void VerifyCorrectness(const MatType& beta,
+                       const VecType& errCorr,
+                       const double lambda)
 {
-  const double tol = 1e-12;
+  const double tol = 0.1;
   size_t nDims = beta.n_elem;
-  for(size_t j = 0; j < nDims; j++)
+  for (size_t j = 0; j < nDims; ++j)
   {
     if (beta(j) == 0)
     {
       // make sure that errCorr(j) <= lambda
-      BOOST_REQUIRE_SMALL(std::max(fabs(errCorr(j)) - lambda, 0.0), tol);
+      REQUIRE(std::max(fabs(errCorr(j)) - lambda, 0.0) ==
+          Approx(0.0).margin(tol));
     }
     else if (beta(j) < 0)
     {
       // make sure that errCorr(j) == lambda
-      BOOST_REQUIRE_SMALL(errCorr(j) - lambda, tol);
+      REQUIRE(errCorr(j) - lambda == Approx(0.0).margin(tol));
     }
     else
     { // beta(j) > 0
       // make sure that errCorr(j) == -lambda
-      BOOST_REQUIRE_SMALL(errCorr(j) + lambda, tol);
+      REQUIRE(errCorr(j) + lambda == Approx(0.0).margin(tol));
     }
   }
 }
 
-
-BOOST_AUTO_TEST_CASE(LocalCoordinateCodingTestCodingStep)
+TEMPLATE_TEST_CASE("LocalCoordinateCodingTestCodingStep",
+    "[LocalCoordinateCodingTest][long]", arma::mat, arma::fmat)
 {
-  double lambda1 = 0.1;
-  uword nAtoms = 25;
+  using MatType = TestType;
+  using VecType = arma::Col<typename MatType::elem_type>;
 
-  mat X;
-  X.load("mnist_first250_training_4s_and_9s.arm");
+  double lambda1 = 0.1;
+  uword nAtoms = 10;
+
+  mat inX; // The .arm file is saved as an arma::mat.
+  inX.load("mnist_first250_training_4s_and_9s.csv");
+  MatType X = arma::conv_to<MatType>::from(inX);
   uword nPoints = X.n_cols;
 
   // normalize each point since these are images
-  for (uword i = 0; i < nPoints; i++)
+  for (uword i = 0; i < nPoints; ++i)
   {
     X.col(i) /= norm(X.col(i), 2);
   }
 
-  mat Z;
-  LocalCoordinateCoding lcc(X, nAtoms, lambda1);
+  MatType Z;
+  LocalCoordinateCoding<MatType> lcc(X, nAtoms, lambda1, 10);
   lcc.Encode(X, Z);
 
-  mat D = lcc.Dictionary();
+  MatType D = lcc.Dictionary();
 
-  for (uword i = 0; i < nPoints; i++)
+  for (uword i = 0; i < nPoints; ++i)
   {
-    vec sqDists = vec(nAtoms);
-    for (uword j = 0; j < nAtoms; j++)
+    VecType sqDists(nAtoms);
+    for (uword j = 0; j < nAtoms; ++j)
     {
-      vec diff = D.unsafe_col(j) - X.unsafe_col(i);
-      sqDists[j] = dot(diff, diff);
+      sqDists[j] = arma::norm(D.col(j) - X.col(i));
     }
-    mat Dprime = D * diagmat(1.0 / sqDists);
-    mat zPrime = Z.unsafe_col(i) % sqDists;
+    MatType Dprime = D * diagmat(1.0 / sqDists);
+    MatType zPrime = Z.unsafe_col(i) % sqDists;
 
-    vec errCorr = trans(Dprime) * (Dprime * zPrime - X.unsafe_col(i));
+    VecType errCorr = trans(Dprime) * (Dprime * zPrime - X.unsafe_col(i));
     VerifyCorrectness(zPrime, errCorr, 0.5 * lambda1);
   }
 }
 
-BOOST_AUTO_TEST_CASE(LocalCoordinateCodingTestDictionaryStep)
+TEMPLATE_TEST_CASE("LocalCoordinateCodingTestDictionaryStep",
+    "[LocalCoordinateCodingTest][long]", arma::mat, arma::fmat)
 {
-  const double tol = 1e-12;
+  using MatType = TestType;
+
+  const double tol = 0.1;
 
   double lambda = 0.1;
-  uword nAtoms = 25;
+  uword nAtoms = 10;
 
-  mat X;
-  X.load("mnist_first250_training_4s_and_9s.arm");
+  mat inX; // File is saved as an arma::mat.
+  inX.load("mnist_first250_training_4s_and_9s.csv");
+  MatType X = arma::conv_to<MatType>::from(inX);
   uword nPoints = X.n_cols;
 
   // normalize each point since these are images
-  for (uword i = 0; i < nPoints; i++)
+  for (uword i = 0; i < nPoints; ++i)
   {
     X.col(i) /= norm(X.col(i), 2);
   }
 
-  mat Z;
-  LocalCoordinateCoding lcc(X, nAtoms, lambda);
+  MatType Z;
+  LocalCoordinateCoding<MatType> lcc(X, nAtoms, lambda, 10);
   lcc.Encode(X, Z);
   uvec adjacencies = find(Z);
   lcc.OptimizeDictionary(X, Z, adjacencies);
 
-  mat D = lcc.Dictionary();
+  MatType D = lcc.Dictionary();
 
-  mat grad = zeros(D.n_rows, D.n_cols);
-  for (uword i = 0; i < nPoints; i++)
+  MatType grad = zeros<MatType>(D.n_rows, D.n_cols);
+  for (uword i = 0; i < nPoints; ++i)
   {
     grad += (D - repmat(X.unsafe_col(i), 1, nAtoms)) *
         diagmat(abs(Z.unsafe_col(i)));
   }
   grad = lambda * grad + (D * Z - X) * trans(Z);
 
-  BOOST_REQUIRE_SMALL(norm(grad, "fro"), tol);
+  REQUIRE(norm(grad, "fro") == Approx(0.0).margin(tol));
 }
 
-BOOST_AUTO_TEST_CASE(SerializationTest)
+// This is the only LCC test that runs on tiny MPUs...
+TEMPLATE_TEST_CASE("LocalCoordinateCodingSerializationTest",
+    "[LocalCoordinateCodingTest][tiny]", arma::mat, arma::fmat)
 {
-  mat X = randu<mat>(100, 100);
-  size_t nAtoms = 25;
+  using MatType = TestType;
 
-  LocalCoordinateCoding lcc(nAtoms, 0.05);
+  MatType X = randu<MatType>(100, 100);
+  size_t nAtoms = 10;
+
+  LocalCoordinateCoding<MatType> lcc(nAtoms, 0.05,
+      2 /* don't care about quality */);
   lcc.Train(X);
 
-  mat Y = randu<mat>(100, 200);
-  mat codes;
+  MatType Y = randu<MatType>(100, 200);
+  MatType codes;
   lcc.Encode(Y, codes);
 
-  LocalCoordinateCoding lccXml(50, 0.1), lccText(12, 0.0), lccBinary(0, 0.0);
-  SerializeObjectAll(lcc, lccXml, lccText, lccBinary);
+  LocalCoordinateCoding<MatType> lccXml(50, 0.1), lccJson(12, 0.0),
+      lccBinary(0, 0.0);
+  SerializeObjectAll(lcc, lccXml, lccJson, lccBinary);
 
-  CheckMatrices(lcc.Dictionary(), lccXml.Dictionary(), lccText.Dictionary(),
+  CheckMatrices(lcc.Dictionary(), lccXml.Dictionary(), lccJson.Dictionary(),
       lccBinary.Dictionary());
 
-  mat xmlCodes, textCodes, binaryCodes;
+  MatType xmlCodes, jsonCodes, binaryCodes;
   lccXml.Encode(Y, xmlCodes);
-  lccText.Encode(Y, textCodes);
+  lccJson.Encode(Y, jsonCodes);
   lccBinary.Encode(Y, binaryCodes);
 
-  CheckMatrices(codes, xmlCodes, textCodes, binaryCodes);
+  CheckMatrices(codes, xmlCodes, jsonCodes, binaryCodes);
 
   // Check the parameters, too.
-  BOOST_REQUIRE_EQUAL(lcc.Atoms(), lccXml.Atoms());
-  BOOST_REQUIRE_EQUAL(lcc.Atoms(), lccText.Atoms());
-  BOOST_REQUIRE_EQUAL(lcc.Atoms(), lccBinary.Atoms());
 
-  BOOST_REQUIRE_CLOSE(lcc.Tolerance(), lccXml.Tolerance(), 1e-5);
-  BOOST_REQUIRE_CLOSE(lcc.Tolerance(), lccText.Tolerance(), 1e-5);
-  BOOST_REQUIRE_CLOSE(lcc.Tolerance(), lccBinary.Tolerance(), 1e-5);
+  REQUIRE(lcc.Atoms() == lccXml.Atoms());
+  REQUIRE(lcc.Atoms() == lccJson.Atoms());
+  REQUIRE(lcc.Atoms() == lccBinary.Atoms());
 
-  BOOST_REQUIRE_CLOSE(lcc.Lambda(), lccXml.Lambda(), 1e-5);
-  BOOST_REQUIRE_CLOSE(lcc.Lambda(), lccText.Lambda(), 1e-5);
-  BOOST_REQUIRE_CLOSE(lcc.Lambda(), lccBinary.Lambda(), 1e-5);
+  REQUIRE(lcc.Tolerance() == Approx(lccXml.Tolerance()).epsilon(1e-7));
+  REQUIRE(lcc.Tolerance() == Approx(lccJson.Tolerance()).epsilon(1e-7));
+  REQUIRE(lcc.Tolerance() == Approx(lccBinary.Tolerance()).epsilon(1e-7));
 
-  BOOST_REQUIRE_EQUAL(lcc.MaxIterations(), lccXml.MaxIterations());
-  BOOST_REQUIRE_EQUAL(lcc.MaxIterations(), lccText.MaxIterations());
-  BOOST_REQUIRE_EQUAL(lcc.MaxIterations(), lccBinary.MaxIterations());
+  REQUIRE(lcc.Lambda() == Approx(lccXml.Lambda()).epsilon(1e-7));
+  REQUIRE(lcc.Lambda() == Approx(lccJson.Lambda()).epsilon(1e-7));
+  REQUIRE(lcc.Lambda() == Approx(lccBinary.Lambda()).epsilon(1e-7));
+
+  REQUIRE(lcc.MaxIterations() == lccXml.MaxIterations());
+  REQUIRE(lcc.MaxIterations() == lccJson.MaxIterations());
+  REQUIRE(lcc.MaxIterations() == lccBinary.MaxIterations());
 }
 
-BOOST_AUTO_TEST_SUITE_END();
+/**
+ * Test that LocalCoordinateCoding::Train() returns finite final objective
+ * value.
+ */
+TEMPLATE_TEST_CASE("LocalCoordinateCodingTrainReturnObjective",
+    "[LocalCoordinateCodingTest][long]", arma::mat, arma::fmat)
+{
+  using MatType = TestType;
+
+  double lambda1 = 0.1;
+  uword nAtoms = 10;
+
+  mat inX; // File is saved as arma::mat.
+  inX.load("mnist_first250_training_4s_and_9s.csv");
+  MatType X = arma::conv_to<MatType>::from(inX);
+  uword nPoints = X.n_cols;
+
+  // Normalize each point since these are images.
+  for (uword i = 0; i < nPoints; ++i)
+  {
+    X.col(i) /= norm(X.col(i), 2);
+  }
+
+  LocalCoordinateCoding<MatType> lcc(nAtoms, lambda1, 10);
+  double objVal = lcc.Train(X);
+
+  REQUIRE(std::isfinite(objVal) == true);
+}

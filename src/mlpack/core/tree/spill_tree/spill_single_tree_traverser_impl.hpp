@@ -1,5 +1,5 @@
 /**
- * @file spill_single_tree_traverser_impl.hpp
+ * @file core/tree/spill_tree/spill_single_tree_traverser_impl.hpp
  * @author Ryan Curtin
  * @author Marcos Pividori
  *
@@ -19,40 +19,51 @@
 #include "spill_single_tree_traverser.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename HyperplaneMetricType> class HyperplaneType,
-         template<typename SplitMetricType, typename SplitMatType>
+         template<typename HyperplaneDistanceType, typename HyperplaneMatType>
+             class HyperplaneType,
+         template<typename SplitDistanceType, typename SplitMatType>
              class SplitType>
 template<typename RuleType, bool Defeatist>
-SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>::
+SpillTree<DistanceType, StatisticType, MatType, HyperplaneType, SplitType>::
 SpillSingleTreeTraverser<RuleType, Defeatist>::SpillSingleTreeTraverser(
     RuleType& rule) :
     rule(rule),
     numPrunes(0)
 { /* Nothing to do. */ }
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename HyperplaneMetricType> class HyperplaneType,
-         template<typename SplitMetricType, typename SplitMatType>
+         template<typename HyperplaneDistanceType, typename HyperplaneMatType>
+             class HyperplaneType,
+         template<typename SplitDistanceType, typename SplitMatType>
              class SplitType>
 template<typename RuleType, bool Defeatist>
-void SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>::
+void
+SpillTree<DistanceType, StatisticType, MatType, HyperplaneType, SplitType>::
 SpillSingleTreeTraverser<RuleType, Defeatist>::Traverse(
     const size_t queryIndex,
-    SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>&
-        referenceNode)
+    SpillTree<DistanceType, StatisticType, MatType, HyperplaneType, SplitType>&
+        referenceNode,
+    const bool bruteForce)
 {
-  // If we are a leaf, run the base case as necessary.
-  if (referenceNode.IsLeaf())
+  // If we have too few points, then we need to backtrack up one level and
+  // brute-force search.
+  if (!bruteForce && Defeatist &&
+      (referenceNode.NumDescendants() < rule.MinimumBaseCases()) &&
+      (referenceNode.Parent() != NULL) &&
+      (referenceNode.Parent()->Overlap()))
   {
-    for (size_t i = 0; i < referenceNode.NumPoints(); ++i)
-      rule.BaseCase(queryIndex, referenceNode.Point(i));
+    Traverse(queryIndex, *referenceNode.Parent(), true);
+  }
+  else if (referenceNode.IsLeaf() || bruteForce)
+  {
+    for (size_t i = 0; i < referenceNode.NumDescendants(); ++i)
+      rule.BaseCase(queryIndex, referenceNode.Descendant(i));
   }
   else
   {
@@ -78,8 +89,8 @@ SpillSingleTreeTraverser<RuleType, Defeatist>::Traverse(
         rightScore = rule.Rescore(queryIndex, *referenceNode.Right(),
             rightScore);
 
-        if (rightScore != DBL_MAX)
-          Traverse(queryIndex, *referenceNode.Right()); // Recurse to the right.
+        if (rightScore != DBL_MAX) // Recurse to the right.
+          Traverse(queryIndex, *referenceNode.Right());
         else
           ++numPrunes;
       }
@@ -91,8 +102,8 @@ SpillSingleTreeTraverser<RuleType, Defeatist>::Traverse(
         // Is it still valid to recurse to the left?
         leftScore = rule.Rescore(queryIndex, *referenceNode.Left(), leftScore);
 
-        if (leftScore != DBL_MAX)
-          Traverse(queryIndex, *referenceNode.Left()); // Recurse to the left.
+        if (leftScore != DBL_MAX) // Recurse to the left.
+          Traverse(queryIndex, *referenceNode.Left());
         else
           ++numPrunes;
       }
@@ -121,7 +132,6 @@ SpillSingleTreeTraverser<RuleType, Defeatist>::Traverse(
   }
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

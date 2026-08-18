@@ -1,5 +1,5 @@
 /**
- * @file numeric_split_info.hpp
+ * @file methods/hoeffding_trees/numeric_split_info.hpp
  * @author Ryan Curtin
  *
  * After a numeric split has been made, this holds information on the split.
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace tree {
 
 template<typename ObservationType = double>
 class NumericSplitInfo
@@ -38,16 +37,15 @@ class NumericSplitInfo
 
   //! Serialize the split (save/load the split points).
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    ar & data::CreateNVP(splitPoints, "splitPoints");
+    ar(CEREAL_NVP(splitPoints));
   }
 
  private:
   arma::Col<ObservationType> splitPoints;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

@@ -1,5 +1,5 @@
 /**
- * @file ra_search_rules_impl.hpp
+ * @file methods/rann/ra_search_rules_impl.hpp
  * @author Parikshit Ram
  *
  * Implementation of RASearchRules.
@@ -16,14 +16,13 @@
 #include "ra_search_rules.hpp"
 
 namespace mlpack {
-namespace neighbor {
 
-template<typename SortPolicy, typename MetricType, typename TreeType>
-RASearchRules<SortPolicy, MetricType, TreeType>::
+template<typename SortPolicy, typename DistanceType, typename TreeType>
+RASearchRules<SortPolicy, DistanceType, TreeType>::
 RASearchRules(const arma::mat& referenceSet,
               const arma::mat& querySet,
               const size_t k,
-              MetricType& metric,
+              DistanceType& distance,
               const double tau,
               const double alpha,
               const bool naive,
@@ -34,7 +33,7 @@ RASearchRules(const arma::mat& referenceSet,
     referenceSet(referenceSet),
     querySet(querySet),
     k(k),
-    metric(metric),
+    distance(distance),
     sampleAtLeaves(sampleAtLeaves),
     firstLeafExact(firstLeafExact),
     singleSampleLimit(singleSampleLimit),
@@ -58,12 +57,10 @@ RASearchRules(const arma::mat& referenceSet,
         << t << " points; because k = " << k << ", this is exact search!"
         << std::endl;
 
-  Timer::Start("computing_number_of_samples_reqd");
   numSamplesReqd = RAUtil::MinimumSamplesReqd(n, k, tau, alpha);
-  Timer::Stop("computing_number_of_samples_reqd");
 
   // Initialize some statistics to be collected during the search.
-  numSamplesMade = arma::zeros<arma::Col<size_t> >(querySet.n_cols);
+  numSamplesMade = zeros<arma::Col<size_t>>(querySet.n_cols);
   numDistComputations = 0;
   samplingRatio = (double) numSamplesReqd / (double) n;
 
@@ -81,34 +78,34 @@ RASearchRules(const arma::mat& referenceSet,
   CandidateList pqueue(CandidateCmp(), std::move(vect));
 
   candidates.reserve(querySet.n_cols);
-  for (size_t i = 0; i < querySet.n_cols; i++)
+  for (size_t i = 0; i < querySet.n_cols; ++i)
     candidates.push_back(pqueue);
 
-  if (naive)// No tree traversal; just do naive sampling here.
+  if (naive) // No tree traversal; just do naive sampling here.
   {
     // Sample enough points.
     arma::uvec distinctSamples;
     for (size_t i = 0; i < querySet.n_cols; ++i)
     {
-      math::ObtainDistinctSamples(0, n, numSamplesReqd, distinctSamples);
-      for (size_t j = 0; j < distinctSamples.n_elem; j++)
+      distinctSamples = arma::randperm(n, numSamplesReqd);
+      for (size_t j = 0; j < distinctSamples.n_elem; ++j)
         BaseCase(i, (size_t) distinctSamples[j]);
     }
   }
 }
 
-template<typename SortPolicy, typename MetricType, typename TreeType>
-void RASearchRules<SortPolicy, MetricType, TreeType>::GetResults(
+template<typename SortPolicy, typename DistanceType, typename TreeType>
+void RASearchRules<SortPolicy, DistanceType, TreeType>::GetResults(
     arma::Mat<size_t>& neighbors,
     arma::mat& distances)
 {
   neighbors.set_size(k, querySet.n_cols);
   distances.set_size(k, querySet.n_cols);
 
-  for (size_t i = 0; i < querySet.n_cols; i++)
+  for (size_t i = 0; i < querySet.n_cols; ++i)
   {
     CandidateList& pqueue = candidates[i];
-    for (size_t j = 1; j <= k; j++)
+    for (size_t j = 1; j <= k; ++j)
     {
       neighbors(k - j, i) = pqueue.top().second;
       distances(k - j, i) = pqueue.top().first;
@@ -117,9 +114,9 @@ void RASearchRules<SortPolicy, MetricType, TreeType>::GetResults(
   }
 };
 
-template<typename SortPolicy, typename MetricType, typename TreeType>
-inline force_inline
-double RASearchRules<SortPolicy, MetricType, TreeType>::BaseCase(
+template<typename SortPolicy, typename DistanceType, typename TreeType>
+inline mlpack_force_inline
+double RASearchRules<SortPolicy, DistanceType, TreeType>::BaseCase(
     const size_t queryIndex,
     const size_t referenceIndex)
 {
@@ -128,57 +125,56 @@ double RASearchRules<SortPolicy, MetricType, TreeType>::BaseCase(
   if (sameSet && (queryIndex == referenceIndex))
     return 0.0;
 
-  double distance = metric.Evaluate(querySet.unsafe_col(queryIndex),
-                                    referenceSet.unsafe_col(referenceIndex));
+  double d = distance.Evaluate(querySet.unsafe_col(queryIndex),
+                               referenceSet.unsafe_col(referenceIndex));
 
-  InsertNeighbor(queryIndex, referenceIndex, distance);
+  InsertNeighbor(queryIndex, referenceIndex, d);
 
   numSamplesMade[queryIndex]++;
 
-  // TO REMOVE
   numDistComputations++;
 
-  return distance;
+  return d;
 }
 
-template<typename SortPolicy, typename MetricType, typename TreeType>
-inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
+template<typename SortPolicy, typename DistanceType, typename TreeType>
+inline double RASearchRules<SortPolicy, DistanceType, TreeType>::Score(
     const size_t queryIndex,
     TreeType& referenceNode)
 {
   const arma::vec queryPoint = querySet.unsafe_col(queryIndex);
-  const double distance = SortPolicy::BestPointToNodeDistance(queryPoint,
+  const double d = SortPolicy::BestPointToNodeDistance(queryPoint,
       &referenceNode);
   const double bestDistance = candidates[queryIndex].top().first;
 
-  return Score(queryIndex, referenceNode, distance, bestDistance);
+  return Score(queryIndex, referenceNode, d, bestDistance);
 }
 
-template<typename SortPolicy, typename MetricType, typename TreeType>
-inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
+template<typename SortPolicy, typename DistanceType, typename TreeType>
+inline double RASearchRules<SortPolicy, DistanceType, TreeType>::Score(
     const size_t queryIndex,
     TreeType& referenceNode,
     const double baseCaseResult)
 {
   const arma::vec queryPoint = querySet.unsafe_col(queryIndex);
-  const double distance = SortPolicy::BestPointToNodeDistance(queryPoint,
+  const double d = SortPolicy::BestPointToNodeDistance(queryPoint,
       &referenceNode, baseCaseResult);
   const double bestDistance = candidates[queryIndex].top().first;
 
-  return Score(queryIndex, referenceNode, distance, bestDistance);
+  return Score(queryIndex, referenceNode, d, bestDistance);
 }
 
-template<typename SortPolicy, typename MetricType, typename TreeType>
-inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
+template<typename SortPolicy, typename DistanceType, typename TreeType>
+inline double RASearchRules<SortPolicy, DistanceType, TreeType>::Score(
     const size_t queryIndex,
     TreeType& referenceNode,
-    const double distance,
+    const double dist,
     const double bestDistance)
 {
   // If this is better than the best distance we've seen so far, maybe there
   // will be something down this node.  Also check if enough samples are already
   // made for this query.
-  if (SortPolicy::IsBetter(distance, bestDistance)
+  if (SortPolicy::IsBetter(dist, bestDistance)
       && numSamplesMade[queryIndex] < numSamplesReqd)
   {
     // We cannot prune this node; try approximating it by sampling.
@@ -196,7 +192,7 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
       if (samplesReqd > singleSampleLimit && !referenceNode.IsLeaf())
       {
         // If too many samples required and not at a leaf, then can't prune.
-        return distance;
+        return dist;
       }
       else
       {
@@ -204,10 +200,9 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
         {
           // Then samplesReqd <= singleSampleLimit.
           // Hence, approximate the node by sampling enough number of points.
-          arma::uvec distinctSamples;
-          math::ObtainDistinctSamples(0, referenceNode.NumDescendants(),
-              samplesReqd, distinctSamples);
-          for (size_t i = 0; i < distinctSamples.n_elem; i++)
+          arma::uvec distinctSamples =
+              arma::randperm(referenceNode.NumDescendants(), samplesReqd);
+          for (size_t i = 0; i < distinctSamples.n_elem; ++i)
             // The counting of the samples are done in the 'BaseCase' function
             // so no book-keeping is required here.
             BaseCase(queryIndex, referenceNode.Descendant(distinctSamples[i]));
@@ -220,10 +215,9 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
           if (sampleAtLeaves) // If allowed to sample at leaves.
           {
             // Approximate node by sampling enough number of points.
-            arma::uvec distinctSamples;
-            math::ObtainDistinctSamples(0, referenceNode.NumDescendants(),
-                samplesReqd, distinctSamples);
-            for (size_t i = 0; i < distinctSamples.n_elem; i++)
+            arma::uvec distinctSamples =
+                arma::randperm(referenceNode.NumDescendants(), samplesReqd);
+            for (size_t i = 0; i < distinctSamples.n_elem; ++i)
               // The counting of the samples are done in the 'BaseCase' function
               // so no book-keeping is required here.
               BaseCase(queryIndex,
@@ -235,7 +229,7 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
           else
           {
             // Not allowed to sample from leaves, so cannot prune.
-            return distance;
+            return dist;
           }
         }
       }
@@ -244,7 +238,7 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
     {
       // Try first to visit the first leaf to boost your accuracy and find
       // (near) duplicates if they exist.
-      return distance;
+      return dist;
     }
   }
   else
@@ -264,8 +258,8 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
   }
 }
 
-template<typename SortPolicy, typename MetricType, typename TreeType>
-inline double RASearchRules<SortPolicy, MetricType, TreeType>::
+template<typename SortPolicy, typename DistanceType, typename TreeType>
+inline double RASearchRules<SortPolicy, DistanceType, TreeType>::
 Rescore(const size_t queryIndex,
         TreeType& referenceNode,
         const double oldScore)
@@ -308,10 +302,9 @@ Rescore(const size_t queryIndex,
       {
         // Then, samplesReqd <= singleSampleLimit.  Hence, approximate the node
         // by sampling enough number of points.
-        arma::uvec distinctSamples;
-        math::ObtainDistinctSamples(0, referenceNode.NumDescendants(),
-            samplesReqd, distinctSamples);
-        for (size_t i = 0; i < distinctSamples.n_elem; i++)
+        arma::uvec distinctSamples =
+            arma::randperm(referenceNode.NumDescendants(), samplesReqd);
+        for (size_t i = 0; i < distinctSamples.n_elem; ++i)
           // The counting of the samples are done in the 'BaseCase' function so
           // no book-keeping is required here.
           BaseCase(queryIndex, referenceNode.Descendant(distinctSamples[i]));
@@ -324,10 +317,9 @@ Rescore(const size_t queryIndex,
         if (sampleAtLeaves)
         {
           // Approximate node by sampling enough points.
-          arma::uvec distinctSamples;
-          math::ObtainDistinctSamples(0, referenceNode.NumDescendants(),
-              samplesReqd, distinctSamples);
-          for (size_t i = 0; i < distinctSamples.n_elem; i++)
+          arma::uvec distinctSamples =
+              arma::randperm(referenceNode.NumDescendants(), samplesReqd);
+          for (size_t i = 0; i < distinctSamples.n_elem; ++i)
             // The counting of the samples are done in the 'BaseCase' function
             // so no book-keeping is required here.
             BaseCase(queryIndex, referenceNode.Descendant(distinctSamples[i]));
@@ -358,22 +350,22 @@ Rescore(const size_t queryIndex,
   }
 } // Rescore(point, node, oldScore)
 
-template<typename SortPolicy, typename MetricType, typename TreeType>
-inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
+template<typename SortPolicy, typename DistanceType, typename TreeType>
+inline double RASearchRules<SortPolicy, DistanceType, TreeType>::Score(
     TreeType& queryNode,
     TreeType& referenceNode)
 {
   // First try to find the distance bound to check if we can prune by distance.
 
   // Calculate the best node-to-node distance.
-  const double distance = SortPolicy::BestNodeToNodeDistance(&queryNode,
-                                                             &referenceNode);
+  const double dist = SortPolicy::BestNodeToNodeDistance(&queryNode,
+                                                         &referenceNode);
 
   double pointBound = DBL_MAX;
   double childBound = DBL_MAX;
   const double maxDescendantDistance = queryNode.FurthestDescendantDistance();
 
-  for (size_t i = 0; i < queryNode.NumPoints(); i++)
+  for (size_t i = 0; i < queryNode.NumPoints(); ++i)
   {
     const double bound = candidates[queryNode.Point(i)].top().first
         + maxDescendantDistance;
@@ -381,7 +373,7 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
       pointBound = bound;
   }
 
-  for (size_t i = 0; i < queryNode.NumChildren(); i++)
+  for (size_t i = 0; i < queryNode.NumChildren(); ++i)
   {
     const double bound = queryNode.Child(i).Stat().Bound();
     if (bound < childBound)
@@ -392,11 +384,11 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
   queryNode.Stat().Bound() = std::min(pointBound, childBound);
   const double bestDistance = queryNode.Stat().Bound();
 
-  return Score(queryNode, referenceNode, distance, bestDistance);
+  return Score(queryNode, referenceNode, dist, bestDistance);
 }
 
-template<typename SortPolicy, typename MetricType, typename TreeType>
-inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
+template<typename SortPolicy, typename DistanceType, typename TreeType>
+inline double RASearchRules<SortPolicy, DistanceType, TreeType>::Score(
       TreeType& queryNode,
       TreeType& referenceNode,
       const double baseCaseResult)
@@ -405,14 +397,14 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
   // by distance.
 
   // Find the best node-to-node distance.
-  const double distance = SortPolicy::BestNodeToNodeDistance(&queryNode,
+  const double dist = SortPolicy::BestNodeToNodeDistance(&queryNode,
       &referenceNode, baseCaseResult);
 
   double pointBound = DBL_MAX;
   double childBound = DBL_MAX;
   const double maxDescendantDistance = queryNode.FurthestDescendantDistance();
 
-  for (size_t i = 0; i < queryNode.NumPoints(); i++)
+  for (size_t i = 0; i < queryNode.NumPoints(); ++i)
   {
     const double bound = candidates[queryNode.Point(i)].top().first
         + maxDescendantDistance;
@@ -420,7 +412,7 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
       pointBound = bound;
   }
 
-  for (size_t i = 0; i < queryNode.NumChildren(); i++)
+  for (size_t i = 0; i < queryNode.NumChildren(); ++i)
   {
     const double bound = queryNode.Child(i).Stat().Bound();
     if (bound < childBound)
@@ -431,14 +423,14 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
   queryNode.Stat().Bound() = std::min(pointBound, childBound);
   const double bestDistance = queryNode.Stat().Bound();
 
-  return Score(queryNode, referenceNode, distance, bestDistance);
+  return Score(queryNode, referenceNode, dist, bestDistance);
 }
 
-template<typename SortPolicy, typename MetricType, typename TreeType>
-inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
+template<typename SortPolicy, typename DistanceType, typename TreeType>
+inline double RASearchRules<SortPolicy, DistanceType, TreeType>::Score(
     TreeType& queryNode,
     TreeType& referenceNode,
-    const double distance,
+    const double dist,
     const double bestDistance)
 {
   // Update the number of samples made for this node -- propagate up from child
@@ -452,7 +444,7 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
     size_t numSamplesMadeInChildNodes = std::numeric_limits<size_t>::max();
 
     // Find the minimum number of samples made among all children.
-    for (size_t i = 0; i < queryNode.NumChildren(); i++)
+    for (size_t i = 0; i < queryNode.NumChildren(); ++i)
     {
       const size_t numSamples = queryNode.Child(i).Stat().NumSamplesMade();
       if (numSamples < numSamplesMadeInChildNodes)
@@ -471,7 +463,7 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
   // If this is better than the best distance we've seen so far, maybe there
   // will be something down this node.  Also check if enough samples are already
   // made for this 'queryNode'.
-  if (SortPolicy::IsBetter(distance, bestDistance)
+  if (SortPolicy::IsBetter(dist, bestDistance)
       && queryNode.Stat().NumSamplesMade() < numSamplesReqd)
   {
     // We cannot prune this node; try approximating this node by sampling.
@@ -495,12 +487,12 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
         // Iterate through all children and propagate the number of samples made
         // to the children.  Only update if the parent node has made samples the
         // children have not seen.
-        for (size_t i = 0; i < queryNode.NumChildren(); i++)
+        for (size_t i = 0; i < queryNode.NumChildren(); ++i)
           queryNode.Child(i).Stat().NumSamplesMade() = std::max(
               queryNode.Stat().NumSamplesMade(),
               queryNode.Child(i).Stat().NumSamplesMade());
 
-        return distance;
+        return dist;
       }
       else
       {
@@ -512,9 +504,9 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
           for (size_t i = 0; i < queryNode.NumDescendants(); ++i)
           {
             const size_t queryIndex = queryNode.Descendant(i);
-            math::ObtainDistinctSamples(0, referenceNode.NumDescendants(),
-                samplesReqd, distinctSamples);
-            for (size_t j = 0; j < distinctSamples.n_elem; j++)
+            distinctSamples = arma::randperm(referenceNode.NumDescendants(),
+                samplesReqd);
+            for (size_t j = 0; j < distinctSamples.n_elem; ++j)
               // The counting of the samples are done in the 'BaseCase' function
               // so no book-keeping is required here.
               BaseCase(queryIndex,
@@ -542,9 +534,9 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
             for (size_t i = 0; i < queryNode.NumDescendants(); ++i)
             {
               const size_t queryIndex = queryNode.Descendant(i);
-              math::ObtainDistinctSamples(0, referenceNode.NumDescendants(),
-                  samplesReqd, distinctSamples);
-              for (size_t j = 0; j < distinctSamples.n_elem; j++)
+              distinctSamples = arma::randperm(referenceNode.NumDescendants(),
+                  samplesReqd);
+              for (size_t j = 0; j < distinctSamples.n_elem; ++j)
                 // The counting of the samples are done in the 'BaseCase'
                 // function so no book-keeping is required here.
                 BaseCase(queryIndex,
@@ -569,12 +561,12 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
 
             // Go through all children and propagate the number of
             // samples made to the children.
-            for (size_t i = 0; i < queryNode.NumChildren(); i++)
+            for (size_t i = 0; i < queryNode.NumChildren(); ++i)
               queryNode.Child(i).Stat().NumSamplesMade() = std::max(
                   queryNode.Stat().NumSamplesMade(),
                   queryNode.Child(i).Stat().NumSamplesMade());
 
-            return distance;
+            return dist;
           }
         }
       }
@@ -584,12 +576,12 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
       // We must first visit the first leaf to boost accuracy.
       // Go through all children and propagate the number of
       // samples made to the children.
-      for (size_t i = 0; i < queryNode.NumChildren(); i++)
+      for (size_t i = 0; i < queryNode.NumChildren(); ++i)
         queryNode.Child(i).Stat().NumSamplesMade() = std::max(
             queryNode.Stat().NumSamplesMade(),
             queryNode.Child(i).Stat().NumSamplesMade());
 
-      return distance;
+      return dist;
     }
   }
   else
@@ -612,8 +604,8 @@ inline double RASearchRules<SortPolicy, MetricType, TreeType>::Score(
   }
 }
 
-template<typename SortPolicy, typename MetricType, typename TreeType>
-inline double RASearchRules<SortPolicy, MetricType, TreeType>::
+template<typename SortPolicy, typename DistanceType, typename TreeType>
+inline double RASearchRules<SortPolicy, DistanceType, TreeType>::
 Rescore(TreeType& queryNode,
         TreeType& referenceNode,
         const double oldScore)
@@ -626,7 +618,7 @@ Rescore(TreeType& queryNode,
   double childBound = DBL_MAX;
   const double maxDescendantDistance = queryNode.FurthestDescendantDistance();
 
-  for (size_t i = 0; i < queryNode.NumPoints(); i++)
+  for (size_t i = 0; i < queryNode.NumPoints(); ++i)
   {
     const double bound = candidates[queryNode.Point(i)].top().first
         + maxDescendantDistance;
@@ -634,7 +626,7 @@ Rescore(TreeType& queryNode,
       pointBound = bound;
   }
 
-  for (size_t i = 0; i < queryNode.NumChildren(); i++)
+  for (size_t i = 0; i < queryNode.NumChildren(); ++i)
   {
     const double bound = queryNode.Child(i).Stat().Bound();
     if (bound < childBound)
@@ -657,7 +649,7 @@ Rescore(TreeType& queryNode,
     size_t numSamplesMadeInChildNodes = std::numeric_limits<size_t>::max();
 
     // Find the minimum number of samples made among all children
-    for (size_t i = 0; i < queryNode.NumChildren(); i++)
+    for (size_t i = 0; i < queryNode.NumChildren(); ++i)
     {
       const size_t numSamples = queryNode.Child(i).Stat().NumSamplesMade();
       if (numSamples < numSamplesMadeInChildNodes)
@@ -700,7 +692,7 @@ Rescore(TreeType& queryNode,
       // Go through all children and propagate the number of samples made to the
       // children.  Only update if the parent node has made samples the children
       // have not seen.
-      for (size_t i = 0; i < queryNode.NumChildren(); i++)
+      for (size_t i = 0; i < queryNode.NumChildren(); ++i)
         queryNode.Child(i).Stat().NumSamplesMade() = std::max(
             queryNode.Stat().NumSamplesMade(),
             queryNode.Child(i).Stat().NumSamplesMade());
@@ -717,9 +709,9 @@ Rescore(TreeType& queryNode,
         for (size_t i = 0; i < queryNode.NumDescendants(); ++i)
         {
           const size_t queryIndex = queryNode.Descendant(i);
-          math::ObtainDistinctSamples(0, referenceNode.NumDescendants(),
-              samplesReqd, distinctSamples);
-          for (size_t j = 0; j < distinctSamples.n_elem; j++)
+          distinctSamples = arma::randperm(referenceNode.NumDescendants(),
+              samplesReqd);
+          for (size_t j = 0; j < distinctSamples.n_elem; ++j)
             // The counting of the samples are done in the 'BaseCase'
             // function so no book-keeping is required here.
             BaseCase(queryIndex, referenceNode.Descendant(distinctSamples[j]));
@@ -746,9 +738,9 @@ Rescore(TreeType& queryNode,
           for (size_t i = 0; i < queryNode.NumDescendants(); ++i)
           {
             const size_t queryIndex = queryNode.Descendant(i);
-            math::ObtainDistinctSamples(0, referenceNode.NumDescendants(),
-                samplesReqd, distinctSamples);
-            for (size_t j = 0; j < distinctSamples.n_elem; j++)
+            distinctSamples = arma::randperm(referenceNode.NumDescendants(),
+                samplesReqd);
+            for (size_t j = 0; j < distinctSamples.n_elem; ++j)
               // The counting of the samples are done in BaseCase() so no
               // book-keeping is required here.
               BaseCase(queryIndex,
@@ -770,7 +762,7 @@ Rescore(TreeType& queryNode,
         {
           // We cannot sample from leaves, so we cannot prune.
           // Propagate the number of samples made down to the children.
-          for (size_t i = 0; i < queryNode.NumChildren(); i++)
+          for (size_t i = 0; i < queryNode.NumChildren(); ++i)
             queryNode.Child(i).Stat().NumSamplesMade() = std::max(
                 queryNode.Stat().NumSamplesMade(),
                 queryNode.Child(i).Stat().NumSamplesMade());
@@ -804,17 +796,17 @@ Rescore(TreeType& queryNode,
  *
  * @param queryIndex Index of point whose neighbors we are inserting into.
  * @param neighbor Index of reference point which is being inserted.
- * @param distance Distance from query point to reference point.
+ * @param dist Distance from query point to reference point.
  */
-template<typename SortPolicy, typename MetricType, typename TreeType>
-inline void RASearchRules<SortPolicy, MetricType, TreeType>::
+template<typename SortPolicy, typename DistanceType, typename TreeType>
+inline void RASearchRules<SortPolicy, DistanceType, TreeType>::
 InsertNeighbor(
     const size_t queryIndex,
     const size_t neighbor,
-    const double distance)
+    const double dist)
 {
   CandidateList& pqueue = candidates[queryIndex];
-  Candidate c = std::make_pair(distance, neighbor);
+  Candidate c = std::make_pair(dist, neighbor);
 
   if (CandidateCmp()(c, pqueue.top()))
   {
@@ -823,7 +815,6 @@ InsertNeighbor(
   }
 }
 
-} // namespace neighbor
 } // namespace mlpack
 
 #endif // MLPACK_METHODS_RANN_RA_SEARCH_RULES_IMPL_HPP

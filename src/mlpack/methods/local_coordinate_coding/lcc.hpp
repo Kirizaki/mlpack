@@ -1,5 +1,5 @@
 /**
- * @file lcc.hpp
+ * @file methods/local_coordinate_coding/lcc.hpp
  * @author Nishant Mehta
  *
  * Definition of the LocalCoordinateCoding class, which performs the Local
@@ -13,16 +13,15 @@
 #ifndef MLPACK_METHODS_LOCAL_COORDINATE_CODING_LCC_HPP
 #define MLPACK_METHODS_LOCAL_COORDINATE_CODING_LCC_HPP
 
-#include <mlpack/prereqs.hpp>
+#include <mlpack/core.hpp>
 #include <mlpack/methods/lars/lars.hpp>
 
 // Include three simple dictionary initializers from sparse coding.
-#include "../sparse_coding/nothing_initializer.hpp"
-#include "../sparse_coding/data_dependent_random_initializer.hpp"
-#include "../sparse_coding/random_initializer.hpp"
+#include <mlpack/methods/sparse_coding/nothing_initializer.hpp>
+#include <mlpack/methods/sparse_coding/data_dependent_random_initializer.hpp>
+#include <mlpack/methods/sparse_coding/random_initializer.hpp>
 
 namespace mlpack {
-namespace lcc {
 
 /**
  * An implementation of Local Coordinate Coding (LCC) that codes data which
@@ -76,9 +75,13 @@ namespace lcc {
  * }
  * @endcode
  */
+template<typename MatType = arma::mat>
 class LocalCoordinateCoding
 {
  public:
+  using ColType = typename GetColType<MatType>::type;
+  using RowType = typename GetRowType<MatType>::type;
+
   /**
    * Set the parameters to LocalCoordinateCoding, and train the dictionary.
    * This constructor will also initialize the dictionary using the given
@@ -86,11 +89,10 @@ class LocalCoordinateCoding
    *
    * If you want to initialize the dictionary to a custom matrix, consider
    * either writing your own DictionaryInitializer class (with void
-   * Initialize(const arma::mat& data, arma::mat& dictionary) function), or call
+   * Initialize(const MatType& data, MatType& dictionary) function), or call
    * the constructor that does not take a data matrix, then call Dictionary() to
    * set the dictionary matrix to a matrix of your choosing, and then call
-   * Train() with sparse_coding::NothingInitializer (i.e.
-   * Train<sparse_coding::NothingInitializer>(data)).
+   * Train() with NothingInitializer (i.e.  Train<NothingInitializer>(data)).
    *
    * @param data Data matrix.
    * @param atoms Number of atoms in dictionary.
@@ -98,12 +100,10 @@ class LocalCoordinateCoding
    * @param maxIterations Maximum number of iterations for training (0 runs
    *      until convergence).
    * @param tolerance Tolerance for the objective function.
+   * @param initializer Intializer to use.
    */
-  template<
-      typename DictionaryInitializer =
-          sparse_coding::DataDependentRandomInitializer
-  >
-  LocalCoordinateCoding(const arma::mat& data,
+  template<typename DictionaryInitializer = DataDependentRandomInitializer>
+  LocalCoordinateCoding(const MatType& data,
                         const size_t atoms,
                         const double lambda,
                         const size_t maxIterations = 0,
@@ -114,7 +114,8 @@ class LocalCoordinateCoding
   /**
    * Set the parameters to LocalCoordinateCoding.  This constructor will not
    * train the model, and a subsequent call to Train() will be required before
-   * the model can encode points with Encode().
+   * the model can encode points with Encode().  The default values for atoms
+   * and lambda should be changed if you intend to train the model!
    *
    * @param atoms Number of atoms in dictionary.
    * @param lambda Regularization parameter for weighted l1-norm penalty.
@@ -122,26 +123,22 @@ class LocalCoordinateCoding
    *      until convergence).
    * @param tolerance Tolerance for the objective function.
    */
-  LocalCoordinateCoding(const size_t atoms,
-                        const double lambda,
+  LocalCoordinateCoding(const size_t atoms = 0,
+                        const double lambda = 0.0,
                         const size_t maxIterations = 0,
                         const double tolerance = 0.01);
 
   /**
    * Run local coordinate coding.
    *
-   * @param nIterations Maximum number of iterations to run algorithm.
-   * @param objTolerance Tolerance of objective function.  When the objective
-   *     function changes by a value lower than this tolerance, the optimization
-   *     terminates.
+   * @param data Data matrix.
+   * @param initializer Intializer to use.
+   * @return The final objective value.
    */
-  template<
-      typename DictionaryInitializer =
-          sparse_coding::DataDependentRandomInitializer
-  >
-  void Train(const arma::mat& data,
-             const DictionaryInitializer& initializer =
-                 DictionaryInitializer());
+  template<typename DictionaryInitializer = DataDependentRandomInitializer>
+  double Train(const MatType& data,
+               const DictionaryInitializer& initializer =
+                   DictionaryInitializer());
 
   /**
    * Code each point via distance-weighted LARS.
@@ -149,24 +146,41 @@ class LocalCoordinateCoding
    * @param data Matrix containing points to encode.
    * @param codes Output matrix to store codes in.
    */
-  void Encode(const arma::mat& data, arma::mat& codes);
+  void Encode(const MatType& data, MatType& codes);
 
   /**
    * Learn dictionary by solving linear system.
    *
+   * @param data Matrix containing points to encode.
+   * @param codes Output matrix to store codes in.
    * @param adjacencies Indices of entries (unrolled column by column) of
    *    the coding matrix Z that are non-zero (the adjacency matrix for the
    *    bipartite graph of points and atoms)
    */
-  void OptimizeDictionary(const arma::mat& data,
-                          const arma::mat& codes,
+  void OptimizeDictionary(const MatType& data,
+                          const MatType& codes,
                           const arma::uvec& adjacencies);
 
   /**
    * Compute objective function given the list of adjacencies.
+   *
+   * @param data Matrix containing points to encode.
+   * @param codes Output matrix to store codes in.
    */
-  double Objective(const arma::mat& data,
-                   const arma::mat& codes,
+  double Objective(const MatType& data,
+                   const MatType& codes) const;
+
+  /**
+   * Compute objective function given the list of adjacencies.
+   *
+   * @param data Matrix containing points to encode.
+   * @param codes Output matrix to store codes in.
+   * @param adjacencies Indices of entries (unrolled column by column) of
+   *    the coding matrix Z that are non-zero (the adjacency matrix for the
+   *    bipartite graph of points and atoms)
+   */
+  double Objective(const MatType& data,
+                   const MatType& codes,
                    const arma::uvec& adjacencies) const;
 
   //! Get the number of atoms.
@@ -175,9 +189,9 @@ class LocalCoordinateCoding
   size_t& Atoms() { return atoms; }
 
   //! Accessor for dictionary.
-  const arma::mat& Dictionary() const { return dictionary; }
+  const MatType& Dictionary() const { return dictionary; }
   //! Mutator for dictionary.
-  arma::mat& Dictionary() { return dictionary; }
+  MatType& Dictionary() { return dictionary; }
 
   //! Get the L1 regularization parameter.
   double Lambda() const { return lambda; }
@@ -196,14 +210,14 @@ class LocalCoordinateCoding
 
   //! Serialize the model.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */);
+  void serialize(Archive& ar, const uint32_t /* version */);
 
  private:
   //! Number of atoms in dictionary.
   size_t atoms;
 
   //! Dictionary (columns are atoms).
-  arma::mat dictionary;
+  MatType dictionary;
 
   //! l1 regularization term.
   double lambda;
@@ -214,8 +228,10 @@ class LocalCoordinateCoding
   double tolerance;
 };
 
-} // namespace lcc
 } // namespace mlpack
+
+CEREAL_TEMPLATE_CLASS_VERSION((typename MatType),
+    (mlpack::LocalCoordinateCoding<MatType>), (1));
 
 // Include implementation.
 #include "lcc_impl.hpp"

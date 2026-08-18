@@ -1,5 +1,5 @@
 /**
- * @file vantage_point_split.hpp
+ * @file core/tree/binary_space_tree/vantage_point_split.hpp
  * @author Mikhail Lozhnikov
  *
  * Definition of class VantagePointSplit, a class that splits a vantage point
@@ -18,7 +18,6 @@
 #include <mlpack/core/math/random.hpp>
 
 namespace mlpack {
-namespace tree /** Trees and tree-building procedures. */ {
 
 /**
  * The class splits a binary space partitioning tree node according to the
@@ -33,9 +32,9 @@ class VantagePointSplit
 {
  public:
   //! The matrix element type.
-  typedef typename MatType::elem_type ElemType;
+  using ElemType = typename MatType::elem_type;
   //! The bounding shape type.
-  typedef typename BoundType::MetricType MetricType;
+  using DistanceType = typename BoundType::DistanceType;
   //! A struct that contains an information about the split.
   struct SplitInfo
   {
@@ -43,20 +42,20 @@ class VantagePointSplit
     arma::Col<ElemType> vantagePoint;
     //! The median distance according to which the node will be split.
     ElemType mu;
-    //! An instance of the MetricType class.
-    const MetricType* metric;
+    //! An instance of the DistanceType class.
+    const DistanceType* distance;
 
     SplitInfo() :
         mu(0),
-        metric(NULL)
+        distance(NULL)
     { }
 
     template<typename VecType>
-    SplitInfo(const MetricType& metric, const VecType& vantagePoint,
+    SplitInfo(const DistanceType& distance, const VecType& vantagePoint,
         ElemType mu) :
         vantagePoint(vantagePoint),
         mu(mu),
-        metric(&metric)
+        distance(&distance)
     { }
   };
 
@@ -83,7 +82,6 @@ class VantagePointSplit
    * subtree are on the left of the split column, and points from the right
    * subtree are on the right side of the split column.
    *
-   * @param bound The bound used for this node.
    * @param data The dataset used by the binary space tree.
    * @param begin Index of the starting point in the dataset that belongs to
    *    this node.
@@ -95,7 +93,7 @@ class VantagePointSplit
                              const size_t count,
                              const SplitInfo& splitInfo)
   {
-    return split::PerformSplit<MatType, VantagePointSplit>(data, begin, count,
+    return mlpack::PerformSplit<MatType, VantagePointSplit>(data, begin, count,
         splitInfo);
   }
 
@@ -106,7 +104,6 @@ class VantagePointSplit
    * and points from the right subtree are on the right side of the split
    * column.
    *
-   * @param bound The bound used for this node.
    * @param data The dataset used by the binary space tree.
    * @param begin Index of the starting point in the dataset that belongs to
    *    this node.
@@ -121,7 +118,7 @@ class VantagePointSplit
                              const SplitInfo& splitInfo,
                              std::vector<size_t>& oldFromNew)
   {
-    return split::PerformSplit<MatType, VantagePointSplit>(data, begin, count,
+    return mlpack::PerformSplit<MatType, VantagePointSplit>(data, begin, count,
         splitInfo, oldFromNew);
   }
 
@@ -138,7 +135,7 @@ class VantagePointSplit
   static bool AssignToLeftNode(const VecType& point,
                                const SplitInfo& splitInfo)
   {
-    return (splitInfo.metric->Evaluate(splitInfo.vantagePoint, point) <
+    return (splitInfo.distance->Evaluate(splitInfo.vantagePoint, point) <
         splitInfo.mu);
   }
 
@@ -151,7 +148,7 @@ class VantagePointSplit
    * second moment and selects the point with the largest moment. Each random
    * point belongs to the node.
    *
-   * @param metric The metric used by the tree.
+   * @param distance The distance metric used by the tree.
    * @param data The dataset used by the tree.
    * @param begin Index of the starting point in the dataset that belongs to
    *    this node.
@@ -160,7 +157,7 @@ class VantagePointSplit
    * @param mu The median value of distance form the vantage point to
    * a number of random points.
    */
-  static void SelectVantagePoint(const MetricType& metric,
+  static void SelectVantagePoint(const DistanceType& distance,
                                  const MatType& data,
                                  const size_t begin,
                                  const size_t count,
@@ -168,7 +165,6 @@ class VantagePointSplit
                                  ElemType& mu);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

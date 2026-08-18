@@ -1,5 +1,5 @@
 /**
- * @file amf.hpp
+ * @file methods/amf/amf.hpp
  * @author Sumedh Ghaisas
  * @author Mohan Rajendran
  * @author Ryan Curtin
@@ -18,22 +18,13 @@
 #ifndef MLPACK_METHODS_AMF_AMF_HPP
 #define MLPACK_METHODS_AMF_AMF_HPP
 
-#include <mlpack/prereqs.hpp>
+#include <mlpack/core.hpp>
 
-#include <mlpack/methods/amf/update_rules/nmf_mult_dist.hpp>
-#include <mlpack/methods/amf/update_rules/nmf_als.hpp>
-#include <mlpack/methods/amf/update_rules/svd_batch_learning.hpp>
-#include <mlpack/methods/amf/update_rules/svd_incomplete_incremental_learning.hpp>
-#include <mlpack/methods/amf/update_rules/svd_complete_incremental_learning.hpp>
-
-#include <mlpack/methods/amf/init_rules/random_init.hpp>
-#include <mlpack/methods/amf/init_rules/random_acol_init.hpp>
-
-#include <mlpack/methods/amf/termination_policies/simple_residue_termination.hpp>
-#include <mlpack/methods/amf/termination_policies/simple_tolerance_termination.hpp>
+#include "update_rules/update_rules.hpp"
+#include "init_rules/init_rules.hpp"
+#include "termination_policies/termination_policies.hpp"
 
 namespace mlpack {
-namespace amf /** Alternating Matrix Factorization **/ {
 
 /**
  * This class implements AMF (alternating matrix factorization) on the given
@@ -86,9 +77,9 @@ class AMF
    * in W and H.  Once the residue goes below the specified minimum residue, the
    * algorithm terminates.
    *
-   * @param initializationRule Optional instantiated InitializationRule object
+   * @param initializeRule Optional instantiated InitializationRule object
    *      for initializing the W and H matrices.
-   * @param updateRule Optional instantiated UpdateRule object; this parameter
+   * @param update Optional instantiated UpdateRule object; this parameter
    *      is useful when the update rule for the W and H vector has state that
    *      it needs to store (i.e. HUpdate() and WUpdate() are not static
    *      functions).
@@ -106,11 +97,11 @@ class AMF
    * @param H Encoding matrix to output.
    * @param r Rank r of the factorization.
    */
-  template<typename MatType>
+  template<typename MatType, typename WHMatType>
   double Apply(const MatType& V,
                const size_t r,
-               arma::mat& W,
-               arma::mat& H);
+               WHMatType& W,
+               WHMatType& H);
 
   //! Access the termination policy.
   const TerminationPolicyType& TerminationPolicy() const
@@ -138,12 +129,11 @@ class AMF
   UpdateRuleType update;
 }; // class AMF
 
-typedef amf::AMF<amf::SimpleResidueTermination,
-                 amf::RandomAcolInitialization<>,
-                 amf::NMFALSUpdate> NMFALSFactorizer;
+using NMFALSFactorizer = AMF<SimpleResidueTermination,
+                             RandomAcolInitialization<>,
+                             NMFALSUpdate>;
 
-//! Add simple typedefs
-#ifdef MLPACK_USE_CXX11
+//! Convenience typedefs.
 
 /**
  * SVDBatchFactorizer factorizes given matrix V into two matrices W and H by
@@ -152,74 +142,11 @@ typedef amf::AMF<amf::SimpleResidueTermination,
  *
  * @see SVDBatchLearning
  */
-template<class MatType>
-using SVDBatchFactorizer = amf::AMF<amf::SimpleResidueTermination,
-                                    amf::RandomAcolInitialization<>,
-                                    amf::SVDBatchLearning>;
-
-/**
- * SVDIncompleteIncrementalFactorizer factorizes given matrix V into two
- * matrices W and H by incomplete incremental gradient descent. SVD incomplete
- * incremental learning is described in paper 'A Guide to singular Value
- * Decomposition'
- * by Chih-Chao Ma.
- *
- * @see SVDIncompleteIncrementalLearning
- */
-template<class MatType>
-using SVDIncompleteIncrementalFactorizer = amf::AMF<
-    amf::SimpleResidueTermination,
-    amf::RandomAcolInitialization<>,
-    amf::SVDIncompleteIncrementalLearning>;
-/**
- * SVDCompleteIncrementalFactorizer factorizes given matrix V into two matrices
- * W and H by complete incremental gradient descent. SVD complete incremental
- * learning is described in paper 'A Guide to singular Value Decomposition'
- * by Chih-Chao Ma.
- *
- * @see SVDCompleteIncrementalLearning
- */
-template<class MatType>
-using SVDCompleteIncrementalFactorizer = amf::AMF<
-    amf::SimpleResidueTermination,
-    amf::RandomAcolInitialization<>,
-    amf::SVDCompleteIncrementalLearning<MatType>>;
-
-#else // #ifdef MLPACK_USE_CXX11
-
-/**
- * SparseSVDBatchFactorizer factorizes given sparse matrix V into two matrices W
- * and H by gradient descent. SVD batch learning is described in paper 'A Guide
- * to singular Value Decomposition' by Chih-Chao Ma.
- *
- * @see SVDBatchLearning
- */
-typedef amf::AMF<amf::SimpleResidueTermination,
-                 amf::RandomAcolInitialization<>,
-                 amf::SVDBatchLearning> SparseSVDBatchFactorizer;
-
-/**
- * SparseSVDBatchFactorizer factorizes given matrix V into two matrices W and H
- * by gradient descent. SVD batch learning is described in paper 'A Guide to
- * singular Value Decomposition' by Chih-Chao Ma.
- *
- * @see SVDBatchLearning
- */
-typedef amf::AMF<amf::SimpleResidueTermination,
-                 amf::RandomAcolInitialization<>,
-                 amf::SVDBatchLearning> SVDBatchFactorizer;
-/**
- * SparseSVDIncompleteIncrementalFactorizer factorizes given sparse matrix V
- * into two matrices W and H by incomplete incremental gradient descent.  SVD
- * incomplete incremental learning is described in paper 'A Guide to singular
- * Value Decomposition' by Chih-Chao Ma.
- *
- * @see SVDIncompleteIncrementalLearning
- */
-typedef amf::AMF<amf::SimpleResidueTermination,
-                 amf::RandomAcolInitialization<>,
-                 amf::SVDIncompleteIncrementalLearning>
-        SparseSVDIncompleteIncrementalFactorizer;
+template<typename MatType = arma::mat>
+using SVDBatchFactorizer = AMF<
+    SimpleResidueTermination,
+    RandomAcolInitialization<>,
+    SVDBatchLearning<MatType>>;
 
 /**
  * SVDIncompleteIncrementalFactorizer factorizes given matrix V into two
@@ -229,23 +156,11 @@ typedef amf::AMF<amf::SimpleResidueTermination,
  *
  * @see SVDIncompleteIncrementalLearning
  */
-typedef amf::AMF<amf::SimpleResidueTermination,
-                 amf::RandomAcolInitialization<>,
-                 amf::SVDIncompleteIncrementalLearning>
-        SVDIncompleteIncrementalFactorizer;
-
-/**
- * SparseSVDCompleteIncrementalFactorizer factorizes given sparse matrix V
- * into two matrices W and H by complete incremental gradient descent. SVD
- * complete incremental learning is described in paper 'A Guide to singular
- * Value Decomposition' by Chih-Chao Ma.
- *
- * @see SVDCompleteIncrementalLearning
- */
-typedef amf::AMF<amf::SimpleResidueTermination,
-                 amf::RandomAcolInitialization<>,
-                 amf::SVDCompleteIncrementalLearning<arma::sp_mat> >
-        SparseSVDCompleteIncrementalFactorizer;
+template<class MatType = arma::mat>
+using SVDIncompleteIncrementalFactorizer = AMF<
+    SimpleResidueTermination,
+    RandomAcolInitialization<>,
+    SVDIncompleteIncrementalLearning<MatType>>;
 
 /**
  * SVDCompleteIncrementalFactorizer factorizes given matrix V into two matrices
@@ -255,18 +170,36 @@ typedef amf::AMF<amf::SimpleResidueTermination,
  *
  * @see SVDCompleteIncrementalLearning
  */
-typedef amf::AMF<amf::SimpleResidueTermination,
-                 amf::RandomAcolInitialization<>,
-                 amf::SVDCompleteIncrementalLearning<arma::mat> >
-        SVDCompleteIncrementalFactorizer;
+template<class MatType = arma::mat>
+using SVDCompleteIncrementalFactorizer = AMF<
+    SimpleResidueTermination,
+    RandomAcolInitialization<>,
+    SVDCompleteIncrementalLearning<MatType>>;
 
-#endif // #ifdef MLPACK_USE_CXX11
+/**
+ * Convenience typedef: NMF can be represented by the AMF class, so for
+ * usability and discoverability we make the AMF class available under both
+ * names.
+ */
+template<typename TerminationPolicyType = SimpleResidueTermination,
+         typename InitializationRuleType = RandomAcolInitialization<>,
+         typename UpdateRuleType = NMFMultiplicativeDistanceUpdate>
+class NMF : public AMF<TerminationPolicyType,
+                       InitializationRuleType,
+                       UpdateRuleType>
+{
+ public:
+  // Mirror constructor from AMF.
+  NMF(const TerminationPolicyType& terminationPolicy = TerminationPolicyType(),
+      const InitializationRuleType& initializeRule = InitializationRuleType(),
+      const UpdateRuleType& update = UpdateRuleType()) :
+      AMF<TerminationPolicyType, InitializationRuleType, UpdateRuleType>(
+          terminationPolicy, initializeRule, update) { }
+};
 
-} // namespace amf
 } // namespace mlpack
 
 // Include implementation.
 #include "amf_impl.hpp"
 
 #endif // MLPACK_METHODS_AMF_AMF_HPP
-

@@ -1,26 +1,30 @@
 /**
  * @author Parikshit Ram (pram@cc.gatech.edu)
  * @author Michael Fox
- * @file gmm.hpp
+ * @file methods/gmm/gmm.hpp
  *
- * Defines a Gaussian Mixture model and
- * estimates the parameters of the model
+ * Defines a Gaussian Mixture model and estimates the parameters of the model.
  *
  * mlpack is free software; you may redistribute it and/or modify it under the
  * terms of the 3-clause BSD license.  You should have received a copy of the
  * 3-clause BSD license along with mlpack.  If not, see
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
-#ifndef MLPACK_METHODS_MOG_MOG_EM_HPP
-#define MLPACK_METHODS_MOG_MOG_EM_HPP
+#ifndef MLPACK_METHODS_GMM_GMM_HPP
+#define MLPACK_METHODS_GMM_GMM_HPP
 
-#include <mlpack/prereqs.hpp>
+#include <mlpack/core.hpp>
+
+// Include all constraint types a user may want to use.
+#include "diagonal_constraint.hpp"
+#include "eigenvalue_ratio_constraint.hpp"
+#include "no_constraint.hpp"
+#include "positive_definite_constraint.hpp"
 
 // This is the default fitting method class.
 #include "em_fit.hpp"
 
 namespace mlpack {
-namespace gmm /** Gaussian Mixture Models. */ {
 
 /**
  * A Gaussian Mixture Model (GMM). This class uses maximum likelihood loss
@@ -35,12 +39,12 @@ namespace gmm /** Gaussian Mixture Models. */ {
  *
  * @code
  * void Estimate(const arma::mat& observations,
- *               std::vector<distribution::GaussianDistribution>& dists,
+ *               std::vector<GaussianDistribution<>>& dists,
  *               arma::vec& weights);
  *
  * void Estimate(const arma::mat& observations,
  *               const arma::vec& probabilities,
- *               std::vector<distribution::GaussianDistribution>& dists,
+ *               std::vector<GaussianDistribution<>>& dists,
  *               arma::vec& weights);
  * @endcode
  *
@@ -85,7 +89,7 @@ class GMM
   size_t dimensionality;
 
   //! Vector of Gaussians
-  std::vector<distribution::GaussianDistribution> dists;
+  std::vector<GaussianDistribution<>> dists;
 
   //! Vector of a priori weights for each Gaussian.
   arma::vec weights;
@@ -120,7 +124,7 @@ class GMM
    * @param dists Distributions of the model.
    * @param weights Weights of the model.
    */
-  GMM(const std::vector<distribution::GaussianDistribution> & dists,
+  GMM(const std::vector<GaussianDistribution<>>& dists,
       const arma::vec& weights) :
       gaussians(dists.size()),
       dimensionality((!dists.empty()) ? dists[0].Mean().n_elem : 0),
@@ -141,16 +145,15 @@ class GMM
   /**
    * Return a const reference to a component distribution.
    *
-   * @param i index of component.
+   * @param i Index of component.
    */
-  const distribution::GaussianDistribution& Component(size_t i) const {
-      return dists[i]; }
+  const GaussianDistribution<>& Component(size_t i) const { return dists[i]; }
   /**
    * Return a reference to a component distribution.
    *
-   * @param i index of component.
+   * @param i Index of component.
    */
-  distribution::GaussianDistribution& Component(size_t i) { return dists[i]; }
+  GaussianDistribution<>& Component(size_t i) { return dists[i]; }
 
   //! Return a const reference to the a priori weights of each Gaussian.
   const arma::vec& Weights() const { return weights; }
@@ -161,9 +164,33 @@ class GMM
    * Return the probability that the given observation came from this
    * distribution.
    *
-   * @param observation Observation to evaluate the probability of.
+   * @param observation Observation vector to evaluate the probability of.
    */
   double Probability(const arma::vec& observation) const;
+
+  /**
+   * Return the probability of the given observation matrix.
+   *
+   * @param observation Observation matrix.
+   * @param probs Vector to store probability value of observation x.
+   */
+  void Probability(const arma::mat& observation, arma::vec& probs) const;
+
+  /**
+   * Return the log probability that the given observation came from this
+   * distribution.
+   *
+   * @param observation Observation vector to evaluate the probability of.
+   */
+  double LogProbability(const arma::vec& observation) const;
+
+  /**
+   * Return the log-probability of the given observation (x) matrix.
+   *
+   * @param observation Observation matrix.
+   * @param logProbs Vector to store log-probability value of observation.
+   */
+  void LogProbability(const arma::mat& observation, arma::vec& logProbs) const;
 
   /**
    * Return the probability that the given observation came from the given
@@ -175,6 +202,15 @@ class GMM
   double Probability(const arma::vec& observation,
                      const size_t component) const;
 
+  /**
+   * Return the log probability that the given observation came from the given
+   * Gaussian component in this distribution.
+   *
+   * @param observation Observation to evaluate the probability of.
+   * @param component Index of the component of the GMM to be considered.
+   */
+  double LogProbability(const arma::vec& observation,
+                        const size_t component) const;
   /**
    * Return a randomly generated observation according to the probability
    * distribution defined by this object.
@@ -203,6 +239,7 @@ class GMM
    *      the greatest log-likelihood will be selected.
    * @param useExistingModel If true, the existing model is used as an initial
    *      model for the estimation.
+   * @param fitter The fitter to use, optional.
    * @return The log-likelihood of the best fit.
    */
   template<typename FittingType = EMFit<>>
@@ -233,6 +270,7 @@ class GMM
    *     the greatest log-likelihood will be selected.
    * @param useExistingModel If true, the existing model is used as an initial
    *     model for the estimation.
+   * @param fitter The fitter to use, optional.
    * @return The log-likelihood of the best fit.
    */
   template<typename FittingType = EMFit<>>
@@ -265,7 +303,7 @@ class GMM
    * Serialize the GMM.
    */
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */);
+  void serialize(Archive& ar, const uint32_t /* version */);
 
  private:
   /**
@@ -279,15 +317,16 @@ class GMM
    */
   double LogLikelihood(
       const arma::mat& dataPoints,
-      const std::vector<distribution::GaussianDistribution>& distsL,
+      const std::vector<GaussianDistribution<>>& distsL,
       const arma::vec& weights) const;
 };
 
-} // namespace gmm
 } // namespace mlpack
 
 // Include implementation.
 #include "gmm_impl.hpp"
 
-#endif
+// Also include the DiagonalGMM class.
+#include "diagonal_gmm.hpp"
 
+#endif

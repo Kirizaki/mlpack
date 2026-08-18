@@ -1,5 +1,5 @@
 /**
- * @file traits.hpp
+ * @file core/tree/cover_tree/traits.hpp
  * @author Ryan Curtin
  *
  * This file contains the specialization of the TreeTraits class for the
@@ -16,7 +16,6 @@
 #include <mlpack/core/tree/tree_traits.hpp>
 
 namespace mlpack {
-namespace tree {
 
 /**
  * The specialization of the TreeTraits class for the CoverTree tree type.  It
@@ -24,11 +23,12 @@ namespace tree {
  * tree-independent (but still optimized) tree-based algorithms.  See
  * mlpack/core/tree/tree_traits.hpp for more information.
  */
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
          typename RootPointPolicy>
-class TreeTraits<CoverTree<MetricType, StatisticType, MatType, RootPointPolicy>>
+class TreeTraits<CoverTree<
+    DistanceType, StatisticType, MatType, RootPointPolicy>>
 {
  public:
   /**
@@ -70,7 +70,6 @@ class TreeTraits<CoverTree<MetricType, StatisticType, MatType, RootPointPolicy>>
   static const bool UniqueNumDescendants = true;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

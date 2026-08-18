@@ -1,5 +1,5 @@
 /**
- * @file nystroem_method.hpp
+ * @file methods/nystroem_method/nystroem_method.hpp
  * @author Ryan Curtin
  * @author Marcus Edel
  *
@@ -15,11 +15,13 @@
 #ifndef MLPACK_METHODS_NYSTROEM_METHOD_NYSTROEM_METHOD_HPP
 #define MLPACK_METHODS_NYSTROEM_METHOD_NYSTROEM_METHOD_HPP
 
-#include <mlpack/prereqs.hpp>
+#include <mlpack/core.hpp>
+
 #include "kmeans_selection.hpp"
+#include "ordered_selection.hpp"
+#include "random_selection.hpp"
 
 namespace mlpack {
-namespace kernel {
 
 template<
   typename KernelType,
@@ -51,7 +53,7 @@ class NystroemMethod
    *
    * @param data Data matrix pointer.
    * @param miniKernel to store the constructed mini-kernel matrix in.
-   * @param miniKernel to store the constructed semi-kernel matrix in.
+   * @param semiKernel to store the constructed semi-kernel matrix in.
    */
   void GetKernelMatrix(const arma::mat* data,
                        arma::mat& miniKernel,
@@ -60,9 +62,9 @@ class NystroemMethod
   /**
    * Construct the kernel matrix with the selected points.
    *
-   * @param points Indices of selected points.
+   * @param selectedPoints Indices of selected points.
    * @param miniKernel to store the constructed mini-kernel matrix in.
-   * @param miniKernel to store the constructed semi-kernel matrix in.
+   * @param semiKernel to store the constructed semi-kernel matrix in.
    */
   void GetKernelMatrix(const arma::Col<size_t>& selectedPoints,
                        arma::mat& miniKernel,
@@ -77,7 +79,6 @@ class NystroemMethod
   const size_t rank;
 };
 
-} // namespace kernel
 } // namespace mlpack
 
 // Include implementation.

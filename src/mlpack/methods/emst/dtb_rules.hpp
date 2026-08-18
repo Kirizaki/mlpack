@@ -1,5 +1,5 @@
 /**
- * @file dtb.hpp
+ * @file methods/emst/dtb_rules.hpp
  * @author Bill March (march@gatech.edu)
  *
  * Tree traverser rules for the DualTreeBoruvka algorithm.
@@ -17,9 +17,8 @@
 #include <mlpack/core/tree/traversal_info.hpp>
 
 namespace mlpack {
-namespace emst {
 
-template<typename MetricType, typename TreeType>
+template<typename DistanceType, typename TreeType>
 class DTBRules
 {
  public:
@@ -28,7 +27,7 @@ class DTBRules
            arma::vec& neighborsDistances,
            arma::Col<size_t>& neighborsInComponent,
            arma::Col<size_t>& neighborsOutComponent,
-           MetricType& metric);
+           DistanceType& distance);
 
   double BaseCase(const size_t queryIndex, const size_t referenceIndex);
 
@@ -82,7 +81,7 @@ class DTBRules
                  TreeType& referenceNode,
                  const double oldScore) const;
 
-  typedef typename tree::TraversalInfo<TreeType> TraversalInfoType;
+  using TraversalInfoType = mlpack::TraversalInfo<TreeType>;
 
   const TraversalInfoType& TraversalInfo() const { return traversalInfo; }
   TraversalInfoType& TraversalInfo() { return traversalInfo; }
@@ -115,8 +114,8 @@ class DTBRules
   //! of the candidate edge.
   arma::Col<size_t>& neighborsOutComponent;
 
-  //! The instantiated metric.
-  MetricType& metric;
+  //! The instantiated distance metric.
+  DistanceType& distance;
 
   /**
    * Update the bound for the given query node.
@@ -129,11 +128,9 @@ class DTBRules
   size_t baseCases;
   //! The number of node combinations that have been scored.
   size_t scores;
-
 }; // class DTBRules
 
-} // emst namespace
-} // mlpack namespace
+} // namespace mlpack
 
 #include "dtb_rules_impl.hpp"
 

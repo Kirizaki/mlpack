@@ -1,5 +1,5 @@
 /**
- * @file dual_tree_traverser.hpp
+ * @file core/tree/cover_tree/dual_tree_traverser.hpp
  * @author Ryan Curtin
  *
  * A dual-tree traverser for the cover tree.
@@ -14,18 +14,18 @@
 
 #include <mlpack/prereqs.hpp>
 #include <queue>
+#include "recursion_sets.hpp"
 
 namespace mlpack {
-namespace tree {
 
 template<
-    typename MetricType,
+    typename DistanceType,
     typename StatisticType,
     typename MatType,
     typename RootPointPolicy
 >
 template<typename RuleType>
-class CoverTree<MetricType, StatisticType, MatType, RootPointPolicy>::
+class CoverTree<DistanceType, StatisticType, MatType, RootPointPolicy>::
     DualTreeTraverser
 {
  public:
@@ -60,49 +60,20 @@ class CoverTree<MetricType, StatisticType, MatType, RootPointPolicy>::
   //! The number of pruned nodes.
   size_t numPrunes;
 
-  //! Struct used for traversal.
-  struct DualCoverTreeMapEntry
-  {
-    //! The node this entry refers to.
-    CoverTree<MetricType, StatisticType, MatType, RootPointPolicy>*
-        referenceNode;
-    //! The score of the node.
-    double score;
-    //! The base case.
-    double baseCase;
-    //! The traversal info associated with the call to Score() for this entry.
-    typename RuleType::TraversalInfoType traversalInfo;
+  // Struct used for traversal.
+  typedef DualCoverTreeMapEntry<CoverTree, RuleType> MapEntryType;
 
-    //! Comparison operator, for sorting within the map.
-    bool operator<(const DualCoverTreeMapEntry& other) const
-    {
-      if (score == other.score)
-        return (baseCase < other.baseCase);
-      else
-        return (score < other.score);
-    }
-  };
+  // Prepare map for recursion.
+  void PruneMap(
+      CoverTree& queryNode,
+      CoverTreeRecursionSets<MapEntryType, 8>& recursionSets,
+      CoverTreeRecursionSets<MapEntryType, 8>& childRecursionSets);
 
-  /**
-   * Helper function for traversal of the two trees.
-   */
-  void Traverse(CoverTree& queryNode,
-                std::map<int, std::vector<DualCoverTreeMapEntry> >&
-                    referenceMap);
-
-  //! Prepare map for recursion.
-  void PruneMap(CoverTree& queryNode,
-                std::map<int, std::vector<DualCoverTreeMapEntry> >&
-                    referenceMap,
-                std::map<int, std::vector<DualCoverTreeMapEntry> >&
-                    childMap);
-
-  void ReferenceRecursion(CoverTree& queryNode,
-                          std::map<int, std::vector<DualCoverTreeMapEntry> >&
-                              referenceMap);
+  void ReferenceRecursion(
+      CoverTree& queryNode,
+      CoverTreeRecursionSets<MapEntryType, 8>& recursionSets);
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

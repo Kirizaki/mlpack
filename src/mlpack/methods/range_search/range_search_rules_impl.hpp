@@ -1,5 +1,5 @@
 /**
- * @file range_search_rules_impl.hpp
+ * @file methods/range_search/range_search_rules_impl.hpp
  * @author Ryan Curtin
  *
  * Implementation of rules for range search with generic trees.
@@ -16,23 +16,22 @@
 #include "range_search_rules.hpp"
 
 namespace mlpack {
-namespace range {
 
-template<typename MetricType, typename TreeType>
-RangeSearchRules<MetricType, TreeType>::RangeSearchRules(
-    const arma::mat& referenceSet,
-    const arma::mat& querySet,
-    const math::Range& range,
+template<typename DistanceType, typename TreeType>
+RangeSearchRules<DistanceType, TreeType>::RangeSearchRules(
+    const MatType& referenceSet,
+    const MatType& querySet,
+    const RangeType<ElemType>& range,
     std::vector<std::vector<size_t> >& neighbors,
-    std::vector<std::vector<double> >& distances,
-    MetricType& metric,
+    std::vector<std::vector<ElemType> >& distances,
+    DistanceType& distance,
     const bool sameSet) :
     referenceSet(referenceSet),
     querySet(querySet),
     range(range),
     neighbors(neighbors),
     distances(distances),
-    metric(metric),
+    distance(distance),
     sameSet(sameSet),
     lastQueryIndex(querySet.n_cols),
     lastReferenceIndex(referenceSet.n_cols),
@@ -44,9 +43,10 @@ RangeSearchRules<MetricType, TreeType>::RangeSearchRules(
 
 //! The base case.  Evaluate the distance between the two points and add to the
 //! results if necessary.
-template<typename MetricType, typename TreeType>
-inline force_inline
-double RangeSearchRules<MetricType, TreeType>::BaseCase(
+template<typename DistanceType, typename TreeType>
+inline mlpack_force_inline
+typename RangeSearchRules<DistanceType, TreeType>::ElemType
+RangeSearchRules<DistanceType, TreeType>::BaseCase(
     const size_t queryIndex,
     const size_t referenceIndex)
 {
@@ -58,7 +58,7 @@ double RangeSearchRules<MetricType, TreeType>::BaseCase(
   if ((lastQueryIndex == queryIndex) && (lastReferenceIndex == referenceIndex))
     return 0.0; // No value to return... this shouldn't do anything bad.
 
-  const double distance = metric.Evaluate(querySet.unsafe_col(queryIndex),
+  const ElemType d = distance.Evaluate(querySet.unsafe_col(queryIndex),
       referenceSet.unsafe_col(referenceIndex));
   ++baseCases;
 
@@ -66,30 +66,31 @@ double RangeSearchRules<MetricType, TreeType>::BaseCase(
   lastQueryIndex = queryIndex;
   lastReferenceIndex = referenceIndex;
 
-  if (range.Contains(distance))
+  if (range.Contains(d))
   {
     neighbors[queryIndex].push_back(referenceIndex);
-    distances[queryIndex].push_back(distance);
+    distances[queryIndex].push_back(d);
   }
 
-  return distance;
+  return d;
 }
 
 //! Single-tree scoring function.
-template<typename MetricType, typename TreeType>
-double RangeSearchRules<MetricType, TreeType>::Score(const size_t queryIndex,
-                                                     TreeType& referenceNode)
+template<typename DistanceType, typename TreeType>
+typename RangeSearchRules<DistanceType, TreeType>::ElemType
+RangeSearchRules<DistanceType, TreeType>::Score(const size_t queryIndex,
+                                                TreeType& referenceNode)
 {
   // We must get the minimum and maximum distances and store them in this
   // object.
-  math::Range distances;
+  RangeType<ElemType> distances;
 
-  if (tree::TreeTraits<TreeType>::FirstPointIsCentroid)
+  if (TreeTraits<TreeType>::FirstPointIsCentroid)
   {
     // In this situation, we calculate the base case.  So we should check to be
     // sure we haven't already done that.
-    double baseCase;
-    if (tree::TreeTraits<TreeType>::HasSelfChildren &&
+    ElemType baseCase;
+    if (TreeTraits<TreeType>::HasSelfChildren &&
         (referenceNode.Parent() != NULL) &&
         (referenceNode.Point(0) == referenceNode.Parent()->Point(0)))
     {
@@ -136,26 +137,28 @@ double RangeSearchRules<MetricType, TreeType>::Score(const size_t queryIndex,
 }
 
 //! Single-tree rescoring function.
-template<typename MetricType, typename TreeType>
-double RangeSearchRules<MetricType, TreeType>::Rescore(
+template<typename DistanceType, typename TreeType>
+typename RangeSearchRules<DistanceType, TreeType>::ElemType
+RangeSearchRules<DistanceType, TreeType>::Rescore(
     const size_t /* queryIndex */,
     TreeType& /* referenceNode */,
-    const double oldScore) const
+    const ElemType oldScore) const
 {
   // If it wasn't pruned before, it isn't pruned now.
   return oldScore;
 }
 
 //! Dual-tree scoring function.
-template<typename MetricType, typename TreeType>
-double RangeSearchRules<MetricType, TreeType>::Score(TreeType& queryNode,
-                                                     TreeType& referenceNode)
+template<typename DistanceType, typename TreeType>
+typename RangeSearchRules<DistanceType, TreeType>::ElemType
+RangeSearchRules<DistanceType, TreeType>::Score(TreeType& queryNode,
+                                                TreeType& referenceNode)
 {
-  math::Range distances;
-  if (tree::TreeTraits<TreeType>::FirstPointIsCentroid)
+  RangeType<ElemType> distances;
+  if (TreeTraits<TreeType>::FirstPointIsCentroid)
   {
     // It is possible that the base case has already been calculated.
-    double baseCase = 0.0;
+    ElemType baseCase = 0.0;
     if ((traversalInfo.LastQueryNode() != NULL) &&
         (traversalInfo.LastReferenceNode() != NULL) &&
         (traversalInfo.LastQueryNode()->Point(0) == queryNode.Point(0)) &&
@@ -209,11 +212,12 @@ double RangeSearchRules<MetricType, TreeType>::Score(TreeType& queryNode,
 }
 
 //! Dual-tree rescoring function.
-template<typename MetricType, typename TreeType>
-double RangeSearchRules<MetricType, TreeType>::Rescore(
+template<typename DistanceType, typename TreeType>
+typename RangeSearchRules<DistanceType, TreeType>::ElemType
+RangeSearchRules<DistanceType, TreeType>::Rescore(
     TreeType& /* queryNode */,
     TreeType& /* referenceNode */,
-    const double oldScore) const
+    const ElemType oldScore) const
 {
   // If it wasn't pruned before, it isn't pruned now.
   return oldScore;
@@ -221,15 +225,15 @@ double RangeSearchRules<MetricType, TreeType>::Rescore(
 
 //! Add all the points in the given node to the results for the given query
 //! point.
-template<typename MetricType, typename TreeType>
-void RangeSearchRules<MetricType, TreeType>::AddResult(const size_t queryIndex,
-                                                       TreeType& referenceNode)
+template<typename DistanceType, typename TreeType>
+void RangeSearchRules<DistanceType, TreeType>::AddResult(
+    const size_t queryIndex, TreeType& referenceNode)
 {
   // Some types of trees calculate the base case evaluation before Score() is
   // called, so if the base case has already been calculated, then we must avoid
   // adding that point to the results again.
   size_t baseCaseMod = 0;
-  if (tree::TreeTraits<TreeType>::FirstPointIsCentroid &&
+  if (TreeTraits<TreeType>::FirstPointIsCentroid &&
       (queryIndex == lastQueryIndex) &&
       (referenceNode.Point(0) == lastReferenceIndex))
   {
@@ -251,15 +255,14 @@ void RangeSearchRules<MetricType, TreeType>::AddResult(const size_t queryIndex,
         (queryIndex == referenceNode.Descendant(i)))
       continue;
 
-    const double distance = metric.Evaluate(querySet.unsafe_col(queryIndex),
+    const ElemType d = distance.Evaluate(querySet.unsafe_col(queryIndex),
         referenceNode.Dataset().unsafe_col(referenceNode.Descendant(i)));
 
     neighbors[queryIndex].push_back(referenceNode.Descendant(i));
-    distances[queryIndex].push_back(distance);
+    distances[queryIndex].push_back(d);
   }
 }
 
-} // namespace range
 } // namespace mlpack
 
 #endif

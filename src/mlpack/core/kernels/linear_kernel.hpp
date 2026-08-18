@@ -1,5 +1,5 @@
 /**
- * @file linear_kernel.hpp
+ * @file core/kernels/linear_kernel.hpp
  * @author Wei Guan
  * @author James Cline
  * @author Ryan Curtin
@@ -17,7 +17,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace kernel {
 
 /**
  * The simple linear kernel (dot product).  For any two vectors @f$ x @f$ and
@@ -52,15 +51,14 @@ class LinearKernel
   template<typename VecTypeA, typename VecTypeB>
   static double Evaluate(const VecTypeA& a, const VecTypeB& b)
   {
-    return arma::dot(a, b);
+    return dot(a, b);
   }
 
   //! Serialize the kernel (it has no members... do nothing).
   template<typename Archive>
-  void Serialize(Archive& /* ar */, const unsigned int /* version */) { }
+  void serialize(Archive& /* ar */, const uint32_t /* version */) { }
 };
 
-} // namespace kernel
 } // namespace mlpack
 
 #endif

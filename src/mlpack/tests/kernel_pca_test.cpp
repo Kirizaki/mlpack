@@ -1,5 +1,5 @@
 /**
- * @file kernel_pca_test.cpp
+ * @file tests/kernel_pca_test.cpp
  * @author Ryan Curtin
  *
  * Test file for Kernel PCA.
@@ -10,19 +10,12 @@
  * http://www.opensource.org/licenses/BSD-3-Clause for more information.
  */
 #include <mlpack/core.hpp>
-#include <mlpack/core/kernels/gaussian_kernel.hpp>
-#include <mlpack/methods/kernel_pca/kernel_rules/nystroem_method.hpp>
-#include <mlpack/methods/kernel_pca/kernel_pca.hpp>
+#include <mlpack/methods/kernel_pca.hpp>
 
-#include <boost/test/unit_test.hpp>
-#include "test_tools.hpp"
-
-BOOST_AUTO_TEST_SUITE(KernelPCATest);
+#include "catch.hpp"
+#include "test_catch_tools.hpp"
 
 using namespace mlpack;
-using namespace mlpack::math;
-using namespace mlpack::kpca;
-using namespace mlpack::kernel;
 using namespace std;
 using namespace arma;
 
@@ -30,7 +23,7 @@ using namespace arma;
  * If KernelPCA is working right, then it should turn a circle dataset into a
  * linearly separable dataset in one dimension (which is easy to check).
  */
-BOOST_AUTO_TEST_CASE(CircleTransformationTestNaive)
+TEST_CASE("CircleTransformationTestNaive", "[KernelPCATest]")
 {
   // The dataset, which will have three concentric rings in three dimensions.
   arma::mat dataset;
@@ -83,16 +76,16 @@ BOOST_AUTO_TEST_CASE(CircleTransformationTestNaive)
 
   // None of these ranges should overlap -- the classes should be linearly
   // separable.
-  BOOST_REQUIRE_EQUAL(ranges[0].Contains(ranges[1]), false);
-  BOOST_REQUIRE_EQUAL(ranges[0].Contains(ranges[2]), false);
-  BOOST_REQUIRE_EQUAL(ranges[1].Contains(ranges[2]), false);
+  REQUIRE(ranges[0].Contains(ranges[1]) == false);
+  REQUIRE(ranges[0].Contains(ranges[2]) == false);
+  REQUIRE(ranges[1].Contains(ranges[2]) == false);
 }
 
 /**
  * If KernelPCA is working right, then it should turn a circle dataset into a
  * linearly separable dataset in one dimension (which is easy to check).
  */
-BOOST_AUTO_TEST_CASE(CircleTransformationTestNystroem)
+TEST_CASE("CircleTransformationTestNystroem", "[KernelPCATest][tiny]")
 {
   // The dataset, which will have three concentric rings in three dimensions.
   arma::mat dataset;
@@ -145,9 +138,7 @@ BOOST_AUTO_TEST_CASE(CircleTransformationTestNystroem)
 
   // None of these ranges should overlap -- the classes should be linearly
   // separable.
-  BOOST_REQUIRE_EQUAL(ranges[0].Contains(ranges[1]), false);
-  BOOST_REQUIRE_EQUAL(ranges[0].Contains(ranges[2]), false);
-  BOOST_REQUIRE_EQUAL(ranges[1].Contains(ranges[2]), false);
+  REQUIRE(ranges[0].Contains(ranges[1]) == false);
+  REQUIRE(ranges[0].Contains(ranges[2]) == false);
+  REQUIRE(ranges[1].Contains(ranges[2]) == false);
 }
-
-BOOST_AUTO_TEST_SUITE_END();

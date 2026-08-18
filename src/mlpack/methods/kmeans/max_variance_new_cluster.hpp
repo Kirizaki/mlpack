@@ -1,5 +1,5 @@
 /**
- * @file max_variance_new_cluster.hpp
+ * @file methods/kmeans/max_variance_new_cluster.hpp
  * @author Ryan Curtin
  *
  * An implementation of the EmptyClusterPolicy policy class for K-Means.  When
@@ -17,7 +17,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace kmeans {
 
 /**
  * When an empty cluster is detected, this class takes the point furthest from
@@ -33,30 +32,30 @@ class MaxVarianceNewCluster
    * Take the point furthest from the centroid of the cluster with maximum
    * variance to be a new cluster.
    *
-   * @tparam MatType Type of data (arma::mat or arma::sp_mat).
+   * @tparam MatType Type of data (arma::mat or arma::spmat).
    * @param data Dataset on which clustering is being performed.
    * @param emptyCluster Index of cluster which is empty.
-   * @param oldCentroids Centroids of each cluster (one per column), at the
-   *      start of the iteration.
-   * @param newCentroids Centroids of each cluster (one per column), at the end
-   *      of the iteration.  This will be modified!
+   * @param oldCentroids Centroids of each cluster (one per column) at the start
+   *      of the iteration.
+   * @param newCentroids Centroids of each cluster (one per column) at the end
+   *      of the iteration.
    * @param clusterCounts Number of points in each cluster.
-   * @param assignments Cluster assignments of each point.
+   * @param distance The distance metric to use.
+   * @param iteration Number of iteration.
    *
-   * @return Number of points changed.
    */
-  template<typename MetricType, typename MatType>
-  size_t EmptyCluster(const MatType& data,
-                      const size_t emptyCluster,
-                      const arma::mat& oldCentroids,
-                      arma::mat& newCentroids,
-                      arma::Col<size_t>& clusterCounts,
-                      MetricType& metric,
-                      const size_t iteration);
+  template<typename DistanceType, typename MatType>
+  void EmptyCluster(const MatType& data,
+                    const size_t emptyCluster,
+                    const arma::mat& oldCentroids,
+                    arma::mat& newCentroids,
+                    arma::Col<size_t>& clusterCounts,
+                    DistanceType& distance,
+                    const size_t iteration);
 
   //! Serialize the object.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int version);
+  void serialize(Archive& ar, const uint32_t version);
 
  private:
   //! Index of iteration for which variance is cached.
@@ -67,14 +66,13 @@ class MaxVarianceNewCluster
   arma::Row<size_t> assignments;
 
   //! Called when we are on a new iteration.
-  template<typename MetricType, typename MatType>
+  template<typename DistanceType, typename MatType>
   void Precalculate(const MatType& data,
                     const arma::mat& oldCentroids,
                     arma::Col<size_t>& clusterCounts,
-                    MetricType& metric);
+                    DistanceType& distance);
 };
 
-} // namespace kmeans
 } // namespace mlpack
 
 // Include implementation.

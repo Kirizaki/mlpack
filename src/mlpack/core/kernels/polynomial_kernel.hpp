@@ -1,5 +1,5 @@
 /**
- * @file polynomial_kernel.hpp
+ * @file core/kernels/polynomial_kernel.hpp
  * @author Ajinkya Kale <kaleajinkya@gmail.com>
  *
  * Implementation of the polynomial kernel (just the standard dot product).
@@ -15,7 +15,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace kernel {
 
 /**
  * The simple polynomial kernel.  For any two vectors @f$ x @f$, @f$ y @f$,
@@ -54,25 +53,25 @@ class PolynomialKernel
   template<typename VecTypeA, typename VecTypeB>
   double Evaluate(const VecTypeA& a, const VecTypeB& b) const
   {
-    return pow((arma::dot(a, b) + offset), degree);
+    return std::pow((dot(a, b) + offset), degree);
   }
 
   //! Get the degree of the polynomial.
   const double& Degree() const { return degree; }
   //! Modify the degree of the polynomial.
-  double& Degree() { return degree; }
+  void Degree(const double degree) { this->degree = degree; }
 
   //! Get the offset of the dot product of the arguments.
   const double& Offset() const { return offset; }
   //! Modify the offset of the dot product of the arguments.
-  double& Offset() { return offset; }
+  void Offset(const double offset) { this->offset = offset; }
 
   //! Serialize the kernel.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    ar & data::CreateNVP(degree, "degree");
-    ar & data::CreateNVP(offset, "offset");
+    ar(CEREAL_NVP(degree));
+    ar(CEREAL_NVP(offset));
   }
 
  private:
@@ -82,7 +81,6 @@ class PolynomialKernel
   double offset;
 };
 
-} // namespace kernel
 } // namespace mlpack
 
 #endif

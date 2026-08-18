@@ -1,5 +1,5 @@
 /**
- * @file spill_single_tree_traverser.hpp
+ * @file core/tree/spill_tree/spill_single_tree_traverser.hpp
  * @author Ryan Curtin
  * @author Marcos Pividori
  *
@@ -22,17 +22,17 @@
 #include "spill_tree.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename HyperplaneMetricType> class HyperplaneType,
-         template<typename SplitMetricType, typename SplitMatType>
+         template<typename HyperplaneDistanceType, typename HyperplaneMatType>
+             class HyperplaneType,
+         template<typename SplitDistanceType, typename SplitMatType>
              class SplitType>
 template<typename RuleType, bool Defeatist>
-class SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>::
-    SpillSingleTreeTraverser
+class SpillTree<DistanceType, StatisticType, MatType, HyperplaneType,
+                SplitType>::SpillSingleTreeTraverser
 {
  public:
   /**
@@ -46,8 +46,12 @@ class SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>::
    * @param queryIndex The index of the point in the query set which is being
    *     used as the query point.
    * @param referenceNode The tree node to be traversed.
+   * @param bruteForce If true, then do a brute-force search on the reference
+   *     node instead of traversing any further.
    */
-  void Traverse(const size_t queryIndex, SpillTree& referenceNode);
+  void Traverse(const size_t queryIndex,
+                SpillTree& referenceNode,
+                const bool bruteForce = false);
 
   //! Get the number of prunes.
   size_t NumPrunes() const { return numPrunes; }
@@ -62,7 +66,6 @@ class SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>::
   size_t numPrunes;
 };
 
-} // namespace tree
 } // namespace mlpack
 
 // Include implementation.

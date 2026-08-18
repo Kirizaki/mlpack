@@ -1,5 +1,5 @@
 /**
- * @file sparse_autoencoder_function.hpp
+ * @file methods/sparse_autoencoder/sparse_autoencoder_function.hpp
  * @author Siddharth Agrawal
  *
  * The function to be optimized for sparse autoencoders. Any mlpack optimizer
@@ -16,7 +16,6 @@
 #include <mlpack/prereqs.hpp>
 
 namespace mlpack {
-namespace nn {
 
 /**
  * This is a class for the sparse autoencoder objective function. It can be used
@@ -75,10 +74,11 @@ class SparseAutoencoderFunction
    * function of a real number 'x' is [1 / (1 + exp(-x))].
    *
    * @param x Matrix of real values for which we require the sigmoid activation.
+   * @param output Output matrix.
    */
   void Sigmoid(const arma::mat& x, arma::mat& output) const
   {
-    output = (1.0 / (1 + arma::exp(-x)));
+    output = (1.0 / (1 + exp(-x)));
   }
 
   //! Return the initial point for the optimization.
@@ -161,7 +161,9 @@ class SparseAutoencoderFunction
   double rho;
 };
 
-} // namespace nn
 } // namespace mlpack
+
+// Include implementation.
+#include "sparse_autoencoder_function_impl.hpp"
 
 #endif

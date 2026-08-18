@@ -1,5 +1,5 @@
 /**
- * @file pelleg_moore_kmeans_statistic.hpp
+ * @file methods/kmeans/pelleg_moore_kmeans_statistic.hpp
  * @author Ryan Curtin
  *
  * A StatisticType for trees which holds the blacklist for various k-means
@@ -14,7 +14,6 @@
 #define MLPACK_METHODS_KMEANS_PELLEG_MOORE_KMEANS_STATISTIC_HPP
 
 namespace mlpack {
-namespace kmeans {
 
 /**
  * A statistic for trees which holds the blacklist for Pelleg-Moore k-means
@@ -70,7 +69,6 @@ class PellegMooreKMeansStatistic
   arma::vec centroid;
 };
 
-} // namespace kmeans
 } // namespace mlpack
 
 #endif

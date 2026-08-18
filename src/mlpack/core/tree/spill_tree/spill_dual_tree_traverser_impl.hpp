@@ -1,5 +1,5 @@
 /**
- * @file spill_dual_tree_traverser_impl.hpp
+ * @file core/tree/spill_tree/spill_dual_tree_traverser_impl.hpp
  * @author Ryan Curtin
  * @author Marcos Pividori
  *
@@ -19,16 +19,16 @@
 #include "spill_dual_tree_traverser.hpp"
 
 namespace mlpack {
-namespace tree {
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename HyperplaneMetricType> class HyperplaneType,
-         template<typename SplitMetricType, typename SplitMatType>
+         template<typename HyperplaneDistanceType, typename HyperplaneMatType>
+             class HyperplaneType,
+         template<typename SplitDistanceType, typename SplitMatType>
              class SplitType>
 template<typename RuleType, bool Defeatist>
-SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>::
+SpillTree<DistanceType, StatisticType, MatType, HyperplaneType, SplitType>::
 SpillDualTreeTraverser<RuleType, Defeatist>::SpillDualTreeTraverser(
     RuleType& rule) :
     rule(rule),
@@ -38,19 +38,22 @@ SpillDualTreeTraverser<RuleType, Defeatist>::SpillDualTreeTraverser(
     numBaseCases(0)
 { /* Nothing to do. */ }
 
-template<typename MetricType,
+template<typename DistanceType,
          typename StatisticType,
          typename MatType,
-         template<typename HyperplaneMetricType> class HyperplaneType,
-         template<typename SplitMetricType, typename SplitMatType>
+         template<typename HyperplaneDistanceType, typename HyperplaneMatType>
+             class HyperplaneType,
+         template<typename SplitDistanceType, typename SplitMatType>
              class SplitType>
 template<typename RuleType, bool Defeatist>
-void SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>::
+void
+SpillTree<DistanceType, StatisticType, MatType, HyperplaneType, SplitType>::
 SpillDualTreeTraverser<RuleType, Defeatist>::Traverse(
-    SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>&
+    SpillTree<DistanceType, StatisticType, MatType, HyperplaneType, SplitType>&
         queryNode,
-    SpillTree<MetricType, StatisticType, MatType, HyperplaneType, SplitType>&
-        referenceNode)
+    SpillTree<DistanceType, StatisticType, MatType, HyperplaneType, SplitType>&
+        referenceNode,
+    const bool bruteForce)
 {
   // Increment the visit counter.
   ++numVisited;
@@ -58,15 +61,30 @@ SpillDualTreeTraverser<RuleType, Defeatist>::Traverse(
   // Store the current traversal info.
   traversalInfo = rule.TraversalInfo();
 
-  // If both are leaves, we must evaluate the base case.
-  if (queryNode.IsLeaf() && referenceNode.IsLeaf())
+  // Determine whether we need to brute-force the reference node.  We have no
+  // realistic way to track how many base cases we've done for each point, so we
+  // act as though we have done zero.
+  if (!bruteForce && Defeatist &&
+      (referenceNode.Parent() != NULL) &&
+      (referenceNode.Parent()->Overlap()) &&
+      (referenceNode.NumDescendants() < rule.MinimumBaseCases()))
   {
+    // We've actually recursed too far.  Go back up one level and brute-force
+    // the computation, and then we are done.
+    Traverse(queryNode, *referenceNode.Parent(), true);
+    return;
+  }
+  else if ((queryNode.IsLeaf() && referenceNode.IsLeaf()) || bruteForce)
+  {
+    // If both are leaves or if we explicitly need to do brute-force search, we
+    // must evaluate the base cases.
+
     // Loop through each of the points in each node.
-    const size_t queryEnd = queryNode.NumPoints();
-    const size_t refEnd = referenceNode.NumPoints();
+    const size_t queryEnd = queryNode.NumDescendants();
+    const size_t refEnd = referenceNode.NumDescendants();
     for (size_t query = 0; query < queryEnd; ++query)
     {
-      const size_t queryIndex = queryNode.Point(query);
+      const size_t queryIndex = queryNode.Descendant(query);
       // See if we need to investigate this point.  Restore the traversal
       // information first.
       rule.TraversalInfo() = traversalInfo;
@@ -76,7 +94,7 @@ SpillDualTreeTraverser<RuleType, Defeatist>::Traverse(
         continue; // We can't improve this particular point.
 
       for (size_t ref = 0; ref < refEnd; ++ref)
-        rule.BaseCase(queryIndex, referenceNode.Point(ref));
+        rule.BaseCase(queryIndex, referenceNode.Descendant(ref));
 
       numBaseCases += refEnd;
     }
@@ -411,7 +429,6 @@ SpillDualTreeTraverser<RuleType, Defeatist>::Traverse(
   }
 }
 
-} // namespace tree
 } // namespace mlpack
 
 #endif // MLPACK_CORE_TREE_SPILL_TREE_SPILL_DUAL_TREE_TRAVERSER_IMPL_HPP

@@ -1,5 +1,5 @@
 /**
- * @file bounds.hpp
+ * @file core/tree/bounds.hpp
  *
  * Bounds that are useful for binary space partitioning trees.
  *
@@ -13,7 +13,7 @@
 #define MLPACK_CORE_TREE_BOUNDS_HPP
 
 #include <mlpack/core/math/range.hpp>
-#include <mlpack/core/metrics/lmetric.hpp>
+#include <mlpack/core/distances/lmetric.hpp>
 
 #include "bound_traits.hpp"
 #include "hrectbound.hpp"

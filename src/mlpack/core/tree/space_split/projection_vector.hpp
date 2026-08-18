@@ -1,5 +1,5 @@
 /**
- * @file projection_vector.hpp
+ * @file core/tree/space_split/projection_vector.hpp
  * @author Marcos Pividori
  *
  * Definition of ProjVector and AxisParallelProjVector.
@@ -14,8 +14,8 @@
 
 #include <mlpack/prereqs.hpp>
 #include "../bounds.hpp"
+
 namespace mlpack {
-namespace tree {
 
 /**
  * AxisParallelProjVector defines an axis-parallel projection vector.
@@ -46,7 +46,7 @@ class AxisParallelProjVector
                  typename std::enable_if_t<IsVector<VecType>::value>* = 0) const
   {
     return point[dim];
-  };
+  }
 
   /**
    * Project the given hrect bound on the projection vector.
@@ -54,12 +54,12 @@ class AxisParallelProjVector
    * @param bound Bound to be projected.
    * @return Range of projected values.
    */
-  template<typename MetricType, typename ElemType>
-  math::RangeType<ElemType> Project(
-      const bound::HRectBound<MetricType, ElemType>& bound) const
+  template<typename DistanceType, typename ElemType>
+  RangeType<ElemType> Project(
+      const HRectBound<DistanceType, ElemType>& bound) const
   {
     return bound[dim];
-  };
+  }
 
   /**
    * Project the given ball bound on the projection vector.
@@ -67,38 +67,39 @@ class AxisParallelProjVector
    * @param bound Bound to be projected.
    * @return Range of projected values.
    */
-  template<typename MetricType, typename VecType>
-  math::RangeType<typename VecType::elem_type> Project(
-      const bound::BallBound<MetricType, VecType>& bound) const
+  template<typename DistanceType, typename ElemType, typename VecType>
+  RangeType<ElemType> Project(
+      const BallBound<DistanceType, ElemType, VecType>& bound) const
   {
     return bound[dim];
-  };
+  }
 
   /**
    * Serialization.
    */
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    ar & data::CreateNVP(dim, "dim");
-  };
+    ar(CEREAL_NVP(dim));
+  }
 };
 
 /**
  * ProjVector defines a general projection vector (not necessarily
  * axis-parallel).
  */
+template<typename MatType = arma::mat>
 class ProjVector
 {
-  //! Projection vector.
-  arma::vec projVect;
+  using ProjVecType = typename GetColType<MatType>::type;
+
+  ProjVecType projVect;
 
  public:
   /**
    * Empty Constructor.
    */
-  ProjVector() :
-      projVect()
+  ProjVector() : projVect()
   {};
 
   /**
@@ -106,8 +107,8 @@ class ProjVector
    *
    * @param vect Vector to be considered.
    */
-  ProjVector(const arma::vec& vect) :
-      projVect(arma::normalise(vect))
+  ProjVector(const ProjVecType& vect) :
+      projVect(normalise(vect))
   {};
 
   /**
@@ -119,8 +120,8 @@ class ProjVector
   double Project(const VecType& point,
                  typename std::enable_if_t<IsVector<VecType>::value>* = 0) const
   {
-    return arma::dot(point, projVect);
-  };
+    return dot(point, projVect);
+  }
 
   /**
    * Project the given ball bound on the projection vector.
@@ -128,27 +129,25 @@ class ProjVector
    * @param bound Bound to be projected.
    * @return Range of projected values.
    */
-  template<typename MetricType, typename VecType>
-  math::RangeType<typename VecType::elem_type> Project(
-      const bound::BallBound<MetricType, VecType>& bound) const
+  template<typename DistanceType, typename ElemType, typename VecType>
+  RangeType<ElemType> Project(
+      const BallBound<DistanceType, ElemType, VecType>& bound) const
   {
-    typedef typename VecType::elem_type ElemType;
     const double center = Project(bound.Center());
     const ElemType radius = bound.Radius();
-    return math::RangeType<ElemType>(center - radius, center + radius);
-  };
+    return RangeType<ElemType>(center - radius, center + radius);
+  }
 
   /**
    * Serialization.
    */
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */)
+  void serialize(Archive& ar, const uint32_t /* version */)
   {
-    ar & data::CreateNVP(projVect, "projVect");
-  };
+    ar(CEREAL_NVP(projVect));
+  }
 };
 
-} // namespace tree
 } // namespace mlpack
 
 #endif

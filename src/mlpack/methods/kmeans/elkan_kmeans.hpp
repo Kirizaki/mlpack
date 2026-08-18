@@ -1,5 +1,5 @@
 /**
- * @file elkan_kmeans.hpp
+ * @file methods/kmeans/elkan_kmeans.hpp
  * @author Ryan Curtin
  *
  * An implementation of Elkan's algorithm for exact Lloyd iterations.
@@ -13,16 +13,15 @@
 #define MLPACK_METHODS_KMEANS_ELKAN_KMEANS_HPP
 
 namespace mlpack {
-namespace kmeans {
 
-template<typename MetricType, typename MatType>
+template<typename DistanceType, typename MatType>
 class ElkanKMeans
 {
  public:
   /**
    * Construct the ElkanKMeans object, which must store several sets of bounds.
    */
-  ElkanKMeans(const MatType& dataset, MetricType& metric);
+  ElkanKMeans(const MatType& dataset, DistanceType& distance);
 
   /**
    * Run a single iteration of Elkan's algorithm, updating the given centroids
@@ -41,8 +40,8 @@ class ElkanKMeans
  private:
   //! The dataset.
   const MatType& dataset;
-  //! The instantiated metric.
-  MetricType& metric;
+  //! The instantiated distance metric.
+  DistanceType& distance;
 
   //! Holds intra-cluster distances.
   arma::mat clusterDistances;
@@ -61,7 +60,6 @@ class ElkanKMeans
   size_t distanceCalculations;
 };
 
-} // namespace kmeans
 } // namespace mlpack
 
 // Include implementation.

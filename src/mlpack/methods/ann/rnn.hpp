@@ -1,5 +1,5 @@
 /**
- * @file rnn.hpp
+ * @file methods/ann/rnn.hpp
  * @author Marcus Edel
  *
  * Definition of the RNN class, which implements recurrent neural networks.
@@ -12,785 +12,554 @@
 #ifndef MLPACK_METHODS_ANN_RNN_HPP
 #define MLPACK_METHODS_ANN_RNN_HPP
 
-#include <mlpack/prereqs.hpp>
+#include <mlpack/core.hpp>
 
-#include <boost/ptr_container/ptr_vector.hpp>
-
-#include <mlpack/methods/ann/network_util.hpp>
-#include <mlpack/methods/ann/layer/layer_traits.hpp>
-#include <mlpack/methods/ann/init_rules/nguyen_widrow_init.hpp>
-#include <mlpack/methods/ann/performance_functions/cee_function.hpp>
-#include <mlpack/core/optimizers/sgd/sgd.hpp>
+#include "ffn.hpp"
 
 namespace mlpack {
-namespace ann /** Artificial Neural Network. */ {
 
 /**
- * Implementation of a standard recurrent neural network.
+ * Definition of a standard recurrent neural network container.  A recurrent
+ * neural network can handle recurrent layers (i.e. `RecurrentLayer`s), which
+ * hold internal state and are passed sequences of data as inputs.
  *
- * @tparam LayerTypes Contains all layer modules used to construct the network.
+ * As opposed to the standard `FFN`, which takes data in a matrix format where
+ * each column is a data point, the `RNN` takes a cube format where each column
+ * is a data point and each slice is a time step.
+ *
  * @tparam OutputLayerType The output layer type used to evaluate the network.
  * @tparam InitializationRuleType Rule used to initialize the weight matrix.
- * @tparam PerformanceFunction Performance strategy used to calculate the error.
  */
-template <
-  typename LayerTypes,
-  typename OutputLayerType,
-  typename InitializationRuleType = NguyenWidrowInitialization,
-  class PerformanceFunction = CrossEntropyErrorFunction<>
->
+template<
+    typename OutputLayerType = NegativeLogLikelihood,
+    typename InitializationRuleType = RandomInitialization,
+    typename MatType = arma::mat>
 class RNN
 {
  public:
-  //! Convenience typedef for the internal model construction.
-  using NetworkType = RNN<LayerTypes,
-                          OutputLayerType,
-                          InitializationRuleType,
-                          PerformanceFunction>;
+  // Convenience typedefs.
+  using ElemType = typename MatType::elem_type;
+  using CubeType = typename GetCubeType<MatType>::type;
+  using URowType = typename GetURowType<MatType>::type;
 
   /**
-   * Create the RNN object with the given predictors and responses set (this is
-   * the set that is used to train the network) and the given optimizer.
+   * Create the RNN object.
+   *
    * Optionally, specify which initialize rule and performance function should
    * be used.
    *
-   * @param network Network modules used to construct the network.
-   * @param outputLayer Output layer used to evaluate the network.
-   * @param predictors Input training variables.
-   * @param responses Outputs resulting from input training variables.
-   * @param optimizer Instantiated optimizer used to train the model.
-   * @param initializeRule Optional instantiated InitializationRule object
-   *        for initializing the network parameter.
-   * @param performanceFunction Optional instantiated PerformanceFunction
-   *        object used to calculate the error.
-   */
-  template<typename LayerType,
-           typename OutputType,
-           template<typename> class OptimizerType>
-  RNN(LayerType &&network,
-      OutputType &&outputLayer,
-      const arma::mat& predictors,
-      const arma::mat& responses,
-      OptimizerType<NetworkType>& optimizer,
-      InitializationRuleType initializeRule = InitializationRuleType(),
-      PerformanceFunction performanceFunction = PerformanceFunction());
-
-  /**
-   * Create the RNN object with the given predictors and responses set (this is
-   * the set that is used to train the network). Optionally, specify which
-   * initialize rule and performance function should be used.
+   * If you want to pass in a parameter and discard the original parameter
+   * object, be sure to use std::move to avoid unnecessary copy.
    *
-   * @param network Network modules used to construct the network.
-   * @param outputLayer Output layer used to evaluate the network.
-   * @param predictors Input training variables.
-   * @param responses Outputs resulting from input training variables.
-   * @param initializeRule Optional instantiated InitializationRule object
-   *        for initializing the network parameter.
-   * @param performanceFunction Optional instantiated PerformanceFunction
-   *        object used to calculate the error.
-   */
-  template<typename LayerType, typename OutputType>
-  RNN(LayerType &&network,
-      OutputType &&outputLayer,
-      const arma::mat& predictors,
-      const arma::mat& responses,
-      InitializationRuleType initializeRule = InitializationRuleType(),
-      PerformanceFunction performanceFunction = PerformanceFunction());
-
-  /**
-   * Create the RNN object with an empty predictors and responses set and
-   * default optimizer. Make sure to call Train(predictors, responses) when
-   * training.
-   *
-   * @param network Network modules used to construct the network.
+   * @param bpttSteps Number of time steps to use for BPTT (backpropagation
+   *      through time) when training.
+   * @param single If true, then the network will expect only a single timestep
+   *      for responses.  (That is, every input sequence only has one single
+   *      output; so, `responses.n_slices` should be 1 when calling `Train()`.)
    * @param outputLayer Output layer used to evaluate the network.
    * @param initializeRule Optional instantiated InitializationRule object
    *        for initializing the network parameter.
-   * @param performanceFunction Optional instantiated PerformanceFunction
-   *        object used to calculate the error.
    */
-  template<typename LayerType, typename OutputType>
-  RNN(LayerType &&network,
-      OutputType &&outputLayer,
-      InitializationRuleType initializeRule = InitializationRuleType(),
-      PerformanceFunction performanceFunction = PerformanceFunction());
+  RNN(const size_t bpttSteps = 0,
+      const bool single = false,
+      OutputLayerType outputLayer = OutputLayerType(),
+      InitializationRuleType initializeRule = InitializationRuleType());
+
+  //! Copy constructor.
+  RNN(const RNN&);
+  //! Move constructor.
+  RNN(RNN&&);
+  //! Copy operator.
+  RNN& operator=(const RNN&);
+  //! Move assignment operator.
+  RNN& operator=(RNN&&);
+
+  //! Destroy the RNN and release any memory it is holding.
+  ~RNN();
 
   /**
-   * Train the recurrent neural network on the given input data. By default, the
-   * SGD optimization algorithm is used, but others can be specified
-   * (such as mlpack::optimization::RMSprop).
+   * Add a new module to the model.
    *
-   * This will use the existing model parameters as a starting point for the
-   * optimization. If this is not what you want, then you should access the
-   * parameters vector directly with Parameters() and modify it as desired.
-   *
-   * @tparam OptimizerType Type of optimizer to use to train the model.
-   * @param predictors Input training variables.
-   * @param responses Outputs results from input training variables.
+   * @param args The parameters to pass to the constructor of the layer.
    */
-  template<
-      template<typename> class OptimizerType = mlpack::optimization::SGD
-  >
-  void Train(const arma::mat& predictors, const arma::mat& responses);
+  template<typename LayerType, typename... Args>
+  void Add(Args&&... args)
+  {
+    network.template Add<LayerType>(std::forward<Args>(args)...);
+  }
 
   /**
-   * Train the recurrent neural network with the given instantiated optimizer.
-   * Using this overload allows configuring the instantiated optimizer before
-   * training is performed.
+   * Add a new layer to the model, without specifying the matrix type of the
+   * layer as a template parameter.
    *
-   * This will use the existing model parameters as a starting point for the
-   * optimization. If this is not what you want, then you should access the
-   * parameters vector directly with Parameters() and modify it as desired.
-   *
-   * @param optimizer Instantiated optimizer used to train the model.
+   * @param args The parameters to pass to the constructor of the layer.
    */
-  template<
-      template<typename> class OptimizerType = mlpack::optimization::SGD
-  >
-  void Train(OptimizerType<NetworkType>& optimizer);
+  template<template<typename...> typename LayerType,
+           typename... Args>
+  void Add(Args&&... args)
+  {
+    network.template Add<LayerType<MatType>>(std::forward<Args>(args)...);
+  }
 
   /**
-   * Train the recurrent neural network on the given input data using the given
+   * Add a new module to the model.
+   *
+   * @param layer The Layer to be added to the model.
+   */
+  [[deprecated("Will be removed in mlpack 5.0.0.  Use Add(std::move(layer)).")]]
+  void Add(Layer<MatType>* layer) { network.Add(layer); }
+
+  /**
+   * Add a new layer to the model by copying/moving the parameters of the given
+   * layer.  Note that any trainable weights of this layer will be reset!
+   * (Constant parameters are kept.)  Preferably, pass the layer with
+   * std::move().
+   *
+   * @param layer The layer to be added to the model.
+   */
+  template<typename LayerType>
+  void Add(LayerType&& layer,
+           // This SFINAE can be removed in mlpack 5.0.0.
+           typename std::enable_if<!std::is_pointer_v<
+                std::remove_reference_t<LayerType>>>::type* = 0)
+  {
+    network.Add(std::forward<LayerType>(layer));
+  }
+
+  //! Get the network model.
+  const std::vector<Layer<MatType>*>& Network() const
+  {
+    return network.Network();
+  }
+
+  /**
+   * Modify the network model.  Be careful!  If you change the structure of the
+   * network or parameters for layers, its state may become invalid, and the
+   * next time it is used for any operation the parameters will be reset.
+   *
+   * Don't add any layers like this; use `Add()` instead.
+   */
+  std::vector<Layer<MatType>*>& Network()
+  {
+    return network.Network();
+  }
+
+  /**
+   * Train the recurrent network on the given input data using the given
    * optimizer.
    *
    * This will use the existing model parameters as a starting point for the
    * optimization. If this is not what you want, then you should access the
    * parameters vector directly with Parameters() and modify it as desired.
    *
+   * Note that due to shuffling, training will make a copy of the data, unless
+   * you use `std::move()` to pass the `predictors` and `responses` (that is,
+   * `Train(std::move(predictors), std::move(responses))`).
+   *
    * @tparam OptimizerType Type of optimizer to use to train the model.
+   * @tparam CallbackTypes Types of Callback Functions.
    * @param predictors Input training variables.
    * @param responses Outputs results from input training variables.
    * @param optimizer Instantiated optimizer used to train the model.
+   * @param callbacks Callback function for ensmallen optimizer `OptimizerType`.
+   *      See https://www.ensmallen.org/docs.html#callback-documentation.
+   * @return The final objective of the trained model (NaN or Inf on error).
    */
-  template<
-      template<typename> class OptimizerType = mlpack::optimization::SGD
-  >
-  void Train(const arma::mat& predictors,
-             const arma::mat& responses,
-             OptimizerType<NetworkType>& optimizer);
+  template<typename OptimizerType, typename... CallbackTypes>
+  ElemType Train(CubeType predictors,
+                 CubeType responses,
+                 OptimizerType& optimizer,
+                 CallbackTypes&&... callbacks);
+
+  /**
+   * Train the recurrent network on the given input data. By default, the
+   * RMSProp optimization algorithm is used, but others can be specified
+   * (such as ens::SGD).
+   *
+   * This will use the existing model parameters as a starting point for the
+   * optimization. If this is not what you want, then you should access the
+   * parameters vector directly with Parameters() and modify it as desired.
+   *
+   * Note that due to shuffling, training will make a copy of the data, unless
+   * you use `std::move()` to pass the `predictors` and `responses` (that is,
+   * `Train(std::move(predictors), std::move(responses))`).
+   *
+   * @tparam OptimizerType Type of optimizer to use to train the model.
+   * @param predictors Input training variables.
+   * @tparam CallbackTypes Types of Callback Functions.
+   * @param responses Outputs results from input training variables.
+   * @param callbacks Callback function for ensmallen optimizer `OptimizerType`.
+   *      See https://www.ensmallen.org/docs.html#callback-documentation.
+   * @return The final objective of the trained model (NaN or Inf on error).
+   */
+  template<typename OptimizerType = ens::RMSProp, typename... CallbackTypes>
+  ElemType Train(CubeType predictors,
+                 CubeType responses,
+                 CallbackTypes&&... callbacks);
+
+  /**
+   * Train the recurrent network on the given input data using the given
+   * optimizer, given that input sequences may have different lengths.
+   *
+   * This will use the existing model parameters as a starting point for the
+   * optimization. If this is not what you want, then you should access the
+   * parameters vector directly with Parameters() and modify it as desired.
+   *
+   * Note that due to shuffling, training will make a copy of the data, unless
+   * you use `std::move()` to pass the `predictors` and `responses` (that is,
+   * `Train(std::move(predictors), std::move(responses))`).
+   *
+   * @tparam OptimizerType Type of optimizer to use to train the model.
+   * @tparam CallbackTypes Types of Callback Functions.
+   * @param predictors Input training variables.
+   * @param responses Outputs results from input training variables.
+   * @param sequenceLengths Length of each input sequences.  Should have size
+   *     `predictors.n_cols`, and all values should be less than or equal to
+   *     `predictors.n_slices`.
+   * @param optimizer Instantiated optimizer used to train the model.
+   * @param callbacks Callback function for ensmallen optimizer `OptimizerType`.
+   *      See https://www.ensmallen.org/docs.html#callback-documentation.
+   * @return The final objective of the trained model (NaN or Inf on error).
+   */
+  template<typename OptimizerType, typename... CallbackTypes>
+  ElemType Train(CubeType predictors,
+                 CubeType responses,
+                 URowType sequenceLengths,
+                 OptimizerType& optimizer,
+                 CallbackTypes&&... callbacks);
+
+  /**
+   * Train the recurrent network on the given input data, given that each input
+   * sequence may have a different length.  By default, the RMSProp optimization
+   * algorithm is used, but others can be specified (such as ens::SGD).
+   *
+   * When passing sequences with different lengths, the batch size of the
+   * optimizer must be set to 1; if it is not, an exception will be thrown
+   * during training.
+   *
+   * This will use the existing model parameters as a starting point for the
+   * optimization. If this is not what you want, then you should access the
+   * parameters vector directly with Parameters() and modify it as desired.
+   *
+   * Note that due to shuffling, training will make a copy of the data, unless
+   * you use `std::move()` to pass the `predictors` and `responses` (that is,
+   * `Train(std::move(predictors), std::move(responses))`).
+   *
+   * @tparam OptimizerType Type of optimizer to use to train the model.
+   * @tparam CallbackTypes Types of Callback Functions.
+   * @param predictors Input training variables.
+   * @param responses Outputs results from input training variables.
+   * @param sequenceLengths Length of each input sequences.  Should have size
+   *     `predictors.n_cols`, and all values should be less than or equal to
+   *     `predictors.n_slices`.
+   * @param callbacks Callback function for ensmallen optimizer `OptimizerType`.
+   *      See https://www.ensmallen.org/docs.html#callback-documentation.
+   * @return The final objective of the trained model (NaN or Inf on error).
+   */
+  template<typename OptimizerType = ens::RMSProp, typename... CallbackTypes>
+  ElemType Train(CubeType predictors,
+                 CubeType responses,
+                 URowType sequenceLengths,
+                 CallbackTypes&&... callbacks);
 
   /**
    * Predict the responses to a given set of predictors. The responses will
    * reflect the output of the given output layer as returned by the
-   * OutputClass() function.
+   * output layer function.
    *
    * @param predictors Input predictors.
-   * @param responses Matrix to put output predictions of responses into.
+   * @param results Matrix to put output predictions of responses into.
+   * @param batchSize Batch size to use for prediction.
    */
-  void Predict(arma::mat& predictors, arma::mat& responses);
+  void Predict(const CubeType& predictors,
+               CubeType& results,
+               const size_t batchSize = 128);
 
   /**
-   * Evaluate the recurrent neural network with the given parameters. This
-   * function is usually called by the optimizer to train the model.
+   * Predict the responses to a given set of predictors, given that each
+   * sequence can have a different length. The responses will reflect the output
+   * of the given output layer as returned by the output layer function.
    *
-   * @param parameters Matrix model parameters.
-   * @param i Index of point to use for objective function evaluation.
-   * @param deterministic Whether or not to train or test the model. Note some
-   * layer act differently in training or testing mode.
+   * Slices of column `i` of `results` at time indexes greater than
+   * `sequenceLengths[i]` should not be considered valid predictions.
+   *
+   * The batch size is limited to 1 when predicting on sequences of different
+   * lengths.
+   *
+   * @param predictors Input predictors.
+   * @param results Matrix to put output predictions of responses into.
    */
-  double Evaluate(const arma::mat& parameters,
-                  const size_t i,
-                  const bool deterministic = true);
+  void Predict(const CubeType& predictors,
+               CubeType& results,
+               const URowType& sequenceLengths);
+
+  // Return the nujmber of weights in the model.
+  size_t WeightSize() { return network.WeightSize(); }
 
   /**
-   * Evaluate the gradient of the recurrent neural network with the given
-   * parameters, and with respect to only one point in the dataset. This is
-   * useful for optimizers such as SGD, which require a separable objective
-   * function.
+   * Set the logical dimensions of the input.  `Train()` and `Predict()` expect
+   * data to be passed such that one point corresponds to one column, but this
+   * data is allowed to be an arbitrary higher-order tensor.
    *
-   * @param parameters Matrix of the model parameters to be optimized.
-   * @param i Index of points to use for objective function gradient evaluation.
-   * @param gradient Matrix to output gradient into.
+   * So, if the input is meant to be 28x28x3 images, then the input data to
+   * `Train()` or `Predict()` should have 28*28*3 = 2352 rows, and
+   * `InputDImensions()` should be set to `{ 28, 28, 3}`.  Then, the layers of
+   * the network will interpret each input point as a 3-dimensional image
+   * instead of a 1-dimensional vector.
+   *
+   * If `InputDimensions()` is left unset before training, the data will be
+   * assumed to be a 1-dimensional vector.
    */
-  void Gradient(const arma::mat& parameters,
-                const size_t i,
-                arma::mat& gradient);
-
-  //! Return the number of separable functions (the number of predictor points).
-  size_t NumFunctions() const { return numFunctions; }
+  std::vector<size_t>& InputDimensions() { return network.InputDimensions(); }
+  //! Get the logical dimensions of the input.
+  const std::vector<size_t>& InputDimensions() const
+  {
+    return network.InputDimensions();
+  }
 
   //! Return the initial point for the optimization.
-  const arma::mat& Parameters() const { return parameter; }
+  const MatType& Parameters() const { return network.Parameters(); }
   //! Modify the initial point for the optimization.
-  arma::mat& Parameters() { return parameter; }
+  MatType& Parameters() { return network.Parameters(); }
 
-  //! Serialize the model.
+  //! Return the number of steps allowed for BPTT.
+  size_t BPTTSteps() const { return bpttSteps; }
+  //! Modify the number of steps allowed for BPTT.
+  size_t& BPTTSteps() { return bpttSteps; }
+
+  /**
+   * Reset the stored data of the network entirely.  This reset all weights of
+   * each layer using `InitializationRuleType`, and prepares the network to
+   * accept a (flat 1-d) input size of `inputDimensionality` (if passed), or
+   * whatever input size has been set with `InputDimensions()`.
+   *
+   * This also resets the mode of the network to prediction mode (not training
+   * mode).  See `SetNetworkMode()` for more information.
+   */
+  void Reset(const size_t inputDimensionality = 0);
+
+  /**
+   * Set all the layers in the network to training mode, if `training` is
+   * `true`, or set all the layers in the network to testing mode, if `training`
+   * is `false`.
+   */
+  void SetNetworkMode(const bool training) { network.SetNetworkMode(training); }
+
+  /**
+   * Evaluate the recurrent network with the given predictors and responses.
+   * This functions is usually used to monitor progress while training.
+   *
+   * @param predictors Input variables.
+   * @param responses Target outputs for input variables.
+   */
+  ElemType Evaluate(const CubeType& predictors, const CubeType& responses);
+
+  /**
+   * Evaluate the recurrent network with the given predictors and responses.
+   * This functions is usually used to monitor progress while training.
+   *
+   * @param predictors Input variables.
+   * @param responses Target outputs for input variables.
+   * @param sequenceLengths Length of each input sequences.  Should have size
+   *     `predictors.n_cols`, and all values should be less than or equal to
+   *     `predictors.n_slices`.
+   * @param batchSize Number of points to be passed at a time to use for
+   *        objective function evaluation.
+   */
+  ElemType Evaluate(const CubeType& predictors,
+                    const CubeType& responses,
+                    const URowType& sequenceLengths,
+                    const size_t batchSize);
+
+  // Serialize the model.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int /* version */);
+  void serialize(Archive& ar, const uint32_t /* version */);
+
+  //
+  // Only ensmallen utility functions for training are found below here.
+  // They generally aren't useful otherwise.
+  //
+
+  /**
+   * Evaluate the recurrent network with the given parameters. This function
+   * is usually called by the optimizer to train the model.
+   *
+   * @param parameters Matrix model parameters.
+   */
+  ElemType Evaluate(const MatType& parameters);
+
+   /**
+   * Evaluate the recurrent network with the given parameters, but using only
+   * a number of data points. This is useful for optimizers such as SGD, which
+   * require a separable objective function.
+   *
+   * Note that the network may return different results depending on the mode it
+   * is in (see `SetNetworkMode()`).
+   *
+   * @param parameters Matrix model parameters.
+   * @param begin Index of the starting point to use for objective function
+   *        evaluation.
+   * @param batchSize Number of points to be passed at a time to use for
+   *        objective function evaluation.
+   */
+  ElemType Evaluate(const MatType& parameters,
+                    const size_t begin,
+                    const size_t batchSize);
+
+  /**
+   * Evaluate the recurrent network with the given parameters.
+   * This function is usually called by the optimizer to train the model.
+   * This just calls the overload of EvaluateWithGradient() with batchSize = 1.
+   *
+   * @param parameters Matrix model parameters.
+   * @param gradient Matrix to output gradient into.
+   */
+  template<typename GradType>
+  ElemType EvaluateWithGradient(const MatType& parameters,
+                                GradType& gradient);
+
+   /**
+   * Evaluate the recurrent network with the given parameters, but using only
+   * a number of data points. This is useful for optimizers such as SGD, which
+   * require a separable objective function.
+   *
+   * @param parameters Matrix model parameters.
+   * @param begin Index of the starting point to use for objective function
+   *        evaluation.
+   * @param gradient Matrix to output gradient into.
+   * @param batchSize Number of points to be passed at a time to use for
+   *        objective function evaluation.
+   */
+  template<typename GradType>
+  ElemType EvaluateWithGradient(const MatType& parameters,
+                                const size_t begin,
+                                GradType& gradient,
+                                const size_t batchSize);
+
+  /**
+   * Evaluate the gradient of the recurrent network with the given parameters,
+   * and with respect to only a number of points in the dataset. This is useful
+   * for optimizers such as SGD, which require a separable objective function.
+   *
+   * @param parameters Matrix of the model parameters to be optimized.
+   * @param begin Index of the starting point to use for objective function
+   *        gradient evaluation.
+   * @param gradient Matrix to output gradient into.
+   * @param batchSize Number of points to be processed as a batch for objective
+   *        function gradient evaluation.
+   */
+  template<typename GradType>
+  void Gradient(const MatType& parameters,
+                const size_t begin,
+                GradType& gradient,
+                const size_t batchSize);
+
+  //! Return the number of separable functions (the number of predictor points).
+  size_t NumFunctions() const { return predictors.n_cols; }
+
+  /**
+   * Note: this function is implement so that it can be used by ensmallen's
+   * optimizers.  It's not generally meant to be used otherwise.
+   *
+   * Shuffle the order of function visitation.  (This is equivalent to shuffling
+   * the dataset during training.)
+   */
+  void Shuffle();
+
+  /**
+   * Prepare the network for the given data.
+   * This function won't actually trigger training process.
+   *
+   * @param predictors Input data variables.
+   * @param responses Outputs results from input data variables.
+   * @param sequenceLengths (Optional) sequence length for each predictor
+   *     sequence.
+   */
+  void ResetData(CubeType predictors,
+                 CubeType responses,
+                 URowType sequenceLengths = URowType());
 
  private:
-  /*
-   * Predict the response of the given input matrix.
-   */
-  template <typename DataType>
-  void SinglePredict(const DataType& input, DataType& output)
-  {
-    deterministic = true;
-    seqLen = input.n_rows / inputSize;
-    ResetParameter(network);
-
-    // Iterate through the input sequence and perform the feed forward pass.
-    for (seqNum = 0; seqNum < seqLen; seqNum++)
-    {
-      // Perform the forward pass and save the activations.
-      Forward(input.rows(seqNum * inputSize, (seqNum + 1) * inputSize - 1),
-          network);
-      SaveActivations(network);
-
-      // Retrieve output of the subsequence.
-      if (seqOutput)
-      {
-        DataType seqOutput;
-        OutputPrediction(seqOutput, network);
-        output = arma::join_cols(output, seqOutput);
-      }
-    }
-
-    // Retrieve output of the complete sequence.
-    if (!seqOutput)
-      OutputPrediction(output, network);
-  }
+  // Helper functions.
 
   /**
-   * Reset the network by clearing the layer activations and by setting the
-   * layer status.
+   * Iterate over all layers and reset the recurrent layers' states.  Prepare
+   * each recurrent layer to store up to `memorySize` previous states, operating
+   * with a batch size of `batchSize`.
    */
-  template<size_t I = 0, typename... Tp>
-  typename std::enable_if<I == sizeof...(Tp), void>::type
-  ResetParameter(std::tuple<Tp...>& /* unused */)
+  void ResetMemoryState(const size_t memorySize, const size_t batchSize);
+
+  //! Set the current step index of all recurrent layers to `step`.
+  void SetCurrentStep(const size_t step,
+                      const bool end,
+                      size_t batchSize,
+                      size_t activeBatchSize,
+                      bool backwards = false);
+
+  // Reorders the data in a batch to have sequence lengths in descending order.
+  void ReorderBatch(const size_t begin,
+                    const size_t batchSize,
+                    CubeType& predictors,
+                    CubeType& responses,
+                    URowType& sequenceLengths);
+
+  // Calculates the number of active points in the batch.
+  template <typename SeqLenType = URowType>
+  void CalculateActivePoints(size_t& activeBatchSize,
+                             const size_t begin,
+                             const SeqLenType& sequenceLengths,
+                             const size_t step,
+                             const std::enable_if_t<
+                                 IsArma<SeqLenType>::value>* = 0)
   {
-    activations.clear();
+    // Since we know that `sequenceLengths` is sorted in order of descending
+    // lengths and `activeBatchSize` only decreases as `step` increases, we
+    // can just decrease `activeBatchSize` until we find the sequence length
+    // that is greater than the current step.
+    while (activeBatchSize > 0 &&
+        sequenceLengths[begin + activeBatchSize - 1] <= step)
+      activeBatchSize--;
   }
 
-  template<size_t I = 0, typename... Tp>
-  typename std::enable_if<I < sizeof...(Tp), void>::type
-  ResetParameter(std::tuple<Tp...>& network)
+  template <typename SeqLenType = URowType>
+  void CalculateActivePoints(size_t& activeBatchSize,
+                             const size_t begin,
+                             const SeqLenType& sequenceLengths,
+                             const size_t step,
+                             const std::enable_if_t<
+                                 IsCoot<SeqLenType>::value>* = 0)
   {
-    ResetDeterministic(std::get<I>(network));
-    ResetSeqLen(std::get<I>(network));
-    ResetRecurrent(std::get<I>(network), std::get<I>(network).InputParameter());
-    std::get<I>(network).Delta().zeros();
-
-    ResetParameter<I + 1, Tp...>(network);
+    // Individual element access is probably slower if `SeqLenType` is a
+    // Bandicoot type so we don't use the optimized version.
+    activeBatchSize = accu(sequenceLengths
+        .subvec(begin, begin + activeBatchSize - 1) > step);
   }
 
-  /**
-   * Reset the layer status by setting the current deterministic parameter
-   * for all layer that implement the Deterministic function.
-   */
-  template<typename T>
-  typename std::enable_if<
-      HasDeterministicCheck<T, bool&(T::*)(void)>::value, void>::type
-  ResetDeterministic(T& layer)
-  {
-    layer.Deterministic() = deterministic;
-  }
+  //! Number of timesteps to consider for backpropagation through time (BPTT).
+  size_t bpttSteps;
+  //! Whether the network expects only one single response per sequence, or one
+  //! response per time step.
+  bool single;
+
+  //! The network itself is stored in this FFN object.  Note that this network
+  //! may contain recursive layers, and thus we will be responsible for
+  //! occasionally resetting any memory cells.
+  FFN<OutputLayerType, InitializationRuleType, MatType> network;
+
+  // The matrix of data points (predictors).  These members are empty, except
+  // during training---we must store a local copy of the training data since
+  // the ensmallen optimizer will not provide training data.
+  CubeType predictors;
+
+  // The matrix of responses to the input data points.  This member is empty,
+  // except during training.
+  CubeType responses;
+
+  // The length of each input sequence.  If this is empty, then every sequence
+  // is assumed to have the same length (`predictors.n_slices`).
+  URowType sequenceLengths;
+}; // class RNNType
 
-  template<typename T>
-  typename std::enable_if<
-      !HasDeterministicCheck<T, bool&(T::*)(void)>::value, void>::type
-  ResetDeterministic(T& /* unused */) { /* Nothing to do here */ }
-
-  /**
-   * Reset the layer sequence length by setting the current seqLen parameter
-   * for all layer that implement the SeqLen function.
-   */
-  template<typename T>
-  typename std::enable_if<
-      HasSeqLenCheck<T, size_t&(T::*)(void)>::value, void>::type
-  ResetSeqLen(T& layer)
-  {
-    layer.SeqLen() = seqLen;
-  }
-
-  template<typename T>
-  typename std::enable_if<
-      !HasSeqLenCheck<T, size_t&(T::*)(void)>::value, void>::type
-  ResetSeqLen(T& /* unused */) { /* Nothing to do here */ }
-
-  /**
-   * Distinguish between recurrent layer and non-recurrent layer when resetting
-   * the recurrent parameter.
-   */
-  template<typename T, typename P>
-  typename std::enable_if<
-      HasRecurrentParameterCheck<T, P&(T::*)()>::value, void>::type
-  ResetRecurrent(T& layer, P& /* unused */)
-  {
-    layer.RecurrentParameter().zeros();
-  }
-
-  template<typename T, typename P>
-  typename std::enable_if<
-      !HasRecurrentParameterCheck<T, P&(T::*)()>::value, void>::type
-  ResetRecurrent(T& /* unused */, P& /* unused */)
-  {
-    /* Nothing to do here */
-  }
-
-  /**
-   * Initialize the network by setting the input size and output size.
-   */
-  template<size_t I = 0, typename InputDataType, typename TargetDataType,
-      typename... Tp>
-  typename std::enable_if<I == sizeof...(Tp) - 1, void>::type
-  InitLayer(const InputDataType& /* unused */,
-            const TargetDataType& target,
-            std::tuple<Tp...>& /* unused */)
-  {
-    seqOutput = outputSize < target.n_elem ? true : false;
-  }
-
-  template<size_t I = 0, typename InputDataType, typename TargetDataType,
-      typename... Tp>
-  typename std::enable_if<I < sizeof...(Tp) - 1, void>::type
-  InitLayer(const InputDataType& input,
-            const TargetDataType& target,
-            std::tuple<Tp...>& network)
-  {
-    Init(std::get<I>(network), std::get<I>(network).OutputParameter(),
-       std::get<I + 1>(network).Delta());
-
-    InitLayer<I + 1, InputDataType, TargetDataType, Tp...>(input, target,
-        network);
-  }
-
-  /**
-   * Retrieve the weight matrix for all layer that implement the Weights
-   * function to extract the input size and output size.
-   */
-  template<typename T, typename P, typename D>
-  typename std::enable_if<
-      HasGradientCheck<T, P&(T::*)()>::value, void>::type
-  Init(T& layer, P& /* unused */, D& /* unused */)
-  {
-    // Initialize the input size only once.
-    if (!inputSize)
-      inputSize = layer.Weights().n_cols;
-
-    outputSize = layer.Weights().n_rows;
-  }
-
-  template<typename T, typename P, typename D>
-  typename std::enable_if<
-      !HasGradientCheck<T, P&(T::*)()>::value, void>::type
-  Init(T& /* unused */, P& /* unused */, D& /* unused */)
-  {
-    /* Nothing to do here */
-  }
-
-  /**
-   * Save the network layer activations.
-   */
-  template<
-      size_t I = 0,
-      size_t Max = std::tuple_size<LayerTypes>::value - 1,
-      typename... Tp
-  >
-  typename std::enable_if<I == Max, void>::type
-  SaveActivations(std::tuple<Tp...>& /* unused */)
-  {
-    Save(I, std::get<I>(network), std::get<I>(network).InputParameter());
-    LinkRecurrent(network);
-  }
-
-  template<
-      size_t I = 0,
-      size_t Max = std::tuple_size<LayerTypes>::value - 1,
-      typename... Tp
-  >
-  typename std::enable_if<I < Max, void>::type
-  SaveActivations(std::tuple<Tp...>& network)
-  {
-    Save(I, std::get<I>(network), std::get<I>(network).InputParameter());
-    SaveActivations<I + 1, Max, Tp...>(network);
-  }
-
-  /**
-   * Distinguish between recurrent layer and non-recurrent layer when storing
-   * the activations.
-   */
-  template<typename T, typename P>
-  typename std::enable_if<
-      HasRecurrentParameterCheck<T, P&(T::*)()>::value, void>::type
-  Save(const size_t layerNumber, T& layer, P& /* unused */)
-  {
-    if (activations.size() == layerNumber)
-    {
-      activations.push_back(new arma::mat(layer.RecurrentParameter().n_rows,
-          seqLen));
-    }
-
-    activations[layerNumber].unsafe_col(seqNum) = layer.RecurrentParameter();
-  }
-
-  template<typename T, typename P>
-  typename std::enable_if<
-      !HasRecurrentParameterCheck<T, P&(T::*)()>::value, void>::type
-  Save(const size_t layerNumber, T& layer, P& /* unused */)
-  {
-    if (activations.size() == layerNumber)
-    {
-      activations.push_back(new arma::mat(layer.OutputParameter().n_rows,
-          seqLen));
-    }
-
-    activations[layerNumber].unsafe_col(seqNum) = layer.OutputParameter();
-  }
-
-  /**
-   * Load the network layer activations.
-   */
-  template<
-      size_t I = 0,
-      size_t Max = std::tuple_size<LayerTypes>::value - 1,
-      typename DataType, typename... Tp
-  >
-  typename std::enable_if<I == Max, void>::type
-  LoadActivations(DataType& input, std::tuple<Tp...>& network)
-  {
-    Load(I, std::get<I>(network), std::get<I>(network).InputParameter());
-    std::get<0>(network).InputParameter() = input;
-  }
-
-  template<
-      size_t I = 0,
-      size_t Max = std::tuple_size<LayerTypes>::value - 1,
-      typename DataType, typename... Tp
-  >
-  typename std::enable_if<I < Max, void>::type
-  LoadActivations(DataType& input, std::tuple<Tp...>& network)
-  {
-    Load(I, std::get<I>(network), std::get<I>(network).InputParameter());
-    LoadActivations<I + 1, Max, DataType, Tp...>(input, network);
-  }
-
-  /**
-   * Distinguish between recurrent layer and non-recurrent layer when storing
-   * the activations.
-   */
-  template<typename T, typename P>
-  typename std::enable_if<
-      HasRecurrentParameterCheck<T, P&(T::*)()>::value, void>::type
-  Load(const size_t layerNumber, T& layer, P& /* unused */)
-  {
-    layer.RecurrentParameter() = activations[layerNumber].unsafe_col(seqNum);
-  }
-
-  template<typename T, typename P>
-  typename std::enable_if<
-      !HasRecurrentParameterCheck<T, P&(T::*)()>::value, void>::type
-  Load(const size_t layerNumber, T& layer, P& /* unused */)
-  {
-    layer.OutputParameter() = activations[layerNumber].unsafe_col(seqNum);
-  }
-
-  /**
-   * Run a single iteration of the feed forward algorithm, using the given
-   * input and target vector, store the calculated error into the error
-   * vector.
-   */
-  template<size_t I = 0, typename DataType, typename... Tp>
-  void Forward(const DataType& input, std::tuple<Tp...>& network)
-  {
-    std::get<I>(network).InputParameter() = input;
-    std::get<I>(network).Forward(std::get<I>(network).InputParameter(),
-        std::get<I>(network).OutputParameter());
-
-    ForwardTail<I + 1, Tp...>(network);
-  }
-
-  template<size_t I = 1, typename... Tp>
-  typename std::enable_if<I == sizeof...(Tp), void>::type
-  ForwardTail(std::tuple<Tp...>& /* unused */) { /* Nothing to do here */ }
-
-  template<size_t I = 1, typename... Tp>
-  typename std::enable_if<I < sizeof...(Tp), void>::type
-  ForwardTail(std::tuple<Tp...>& network)
-  {
-    std::get<I>(network).Forward(std::get<I - 1>(network).OutputParameter(),
-        std::get<I>(network).OutputParameter());
-
-    ForwardTail<I + 1, Tp...>(network);
-  }
-
-  /**
-   * Link the calculated activation with the correct layer.
-   */
-  template<
-      size_t I = 1,
-      size_t Max = std::tuple_size<LayerTypes>::value - 1,
-      typename... Tp
-  >
-  typename std::enable_if<I == Max, void>::type
-  LinkParameter(std::tuple<Tp ...>& /* unused */)
-  {
-    if (!LayerTraits<typename std::remove_reference<
-        decltype(std::get<I>(network))>::type>::IsBiasLayer)
-    {
-      std::get<I>(network).InputParameter() = std::get<I - 1>(
-          network).OutputParameter();
-    }
-  }
-
-  template<
-      size_t I = 1,
-      size_t Max = std::tuple_size<LayerTypes>::value - 1,
-      typename... Tp
-  >
-  typename std::enable_if<I < Max, void>::type
-  LinkParameter(std::tuple<Tp...>& network)
-  {
-    if (!LayerTraits<typename std::remove_reference<
-        decltype(std::get<I>(network))>::type>::IsBiasLayer)
-    {
-      std::get<I>(network).InputParameter() = std::get<I - 1>(
-          network).OutputParameter();
-    }
-
-    LinkParameter<I + 1, Max, Tp...>(network);
-  }
-
-  /**
-   * Link the calculated activation with the correct recurrent layer.
-   */
-  template<
-      size_t I = 0,
-      size_t Max = std::tuple_size<LayerTypes>::value - 1,
-      typename... Tp
-  >
-  typename std::enable_if<I == Max, void>::type
-  LinkRecurrent(std::tuple<Tp ...>& /* unused */) { /* Nothing to do here */ }
-
-  template<
-      size_t I = 0,
-      size_t Max = std::tuple_size<LayerTypes>::value - 1,
-      typename... Tp
-  >
-  typename std::enable_if<I < Max, void>::type
-  LinkRecurrent(std::tuple<Tp...>& network)
-  {
-    UpdateRecurrent(std::get<I>(network), std::get<I>(network).InputParameter(),
-        std::get<I + 1>(network).OutputParameter());
-    LinkRecurrent<I + 1, Max, Tp...>(network);
-  }
-
-  /**
-   * Distinguish between recurrent layer and non-recurrent layer when updating
-   * the recurrent activations.
-   */
-  template<typename T, typename P, typename D>
-  typename std::enable_if<
-      HasRecurrentParameterCheck<T, P&(T::*)()>::value, void>::type
-  UpdateRecurrent(T& layer, P& /* unused */, D& output)
-  {
-    layer.RecurrentParameter() = output;
-  }
-
-  template<typename T, typename P, typename D>
-  typename std::enable_if<
-      !HasRecurrentParameterCheck<T, P&(T::*)()>::value, void>::type
-  UpdateRecurrent(T& /* unused */, P& /* unused */, D& /* unused */)
-  {
-    /* Nothing to do here */
-  }
-
-  /*
-   * Calculate the output error and update the overall error.
-   */
-  template<typename DataType, typename ErrorType, typename... Tp>
-  double OutputError(const DataType& target,
-                     ErrorType& error,
-                     const std::tuple<Tp...>& network)
-  {
-    // Calculate and store the output error.
-    outputLayer.CalculateError(
-        std::get<sizeof...(Tp) - 1>(network).OutputParameter(), target, error);
-
-    // Masures the network's performance with the specified performance
-    // function.
-    return performanceFunc.Error(network, target, error);
-  }
-
-  /**
-   * Run a single iteration of the feed backward algorithm, using the given
-   * error of the output layer. Note that we iterate backward through the
-   * layer modules.
-   */
-  template<size_t I = 1, typename DataType, typename... Tp>
-  void Backward(DataType& error, std::tuple<Tp ...>& network)
-  {
-    std::get<sizeof...(Tp) - I>(network).Backward(
-        std::get<sizeof...(Tp) - I>(network).OutputParameter(), error,
-        std::get<sizeof...(Tp) - I>(network).Delta());
-
-    BackwardTail<I + 1, DataType, Tp...>(error, network);
-  }
-
-  template<size_t I = 1, typename DataType, typename... Tp>
-  typename std::enable_if<I == (sizeof...(Tp)), void>::type
-  BackwardTail(const DataType& /* unused */, std::tuple<Tp...>& /* unused */)
-  {
-    /* Nothing to do here */
-  }
-
-  template<size_t I = 1, typename DataType, typename... Tp>
-  typename std::enable_if<I < (sizeof...(Tp)), void>::type
-  BackwardTail(const DataType& error, std::tuple<Tp...>& network)
-  {
-    BackwardRecurrent(std::get<sizeof...(Tp) - I - 1>(network),
-        std::get<sizeof...(Tp) - I - 1>(network).InputParameter(),
-        std::get<sizeof...(Tp) - I + 1>(network).Delta());
-
-    std::get<sizeof...(Tp) - I>(network).Backward(
-        std::get<sizeof...(Tp) - I>(network).OutputParameter(),
-        std::get<sizeof...(Tp) - I + 1>(network).Delta(),
-        std::get<sizeof...(Tp) - I>(network).Delta());
-
-    BackwardTail<I + 1, DataType, Tp...>(error, network);
-  }
-
-  /*
-   * Update the delta of the recurrent layer.
-   */
-  template<typename T, typename P, typename D>
-  typename std::enable_if<
-      HasRecurrentParameterCheck<T, P&(T::*)()>::value, void>::type
-  BackwardRecurrent(T& layer, P& /* unused */, D& delta)
-  {
-    if (!layer.Delta().is_empty())
-      delta += layer.Delta();
-  }
-
-  template<typename T, typename P, typename D>
-  typename std::enable_if<
-      !HasRecurrentParameterCheck<T, P&(T::*)()>::value, void>::type
-  BackwardRecurrent(T& /* unused */, P& /* unused */, D& /* unused */)
-  {
-    /* Nothing to do here */
-  }
-
-  /**
-   * Iterate through all layer modules and update the the gradient using the
-   * layer defined optimizer.
-   */
-  template<size_t I = 0, size_t Max = std::tuple_size<LayerTypes>::value - 2,
-      typename... Tp>
-  typename std::enable_if<I == Max, void>::type
-  UpdateGradients(std::tuple<Tp...>& network)
-  {
-    Update(std::get<I>(network), std::get<I>(network).OutputParameter(),
-        std::get<I + 1>(network).Delta(), std::get<I + 1>(network),
-        std::get<I + 1>(network).InputParameter(),
-        std::get<I + 1>(network).Delta());
-  }
-
-  template<size_t I = 0, size_t Max = std::tuple_size<LayerTypes>::value - 2,
-      typename... Tp>
-  typename std::enable_if<I < Max, void>::type
-  UpdateGradients(std::tuple<Tp...>& network)
-  {
-    Update(std::get<I>(network), std::get<I>(network).OutputParameter(),
-        std::get<I + 1>(network).Delta(), std::get<I + 1>(network),
-        std::get<I + 1>(network).InputParameter(),
-        std::get<I + 2>(network).Delta());
-
-    UpdateGradients<I + 1, Max, Tp...>(network);
-  }
-
-  template<typename T1, typename P1, typename D1, typename T2, typename P2,
-      typename D2>
-  typename std::enable_if<
-      HasGradientCheck<T1, P1&(T1::*)()>::value &&
-      HasRecurrentParameterCheck<T2, P2&(T2::*)()>::value, void>::type
-  Update(T1& layer, P1& /* unused */, D1& /* unused */, T2& /* unused */,
-         P2& /* unused */, D2& delta2)
-  {
-    layer.Gradient(layer.InputParameter(), delta2, layer.Gradient());
-  }
-
-  template<typename T1, typename P1, typename D1, typename T2, typename P2,
-      typename D2>
-  typename std::enable_if<
-      (!HasGradientCheck<T1, P1&(T1::*)()>::value &&
-      !HasRecurrentParameterCheck<T2, P2&(T2::*)()>::value) ||
-      (!HasGradientCheck<T1, P1&(T1::*)()>::value &&
-      HasRecurrentParameterCheck<T2, P2&(T2::*)()>::value), void>::type
-  Update(T1& /* unused */, P1& /* unused */, D1& /* unused */, T2& /* unused */,
-         P2& /* unused */, D2& /* unused */)
-  {
-    /* Nothing to do here */
-  }
-
-  template<typename T1, typename P1, typename D1, typename T2, typename P2,
-      typename D2>
-  typename std::enable_if<
-      HasGradientCheck<T1, P1&(T1::*)()>::value &&
-      !HasRecurrentParameterCheck<T2, P2&(T2::*)()>::value, void>::type
-  Update(T1& layer, P1& /* unused */, D1& delta1, T2& /* unused */,
-         P2& /* unused */, D2& /* unused */)
-  {
-    layer.Gradient(layer.InputParameter(), delta1, layer.Gradient());
-  }
-
-  /*
-   * Calculate and store the output activation.
-   */
-  template<typename DataType, typename... Tp>
-  void OutputPrediction(DataType& output, std::tuple<Tp...>& network)
-  {
-    // Calculate and store the output prediction.
-    outputLayer.OutputClass(std::get<sizeof...(Tp) - 1>(
-        network).OutputParameter(), output);
-  }
-
-  //! Instantiated recurrent neural network.
-  LayerTypes network;
-
-  //! The outputlayer used to evaluate the network
-  OutputLayerType& outputLayer;
-
-  //! Performance strategy used to claculate the error.
-  PerformanceFunction performanceFunc;
-
-  //! The current evaluation mode (training or testing).
-  bool deterministic;
-
-  //! Matrix of (trained) parameters.
-  arma::mat parameter;
-
-  //! The matrix of data points (predictors).
-  arma::mat predictors;
-
-  //! The matrix of responses to the input data points.
-  arma::mat responses;
-
-  //! Locally stored network input size.
-  size_t inputSize;
-
-  //! Locally stored network output size.
-  size_t outputSize;
-
-  //! The index of the current sequence number.
-  size_t seqNum;
-
-  //! Locally stored number of samples in one input sequence.
-  size_t seqLen;
-
-  //! Locally stored parameter that indicates if the input is a sequence.
-  bool seqOutput;
-
-  //! The activation storage we are using to perform the feed backward pass.
-  boost::ptr_vector<arma::mat> activations;
-
-  //! The number of separable functions (the number of predictor points).
-  size_t numFunctions;
-
-  //! Locally stored backward error.
-  arma::mat error;
-}; // class RNN
-
-} // namespace ann
 } // namespace mlpack
 
 // Include implementation.

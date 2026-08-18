@@ -1,5 +1,5 @@
 /**
- * @file ballbound.hpp
+ * @file core/tree/ballbound.hpp
  *
  * Bounds that are useful for binary space partitioning trees.
  * Interface to a ball bound that works in arbitrary metric spaces.
@@ -13,29 +13,27 @@
 #define MLPACK_CORE_TREE_BALLBOUND_HPP
 
 #include <mlpack/prereqs.hpp>
-#include <mlpack/core/metrics/lmetric.hpp>
+#include <mlpack/core/distances/lmetric.hpp>
 #include "bound_traits.hpp"
 
 namespace mlpack {
-namespace bound {
 
 /**
  * Ball bound encloses a set of points at a specific distance (radius) from a
- * specific point (center). MetricType is the custom metric type that defaults
- * to the Euclidean (L2) distance.
+ * specific point (center). DistanceType is the custom distance metric type that
+ * defaults to the Euclidean (L2) distance.
  *
- * @tparam MetricType metric type used in the distance measure.
+ * @tparam DistanceType distance metric type used in the distance measure.
  * @tparam VecType Type of vector (arma::vec or arma::sp_vec or similar).
  */
-template<typename MetricType = metric::LMetric<2, true>,
-         typename VecType = arma::vec>
+template<typename DistanceType = LMetric<2, true>,
+         typename ElemType = double,
+         typename VecType = arma::Col<ElemType>>
 class BallBound
 {
  public:
-  //! The underlying data type.
-  typedef typename VecType::elem_type ElemType;
   //! A public version of the vector type.
-  typedef VecType Vec;
+  using Vec = VecType;
 
  private:
   //! The radius of the ball bound.
@@ -43,18 +41,17 @@ class BallBound
   //! The center of the ball bound.
   VecType center;
   //! The metric used in this bound.
-  MetricType* metric;
+  DistanceType* distance;
 
   /**
-   * To know whether this object allocated memory to the metric member
+   * To know whether this object allocated memory to the distance metric member
    * variable. This will be true except in the copy constructor and the
    * overloaded assignment operator. We need this to know whether we should
-   * delete the metric member variable in the destructor.
+   * delete the distance metric member variable in the destructor.
    */
-  bool ownsMetric;
+  bool ownsDistance;
 
  public:
-
   //! Empty Constructor.
   BallBound();
 
@@ -82,6 +79,9 @@ class BallBound
   //! Move constructor: take possession of another bound.
   BallBound(BallBound&& other);
 
+  //! Move assignment operator.
+  BallBound& operator=(BallBound&& other);
+
   //! Destructor to release allocated memory.
   ~BallBound();
 
@@ -105,10 +105,12 @@ class BallBound
   ElemType MinWidth() const { return radius * 2.0; }
 
   //! Get the range in a certain dimension.
-  math::RangeType<ElemType> operator[](const size_t i) const;
+  RangeType<ElemType> operator[](const size_t i) const;
 
   /**
    * Determines if a point is within this bound.
+   *
+   * @param point Point to check the condition.
    */
   bool Contains(const VecType& point) const;
 
@@ -121,6 +123,8 @@ class BallBound
 
   /**
    * Calculates minimum bound-to-point squared distance.
+   *
+   * @param point Point to which the minimum distance is requested.
    */
   template<typename OtherVecType>
   ElemType MinDistance(
@@ -129,11 +133,15 @@ class BallBound
 
   /**
    * Calculates minimum bound-to-bound squared distance.
+   *
+   * @param other Bound to which the minimum distance is requested.
    */
   ElemType MinDistance(const BallBound& other) const;
 
   /**
    * Computes maximum distance.
+   *
+   * @param point Point to which the maximum distance is requested.
    */
   template<typename OtherVecType>
   ElemType MaxDistance(
@@ -142,14 +150,19 @@ class BallBound
 
   /**
    * Computes maximum distance.
+   *
+   * @param other Bound to which the maximum distance is requested.
    */
   ElemType MaxDistance(const BallBound& other) const;
 
   /**
    * Calculates minimum and maximum bound-to-point distance.
+   *
+   * @param other Point to which the minimum and maximum distances are
+   *     requested.
    */
   template<typename OtherVecType>
-  math::RangeType<ElemType> RangeDistance(
+  RangeType<ElemType> RangeDistance(
       const OtherVecType& other,
       typename std::enable_if_t<IsVector<OtherVecType>::value>* = 0) const;
 
@@ -157,13 +170,11 @@ class BallBound
    * Calculates minimum and maximum bound-to-bound distance.
    *
    * Example: bound1.MinDistanceSq(other) for minimum distance.
+   *
+   * @param other Bound to which the minimum and maximum distances are
+   *     requested.
    */
-  math::RangeType<ElemType> RangeDistance(const BallBound& other) const;
-
-  /**
-   * Expand the bound to include the given node.
-   */
-  const BallBound& operator|=(const BallBound& other);
+  RangeType<ElemType> RangeDistance(const BallBound& other) const;
 
   /**
    * Expand the bound to include the given point.  The centroid is recalculated
@@ -182,24 +193,30 @@ class BallBound
   ElemType Diameter() const { return 2 * radius; }
 
   //! Returns the distance metric used in this bound.
-  const MetricType& Metric() const { return *metric; }
+  [[deprecated("Will be removed in mlpack 5.0.0; use Distance()")]]
+  const DistanceType& Metric() const { return *distance; }
   //! Modify the distance metric used in this bound.
-  MetricType& Metric() { return *metric; }
+  [[deprecated("Will be removed in mlpack 5.0.0; use Distance()")]]
+  DistanceType& Metric() { return *distance; }
+
+  //! Returns the distance metric used in this bound.
+  const DistanceType& Distance() const { return *distance; }
+  //! Modify the distance metric used in this bound.
+  DistanceType& Distance() { return *distance; }
 
   //! Serialize the bound.
   template<typename Archive>
-  void Serialize(Archive& ar, const unsigned int version);
+  void serialize(Archive& ar, const uint32_t version);
 };
 
 //! A specialization of BoundTraits for this bound type.
-template<typename MetricType, typename VecType>
-struct BoundTraits<BallBound<MetricType, VecType>>
+template<typename DistanceType, typename VecType>
+struct BoundTraits<BallBound<DistanceType, VecType>>
 {
   //! These bounds are potentially loose in some dimensions.
-  const static bool HasTightBounds = false;
+  static const bool HasTightBounds = false;
 };
 
-} // namespace bound
 } // namespace mlpack
 
 #include "ballbound_impl.hpp"
